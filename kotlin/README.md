@@ -118,7 +118,7 @@ cheapest check that a refactor was behaviour-neutral.
 
 ## How these codecs are checked
 
-Two independent gates, and neither is sufficient alone:
+Three independent gates, and none is sufficient alone:
 
 1. **Vectors.** `expectedHex` comes from EVerest's libcbv2g at a pinned commit — the same corpus
    the C# suite uses, read straight out of the submodule rather than copied. AppProtocol encodes
@@ -128,9 +128,16 @@ Two independent gates, and neither is sufficient alone:
    (event codes, widths, primitive and nested-codec calls, in order) against the C# emitter's
    output from the same `SchemaPlan`. That is what rules out the mirrored bug — and the C# side is
    itself pinned to these vectors.
+3. **Structure**, in the .NET suite (`KotlinEmitterSplitTests`, `CodegenDriverTests`). The Kotlin
+   back end is driven directly on a mini-XSD and on the real -2 set, and the result is checked for
+   the things a byte diff cannot see: that every `encodeX(…)` call resolves to a function some file
+   declares, that nothing is declared twice, that imports match use, and that the driver's
+   stale-output removal takes the generated files and leaves the hand-written ones. Each of those
+   was confirmed to fail when the emitter is deliberately broken.
 
 Bit-exactness and well-formedness are separate concerns: a byte-level diff says nothing about
-whether the emitted Kotlin *compiles*. Several real bugs here were caught only by the compiler.
+whether the emitted Kotlin *compiles*. Several real bugs here were caught only by the compiler,
+which still runs nowhere but `gradle -p kotlin test` — gate 3 checks shape, not syntax.
 
 ### Unvalidated construct
 
