@@ -57,6 +57,11 @@ fragment codecs are XMLDSig territory and are not implemented in this back end y
 signature computation, not the message wire format, so the message codecs are complete without
 them — but a Kotlin signature implementation will need them.
 
+**The order of `--xsd` matters.** It decides the order of declarations in the output, so passing
+the same files in a different order regenerates a file that differs everywhere while encoding the
+same bytes. Use the order given above — the message set's own schema first — or the byte-identity
+check below turns into noise.
+
 Regenerating without changing the emitter must leave every file byte-identical; that is the
 cheapest check that a refactor was behaviour-neutral.
 
@@ -89,6 +94,12 @@ Porting it surfaced a genuine defect **in the C# emitter**: its encoder wrote a 
 after a present optional tail that its decoder never read, leaving the reader one bit short. That
 is fixed, and `Iso15118_20WptSelfConsistencyTests` now covers the present-tail case — it did not
 before, despite a comment claiming otherwise.
+
+A second quirk of the same grammar is now refused rather than tolerated: with the mid-run list
+empty, the particle after it has no event code, so an encoder asked to write it could only drop it.
+Both back ends throw instead, naming the field. Two tests in the C# fixture had been passing an
+empty container and were silently exercising nothing at all — that is how the decoder bug above
+survived.
 
 The cross-emitter comparison still reports 2 of 130 WPT functions as differing. Both are the
 comparison tool seeing Kotlin's `if (rc == 1u)` where C# has `switch`/`case`; the bit operations

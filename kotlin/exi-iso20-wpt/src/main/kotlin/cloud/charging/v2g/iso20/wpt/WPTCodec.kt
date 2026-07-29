@@ -2463,6 +2463,7 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // child EE
                         st8 = 1
                     } else {
+                        require(msg.lF_SystemSetupData == null) { "LF_SystemSetupData cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
                         done8 = true
                     }
@@ -2601,6 +2602,7 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // child EE
                         st10 = 1
                     } else {
+                        require(msg.lF_SystemSetupData == null) { "LF_SystemSetupData cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
                         done10 = true
                     }
@@ -2733,6 +2735,7 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // child EE
                         st12 = 1
                     } else {
+                        require(msg.wPT_LF_DataPackageList == null) { "WPT_LF_DataPackageList cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
                         done12 = true
                     }
@@ -2859,6 +2862,7 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // child EE
                         st14 = 1
                     } else {
+                        require(msg.wPT_LF_DataPackageList == null) { "WPT_LF_DataPackageList cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
                         done14 = true
                     }
@@ -6156,6 +6160,7 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // child EE
                         st64 = 1
                     } else {
+                        require(msg.lF_SystemSetupData == null) { "LF_SystemSetupData cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
                         done64 = true
                     }
@@ -6294,6 +6299,7 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // child EE
                         st66 = 1
                     } else {
+                        require(msg.lF_SystemSetupData == null) { "LF_SystemSetupData cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
                         done66 = true
                     }
@@ -6426,6 +6432,7 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // child EE
                         st68 = 1
                     } else {
+                        require(msg.wPT_LF_DataPackageList == null) { "WPT_LF_DataPackageList cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
                         done68 = true
                     }
@@ -6552,6 +6559,7 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // child EE
                         st70 = 1
                     } else {
+                        require(msg.wPT_LF_DataPackageList == null) { "WPT_LF_DataPackageList cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
                         done70 = true
                     }
