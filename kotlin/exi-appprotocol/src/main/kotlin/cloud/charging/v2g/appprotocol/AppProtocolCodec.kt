@@ -13,14 +13,6 @@ enum class ResponseCode {
     Failed_NoNegotiation
 }
 
-data class AppProtocolType(
-    val protocolNamespace: String,
-    val versionNumberMajor: UInt,
-    val versionNumberMinor: UInt,
-    val schemaID: UByte,
-    val priority: UByte
-)
-
 data class SupportedAppProtocolReq(
     val appProtocol: List<AppProtocolType>
 )
@@ -28,6 +20,14 @@ data class SupportedAppProtocolReq(
 data class SupportedAppProtocolRes(
     val responseCode: ResponseCode,
     val schemaID: UByte?
+)
+
+data class AppProtocolType(
+    val protocolNamespace: String,
+    val versionNumberMajor: UInt,
+    val versionNumberMinor: UInt,
+    val schemaID: UByte,
+    val priority: UByte
 )
 
 object SupportedAppProtocolCodec {
@@ -186,13 +186,13 @@ object SupportedAppProtocolCodec {
                             r.readBits(1)   // child EE
                             st1 = 1
                         }
-                        1u -> done1 = true
+                        1u -> done1 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 1 -> {
                     when (r.readBits(1)) {
-                        0u -> done1 = true
+                        0u -> done1 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
