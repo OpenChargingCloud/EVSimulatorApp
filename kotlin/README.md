@@ -5,6 +5,7 @@
 | `exi-runtime` | Hand-written `BitReader` / `BitWriter` / `ExiPrimitives` — a port of the C# runtime. |
 | `exi-appprotocol` | Generated `SupportedAppProtocol` codec + vector test (encode vs `expectedHex`). |
 | `exi-iso2` | Generated ISO 15118-2 codec + vector test (decode → re-encode → `expectedHex`). |
+| `exi-iso20-common` | Generated ISO 15118-20 CommonMessages codec + vector test (same loop). |
 
 ```bash
 gradle -p kotlin test --rerun-tasks
@@ -34,7 +35,19 @@ dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release
   --lang kotlin --namespace cloud.charging.v2g.iso2 --codec Iso15118_2Codec
 ```
 
-Regenerating without changing the emitter must leave both files byte-identical; that is the
+```bash
+dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release -- \
+  --xsd "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonMessages.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonTypes.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/xmldsig-core-schema.xsd" \
+  --out kotlin/exi-iso20-common/src/main/kotlin/cloud/charging/v2g/iso20/common/CommonMessagesCodec.kt \
+  --lang kotlin --namespace cloud.charging.v2g.iso20.common --codec CommonMessagesCodec
+```
+
+Note the -20 command passes no `--fragments`, unlike the C# project of the same name: EXI
+fragment codecs are XMLDSig territory and are not implemented in this back end yet. They affect
+signature computation, not the message wire format, so the message codecs are complete without
+them — but a Kotlin signature implementation will need them.
+
+Regenerating without changing the emitter must leave every file byte-identical; that is the
 cheapest check that a refactor was behaviour-neutral.
 
 ## How these codecs are checked

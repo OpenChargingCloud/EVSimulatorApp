@@ -1,5 +1,6 @@
-rootProject.name = "v2g-exi-kotlin"
+﻿rootProject.name = "v2g-exi-kotlin"
 
 include("exi-runtime")
 include("exi-appprotocol")
 include("exi-iso2")
+include("exi-iso20-common")
