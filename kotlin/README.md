@@ -85,12 +85,14 @@ represent even the schema's required minimum, so both back ends emit a plain sch
 non-strict reading instead. That is a design decision, not a diff against a reference — bytes from
 this construct are unvalidated. The current WPT vectors do not appear to exercise it.
 
-While porting it, a genuine defect surfaced **in the C# emitter**: its encoder writes a 1-bit
-element EE after a present optional tail, but its decoder never reads that bit, leaving the reader
-one bit short. The Kotlin decoder consumes it, so the two back ends differ by one `readBits(1)` in
-`decode:WPT_LF_TransmitterDataType`. This is the only intentional divergence between them; the
-cross-emitter comparison reports it (2 of 130 WPT functions — the second is only the tool seeing
-`when` where C# has `switch`).
+Porting it surfaced a genuine defect **in the C# emitter**: its encoder wrote a 1-bit element EE
+after a present optional tail that its decoder never read, leaving the reader one bit short. That
+is fixed, and `Iso15118_20WptSelfConsistencyTests` now covers the present-tail case — it did not
+before, despite a comment claiming otherwise.
+
+The cross-emitter comparison still reports 2 of 130 WPT functions as differing. Both are the
+comparison tool seeing Kotlin's `if (rc == 1u)` where C# has `switch`/`case`; the bit operations
+themselves are identical.
 
 ### Memory
 
