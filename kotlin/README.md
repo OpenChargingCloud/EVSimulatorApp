@@ -78,9 +78,23 @@ signature that verifies against itself and is rejected by every conforming peer,
 miserable thing to debug on a charger. `V2GSignatureTest` asserts the 64-byte length for exactly
 that reason; swapping the algorithm name back to the DER variant fails it.
 
-**ISO 15118-20 signing is not implemented here.** Its suite is a different problem: secp521r1 and
-Ed448, and the JDK has no Ed448 (§3 of `docs/CONCEPT.md` covers the platform side). The -20
-fragment codecs exist, so the wire half is ready for it.
+`exi-iso20-common` carries the -20 counterpart: SHA-512 digests and either algorithm of the -20
+signature suite — ECDSA over P-521 (raw `r‖s`, 132 bytes) or **Ed448** (RFC 8032, 114 bytes). Ed448
+is why that module depends on BouncyCastle: the JDK has no Ed448 at all, not merely an unregistered
+provider.
+
+Two parameters there decide interop and neither is visible in a round trip, so both are pinned
+deliberately:
+
+* the ECDSA **format** — `SHA512withECDSAinP1363Format`, asserted by the 132-byte length;
+* the Ed448 **context string**, which RFC 8032 fixes to empty for plain `Ed448`. Sign and verify
+  share it, so every other test passes with a wrong one — checked, and it does. The test that
+  catches it crosses over to BouncyCastle's JCA `Ed448` entry, the spec-named algorithm, and
+  requires signatures to verify in both directions.
+
+Signing for the AC / DC / DER / WPT / ACDP message sets is not implemented; those sets sign through
+CommonMessages' header in practice, and none of them has its own signature helper on the C# side
+either.
 
 **The order of `--xsd` matters.** It decides the order of declarations in the output, so passing
 the same files in a different order regenerates a file that differs everywhere while encoding the
