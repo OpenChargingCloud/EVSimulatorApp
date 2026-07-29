@@ -19,11 +19,10 @@ internal fun encodeDC_ChargeParameterDiscoveryReqType(w: BitWriter, msg: DC_Char
             w.writeBits(0u, 2)   // BPT_DC_CPDReqEnergyTransferMode
             encodeBPT_DC_CPDReqEnergyTransferModeType(w, v)
         }
-        is DC_CPDReqEnergyTransferModeType -> {
+        else -> {
             w.writeBits(1u, 2)   // DC_CPDReqEnergyTransferMode
             encodeDC_CPDReqEnergyTransferModeType(w, v)
         }
-        else -> throw IllegalArgumentException("unsupported substitution member for DC_CPDReqEnergyTransferMode")
     }
     w.writeBits(0u, 1)   // element EE
 }

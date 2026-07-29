@@ -23,11 +23,10 @@ internal fun encodeAC_ChargeParameterDiscoveryReq(w: BitWriter, msg: AC_ChargePa
             w.writeBits(2u, 2)   // DER_AC_CPDReqEnergyTransferMode
             encodeDER_AC_CPDReqEnergyTransferModeType(w, v)
         }
-        is AC_CPDReqEnergyTransferModeType -> {
+        else -> {
             w.writeBits(0u, 2)   // AC_CPDReqEnergyTransferMode
             encodeAC_CPDReqEnergyTransferModeType(w, v)
         }
-        else -> throw IllegalArgumentException("unsupported substitution member for AC_CPDReqEnergyTransferMode")
     }
     w.writeBits(0u, 1)   // element EE
 }

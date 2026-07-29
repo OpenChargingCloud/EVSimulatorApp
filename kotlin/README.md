@@ -170,11 +170,20 @@ enough, and the failure moves between modules with build order, so it is pressur
 rather than one bad file. The figure is measured: 512m fails on `acdersae`, `dc` and `wpt`; 1g
 builds everything. Before the per-type split the same build needed 4 GB.
 
-### Known warnings
+### Substitution dispatch
 
-The AC, DC and DER codecs emit sixteen `Check for instance is always 'true'` warnings. Their substitution
-head types are concrete, so the last branch of a dispatch chain tests against the property's own
-declared type. The dispatch is still correct — branches are emitted most-derived-first, so that
-branch is only reached once the derived checks have failed — but the compiler judges each `is` in
-isolation. Silencing it means making that last branch a plain `else`, which is only valid when the
-head is concrete; with an abstract head the trailing `else -> throw` is genuinely reachable.
+The build is warning-free. It was not: the AC, DC and DER codecs used to emit sixteen
+`Check for instance is always 'true'` warnings, and the compiler was right. Where a substitution
+group's head type is itself concrete, the head is one of the members, and being the least derived
+it is the last branch of the dispatch — so that branch tested the property against its own declared
+type. Always true, which also made the `else -> throw` behind it unreachable: the two were one
+branch written twice.
+
+The last branch is now `else` when the head is concrete, and the dead throw is gone. Where the head
+is **abstract** it is not a member at all, the last branch is a real check, and the throw stays —
+a value matching none of the members is a genuine error there. `KotlinEmitterDispatchTests` pins
+both shapes.
+
+Nothing about the wire changed: branches are ordered most-derived-first, because Kotlin's `is`
+matches subtypes too, while each member keeps its own alphabetical event code. The AC and DC
+vectors cover the collapsed branch — putting a wrong code in it fails them.
