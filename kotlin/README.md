@@ -65,9 +65,22 @@ XMLDSig digests: EXI header, the element's fragment-grammar event code, its cont
 with no document or body wrapper. The lists mirror `<ExiFragmentElements>` in the matching C#
 project. WPT and ACDP have none.
 
-The fragment codecs are the wire half of signing. Producing and verifying the signature itself —
-the digest, the ECDSA/Ed448 operations, the dual-grammar question — is not implemented on this
-side.
+## Signing
+
+`exi-iso2` carries a hand-written `V2GSignature`, the ISO 15118-2 half of §7.9: SHA-256 over a
+signed element's EXI fragment goes into a `SignedInfo` Reference, and the `SignedInfo` fragment is
+itself ECDSA-P256 signed.
+
+The one detail that decides interop is the signature **format**. ISO 15118-2 puts the raw `r‖s`
+pair (32 + 32 bytes) on the wire, while the JCA hands out ASN.1/DER by default — hence
+`SHA256withECDSAinP1363Format` rather than `SHA256withECDSA`. Getting that wrong produces a
+signature that verifies against itself and is rejected by every conforming peer, which is a
+miserable thing to debug on a charger. `V2GSignatureTest` asserts the 64-byte length for exactly
+that reason; swapping the algorithm name back to the DER variant fails it.
+
+**ISO 15118-20 signing is not implemented here.** Its suite is a different problem: secp521r1 and
+Ed448, and the JDK has no Ed448 (§3 of `docs/CONCEPT.md` covers the platform side). The -20
+fragment codecs exist, so the wire half is ready for it.
 
 **The order of `--xsd` matters.** It decides the order of declarations in the output, so passing
 the same files in a different order regenerates a file that differs everywhere while encoding the
