@@ -617,6 +617,46 @@ object ACCodec {
         }
     }
 
+    fun encodeFragment_AC_ChargeParameterDiscoveryRes(content: AC_ChargeParameterDiscoveryResType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(5u, 8)   // fragment SE(AC_ChargeParameterDiscoveryRes)
+        encodeAC_ChargeParameterDiscoveryResType(w, content)
+        w.writeBits(155u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_AC_ChargeParameterDiscoveryRes(src: ByteArray): AC_ChargeParameterDiscoveryResType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 5u) { "Not a AC_ChargeParameterDiscoveryRes fragment." }
+        val result = decodeAC_ChargeParameterDiscoveryResType(r)
+        require(r.readBits(8) == 155u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_SignedInfo(content: SignedInfoType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(135u, 8)   // fragment SE(SignedInfo)
+        encodeSignedInfoType(w, content)
+        w.writeBits(155u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_SignedInfo(src: ByteArray): SignedInfoType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 135u) { "Not a SignedInfo fragment." }
+        val result = decodeSignedInfoType(r)
+        require(r.readBits(8) == 155u) { "missing End Fragment." }
+        return result
+    }
+
     private fun encodeAC_ChargeParameterDiscoveryReqType(w: BitWriter, msg: AC_ChargeParameterDiscoveryReqType) {
         w.writeBits(0u, 1)   // SE
         encodeMessageHeaderType(w, msg.header)

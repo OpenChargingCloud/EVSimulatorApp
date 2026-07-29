@@ -709,6 +709,46 @@ object DCCodec {
         }
     }
 
+    fun encodeFragment_DC_ChargeParameterDiscoveryRes(content: DC_ChargeParameterDiscoveryResType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(26u, 8)   // fragment SE(DC_ChargeParameterDiscoveryRes)
+        encodeDC_ChargeParameterDiscoveryResType(w, content)
+        w.writeBits(150u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_DC_ChargeParameterDiscoveryRes(src: ByteArray): DC_ChargeParameterDiscoveryResType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 26u) { "Not a DC_ChargeParameterDiscoveryRes fragment." }
+        val result = decodeDC_ChargeParameterDiscoveryResType(r)
+        require(r.readBits(8) == 150u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_SignedInfo(content: SignedInfoType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(129u, 8)   // fragment SE(SignedInfo)
+        encodeSignedInfoType(w, content)
+        w.writeBits(150u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_SignedInfo(src: ByteArray): SignedInfoType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 129u) { "Not a SignedInfo fragment." }
+        val result = decodeSignedInfoType(r)
+        require(r.readBits(8) == 150u) { "missing End Fragment." }
+        return result
+    }
+
     private fun encodeDC_ChargeParameterDiscoveryReqType(w: BitWriter, msg: DC_ChargeParameterDiscoveryReqType) {
         w.writeBits(0u, 1)   // SE
         encodeMessageHeaderType(w, msg.header)

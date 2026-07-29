@@ -22,6 +22,14 @@ without having run anything.
 
 ## Regenerating the codecs
 
+```bash
+pwsh kotlin/regenerate.ps1
+```
+
+That script is the source of truth for how every checked-in codec was produced — schema order,
+output paths and fragment element lists. The commands below spell out what it does; prefer the
+script, because getting any of those three wrong is silent rather than loud.
+
 The generated files are checked in, and **regeneration must land on exactly those paths** — an
 extra file next to a stale one means duplicate declarations and a broken build. `--out` takes a
 file path here (a path with an extension is the file; without one it is a directory). Run these
@@ -52,10 +60,14 @@ AC and DC follow the same pattern — swap `CommonMessages` for `AC` / `DC` in t
 the output path (`exi-iso20-ac` / `exi-iso20-dc`), the package (`…iso20.ac` / `…iso20.dc`) and the
 codec (`ACCodec` / `DCCodec`).
 
-Note the -20 commands pass no `--fragments`, unlike the C# projects of the same name: EXI
-fragment codecs are XMLDSig territory and are not implemented in this back end yet. They affect
-signature computation, not the message wire format, so the message codecs are complete without
-them — but a Kotlin signature implementation will need them.
+`--fragments` names the signable elements that get an EXI **fragment** codec — the encoding
+XMLDSig digests: EXI header, the element's fragment-grammar event code, its content, End Fragment,
+with no document or body wrapper. The lists mirror `<ExiFragmentElements>` in the matching C#
+project. WPT and ACDP have none.
+
+The fragment codecs are the wire half of signing. Producing and verifying the signature itself —
+the digest, the ECDSA/Ed448 operations, the dual-grammar question — is not implemented on this
+side.
 
 **The order of `--xsd` matters.** It decides the order of declarations in the output, so passing
 the same files in a different order regenerates a file that differs everywhere while encoding the

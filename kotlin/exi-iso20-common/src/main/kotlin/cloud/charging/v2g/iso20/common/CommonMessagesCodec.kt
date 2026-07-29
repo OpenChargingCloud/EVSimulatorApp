@@ -1326,6 +1326,146 @@ object CommonMessagesCodec {
         }
     }
 
+    fun encodeFragment_AbsolutePriceSchedule(content: AbsolutePriceScheduleType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(0u, 9)   // fragment SE(AbsolutePriceSchedule)
+        encodeAbsolutePriceScheduleType(w, content)
+        w.writeBits(282u, 9)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_AbsolutePriceSchedule(src: ByteArray): AbsolutePriceScheduleType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(9) == 0u) { "Not a AbsolutePriceSchedule fragment." }
+        val result = decodeAbsolutePriceScheduleType(r)
+        require(r.readBits(9) == 282u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_CertificateInstallationReq(content: CertificateInstallationReqType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(27u, 9)   // fragment SE(CertificateInstallationReq)
+        encodeCertificateInstallationReqType(w, content)
+        w.writeBits(282u, 9)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_CertificateInstallationReq(src: ByteArray): CertificateInstallationReqType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(9) == 27u) { "Not a CertificateInstallationReq fragment." }
+        val result = decodeCertificateInstallationReqType(r)
+        require(r.readBits(9) == 282u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_MeteringConfirmationReq(content: MeteringConfirmationReqType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(119u, 9)   // fragment SE(MeteringConfirmationReq)
+        encodeMeteringConfirmationReqType(w, content)
+        w.writeBits(282u, 9)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_MeteringConfirmationReq(src: ByteArray): MeteringConfirmationReqType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(9) == 119u) { "Not a MeteringConfirmationReq fragment." }
+        val result = decodeMeteringConfirmationReqType(r)
+        require(r.readBits(9) == 282u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_OEMProvisioningCertificateChain(content: SignedCertificateChainType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(128u, 9)   // fragment SE(OEMProvisioningCertificateChain)
+        encodeSignedCertificateChainType(w, content)
+        w.writeBits(282u, 9)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_OEMProvisioningCertificateChain(src: ByteArray): SignedCertificateChainType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(9) == 128u) { "Not a OEMProvisioningCertificateChain fragment." }
+        val result = decodeSignedCertificateChainType(r)
+        require(r.readBits(9) == 282u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_PnC_AReqAuthorizationMode(content: PnC_AReqAuthorizationModeType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(151u, 9)   // fragment SE(PnC_AReqAuthorizationMode)
+        encodePnC_AReqAuthorizationModeType(w, content)
+        w.writeBits(282u, 9)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_PnC_AReqAuthorizationMode(src: ByteArray): PnC_AReqAuthorizationModeType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(9) == 151u) { "Not a PnC_AReqAuthorizationMode fragment." }
+        val result = decodePnC_AReqAuthorizationModeType(r)
+        require(r.readBits(9) == 282u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_SignedInstallationData(content: SignedInstallationDataType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(231u, 9)   // fragment SE(SignedInstallationData)
+        encodeSignedInstallationDataType(w, content)
+        w.writeBits(282u, 9)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_SignedInstallationData(src: ByteArray): SignedInstallationDataType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(9) == 231u) { "Not a SignedInstallationData fragment." }
+        val result = decodeSignedInstallationDataType(r)
+        require(r.readBits(9) == 282u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_SignedInfo(content: SignedInfoType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(230u, 9)   // fragment SE(SignedInfo)
+        encodeSignedInfoType(w, content)
+        w.writeBits(282u, 9)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_SignedInfo(src: ByteArray): SignedInfoType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(9) == 230u) { "Not a SignedInfo fragment." }
+        val result = decodeSignedInfoType(r)
+        require(r.readBits(9) == 282u) { "missing End Fragment." }
+        return result
+    }
+
     private fun encodeSessionSetupReqType(w: BitWriter, msg: SessionSetupReqType) {
         w.writeBits(0u, 1)   // SE
         encodeMessageHeaderType(w, msg.header)

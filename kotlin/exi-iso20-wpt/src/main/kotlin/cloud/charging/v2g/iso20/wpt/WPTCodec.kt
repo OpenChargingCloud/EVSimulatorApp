@@ -7,6 +7,12 @@ import cloud.charging.v2g.exi.BitReader
 import cloud.charging.v2g.exi.BitWriter
 import cloud.charging.v2g.exi.ExiPrimitives
 
+enum class Processing {
+    Finished,
+    Ongoing,
+    Ongoing_WaitingForCustomerInteraction
+}
+
 enum class ResponseCode {
     OK,
     OK_CertificateExpiresSoon,
@@ -48,21 +54,6 @@ enum class ResponseCode {
     FAILED_SignatureError,
     FAILED_UnknownSession,
     FAILED_WrongChargeParameter
-}
-
-enum class EvseNotification {
-    Pause,
-    ExitStandby,
-    Terminate,
-    ScheduleRenegotiation,
-    ServiceRenegotiation,
-    MeteringConfirmation
-}
-
-enum class Processing {
-    Finished,
-    Ongoing,
-    Ongoing_WaitingForCustomerInteraction
 }
 
 enum class WPT_EVResult {
@@ -115,6 +106,15 @@ enum class WPT_AlignmentCheckMethod {
     PowerCheck,
     LPE,
     Proprietary
+}
+
+enum class EvseNotification {
+    Pause,
+    ExitStandby,
+    Terminate,
+    ScheduleRenegotiation,
+    ServiceRenegotiation,
+    MeteringConfirmation
 }
 
 /** Opaque placeholder for the un-modelled XMLDSig element `KeyInfo`.
@@ -247,131 +247,6 @@ class WPT_ChargeLoopRes(
     val sPCPowerControlParameter: WPT_SPCPowerControlParameterType?,
     val manufacturerSpecificDataContainer: List<ByteArray>
 ) : ChargeLoopResType(header, responseCode, eVSEStatus, meterInfo, receipt)
-
-data class MessageHeaderType(
-    val sessionID: ByteArray,
-    val timeStamp: ULong,
-    val signature: SignatureType?
-)
-
-abstract class V2GMessageType(
-    open val header: MessageHeaderType
-)
-
-abstract class V2GRequestType(
-    override val header: MessageHeaderType
-) : V2GMessageType(header)
-
-abstract class V2GResponseType(
-    override val header: MessageHeaderType,
-    open val responseCode: ResponseCode
-) : V2GMessageType(header)
-
-abstract class ChargeParameterDiscoveryReqType(
-    override val header: MessageHeaderType
-) : V2GRequestType(header)
-
-abstract class ChargeParameterDiscoveryResType(
-    override val header: MessageHeaderType,
-    override val responseCode: ResponseCode
-) : V2GResponseType(header, responseCode)
-
-abstract class ChargeLoopReqType(
-    override val header: MessageHeaderType,
-    open val displayParameters: DisplayParametersType?,
-    open val meterInfoRequested: Boolean
-) : V2GRequestType(header)
-
-abstract class ChargeLoopResType(
-    override val header: MessageHeaderType,
-    override val responseCode: ResponseCode,
-    open val eVSEStatus: EVSEStatusType?,
-    open val meterInfo: MeterInfoType?,
-    open val receipt: ReceiptType?
-) : V2GResponseType(header, responseCode)
-
-abstract class CLReqControlModeType
-
-abstract class CLResControlModeType
-
-abstract class Scheduled_CLReqControlModeType(
-    open val eVTargetEnergyRequest: RationalNumberType?,
-    open val eVMaximumEnergyRequest: RationalNumberType?,
-    open val eVMinimumEnergyRequest: RationalNumberType?
-) : CLReqControlModeType()
-
-abstract class Scheduled_CLResControlModeType : CLResControlModeType()
-
-abstract class Dynamic_CLReqControlModeType(
-    open val departureTime: UInt?,
-    open val eVTargetEnergyRequest: RationalNumberType,
-    open val eVMaximumEnergyRequest: RationalNumberType,
-    open val eVMinimumEnergyRequest: RationalNumberType
-) : CLReqControlModeType()
-
-abstract class Dynamic_CLResControlModeType(
-    open val departureTime: UInt?,
-    open val minimumSOC: Byte?,
-    open val targetSOC: Byte?,
-    open val ackMaxDelay: UShort?
-) : CLResControlModeType()
-
-data class DisplayParametersType(
-    val presentSOC: Byte?,
-    val minimumSOC: Byte?,
-    val targetSOC: Byte?,
-    val maximumSOC: Byte?,
-    val remainingTimeToMinimumSOC: UInt?,
-    val remainingTimeToTargetSOC: UInt?,
-    val remainingTimeToMaximumSOC: UInt?,
-    val chargingComplete: Boolean?,
-    val batteryEnergyCapacity: RationalNumberType?,
-    val inletHot: Boolean?
-)
-
-data class EVSEStatusType(
-    val notificationMaxDelay: UShort,
-    val eVSENotification: EvseNotification
-)
-
-data class RationalNumberType(
-    val exponent: Byte,
-    val value: Short
-)
-
-data class MeterInfoType(
-    val meterID: String,
-    val chargedEnergyReadingWh: ULong,
-    val bPT_DischargedEnergyReadingWh: ULong?,
-    val capacitiveEnergyReadingVARh: ULong?,
-    val bPT_InductiveEnergyReadingVARh: ULong?,
-    val meterSignature: ByteArray?,
-    val meterStatus: Short?,
-    val meterTimestamp: ULong?
-)
-
-data class DetailedCostType(
-    val amount: RationalNumberType,
-    val costPerUnit: RationalNumberType
-)
-
-data class DetailedTaxType(
-    val taxRuleID: UInt,
-    val amount: RationalNumberType
-)
-
-data class ReceiptType(
-    val timeAnchor: ULong,
-    val energyCosts: DetailedCostType?,
-    val occupancyCosts: DetailedCostType?,
-    val additionalServicesCosts: DetailedCostType?,
-    val overstayCosts: DetailedCostType?,
-    val taxCosts: List<DetailedTaxType>
-)
-
-data class ListOfRootCertificateIDsType(
-    val rootCertificateID: List<X509IssuerSerialType>
-)
 
 class WPT_FinePositioningSetupReqType(
     override val header: MessageHeaderType,
@@ -609,6 +484,131 @@ data class AlternativeSECCType(
     val port: UShort?
 )
 
+data class MessageHeaderType(
+    val sessionID: ByteArray,
+    val timeStamp: ULong,
+    val signature: SignatureType?
+)
+
+abstract class V2GMessageType(
+    open val header: MessageHeaderType
+)
+
+abstract class V2GRequestType(
+    override val header: MessageHeaderType
+) : V2GMessageType(header)
+
+abstract class V2GResponseType(
+    override val header: MessageHeaderType,
+    open val responseCode: ResponseCode
+) : V2GMessageType(header)
+
+abstract class ChargeParameterDiscoveryReqType(
+    override val header: MessageHeaderType
+) : V2GRequestType(header)
+
+abstract class ChargeParameterDiscoveryResType(
+    override val header: MessageHeaderType,
+    override val responseCode: ResponseCode
+) : V2GResponseType(header, responseCode)
+
+abstract class ChargeLoopReqType(
+    override val header: MessageHeaderType,
+    open val displayParameters: DisplayParametersType?,
+    open val meterInfoRequested: Boolean
+) : V2GRequestType(header)
+
+abstract class ChargeLoopResType(
+    override val header: MessageHeaderType,
+    override val responseCode: ResponseCode,
+    open val eVSEStatus: EVSEStatusType?,
+    open val meterInfo: MeterInfoType?,
+    open val receipt: ReceiptType?
+) : V2GResponseType(header, responseCode)
+
+abstract class CLReqControlModeType
+
+abstract class CLResControlModeType
+
+abstract class Scheduled_CLReqControlModeType(
+    open val eVTargetEnergyRequest: RationalNumberType?,
+    open val eVMaximumEnergyRequest: RationalNumberType?,
+    open val eVMinimumEnergyRequest: RationalNumberType?
+) : CLReqControlModeType()
+
+abstract class Scheduled_CLResControlModeType : CLResControlModeType()
+
+abstract class Dynamic_CLReqControlModeType(
+    open val departureTime: UInt?,
+    open val eVTargetEnergyRequest: RationalNumberType,
+    open val eVMaximumEnergyRequest: RationalNumberType,
+    open val eVMinimumEnergyRequest: RationalNumberType
+) : CLReqControlModeType()
+
+abstract class Dynamic_CLResControlModeType(
+    open val departureTime: UInt?,
+    open val minimumSOC: Byte?,
+    open val targetSOC: Byte?,
+    open val ackMaxDelay: UShort?
+) : CLResControlModeType()
+
+data class DisplayParametersType(
+    val presentSOC: Byte?,
+    val minimumSOC: Byte?,
+    val targetSOC: Byte?,
+    val maximumSOC: Byte?,
+    val remainingTimeToMinimumSOC: UInt?,
+    val remainingTimeToTargetSOC: UInt?,
+    val remainingTimeToMaximumSOC: UInt?,
+    val chargingComplete: Boolean?,
+    val batteryEnergyCapacity: RationalNumberType?,
+    val inletHot: Boolean?
+)
+
+data class EVSEStatusType(
+    val notificationMaxDelay: UShort,
+    val eVSENotification: EvseNotification
+)
+
+data class RationalNumberType(
+    val exponent: Byte,
+    val value: Short
+)
+
+data class MeterInfoType(
+    val meterID: String,
+    val chargedEnergyReadingWh: ULong,
+    val bPT_DischargedEnergyReadingWh: ULong?,
+    val capacitiveEnergyReadingVARh: ULong?,
+    val bPT_InductiveEnergyReadingVARh: ULong?,
+    val meterSignature: ByteArray?,
+    val meterStatus: Short?,
+    val meterTimestamp: ULong?
+)
+
+data class DetailedCostType(
+    val amount: RationalNumberType,
+    val costPerUnit: RationalNumberType
+)
+
+data class DetailedTaxType(
+    val taxRuleID: UInt,
+    val amount: RationalNumberType
+)
+
+data class ReceiptType(
+    val timeAnchor: ULong,
+    val energyCosts: DetailedCostType?,
+    val occupancyCosts: DetailedCostType?,
+    val additionalServicesCosts: DetailedCostType?,
+    val overstayCosts: DetailedCostType?,
+    val taxCosts: List<DetailedTaxType>
+)
+
+data class ListOfRootCertificateIDsType(
+    val rootCertificateID: List<X509IssuerSerialType>
+)
+
 data class SignatureType(
     val id: String?,
     val signedInfo: SignedInfoType,
@@ -816,1623 +816,6 @@ object WPTCodec {
         }
     }
 
-    private fun encodeMessageHeaderType(w: BitWriter, msg: MessageHeaderType) {
-        w.writeBits(0u, 1)   // SE
-        w.writeBits(0u, 1)   // value-start
-        ExiPrimitives.writeBinary(w, msg.sessionID)
-        w.writeBits(0u, 1)   // child EE
-        w.writeBits(0u, 1)   // SE
-        w.writeBits(0u, 1)   // value-start
-        ExiPrimitives.writeUnsignedInteger(w, msg.timeStamp.toULong())
-        w.writeBits(0u, 1)   // child EE
-        var st0 = 0
-        var done0 = false
-        while (!done0) {
-            when (st0) {
-                0 -> {
-                    if (msg.signature != null) {
-                        w.writeBits(0u, 2)   // Signature
-                        encodeSignatureType(w, msg.signature!!)
-                        st0 = 1
-                    } else {
-                        w.writeBits(1u, 2)   // element EE
-                        done0 = true
-                    }
-                }
-                1 -> {
-                    w.writeBits(0u, 1)   // element EE
-                    done0 = true
-                }
-            }
-        }
-    }
-
-    private fun decodeMessageHeaderType(r: BitReader): MessageHeaderType {
-        r.readBits(1)   // SE
-        r.readBits(1)   // value-start
-        val _sessionID = ExiPrimitives.readBinary(r)
-        r.readBits(1)   // child EE
-        r.readBits(1)   // SE
-        r.readBits(1)   // value-start
-        val _timeStamp = ExiPrimitives.readUnsignedInteger(r).toULong()
-        r.readBits(1)   // child EE
-        var _signature: SignatureType? = null
-        var st1 = 0
-        var done1 = false
-        while (!done1) {
-            when (st1) {
-                0 -> {
-                    when (r.readBits(2)) {
-                        0u -> {
-                            _signature = decodeSignatureType(r)
-                            st1 = 1
-                        }
-                        1u -> done1 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                1 -> {
-                    when (r.readBits(1)) {
-                        0u -> done1 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-            }
-        }
-        return MessageHeaderType(_sessionID, _timeStamp, _signature)
-    }
-
-    private fun encodeDisplayParametersType(w: BitWriter, msg: DisplayParametersType) {
-        var st2 = 0
-        var done2 = false
-        while (!done2) {
-            when (st2) {
-                0 -> {
-                    if (msg.presentSOC != null) {
-                        w.writeBits(0u, 4)   // PresentSOC
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(msg.presentSOC!!.toLong().toUInt(), 7)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 1
-                    } else if (msg.minimumSOC != null) {
-                        w.writeBits(1u, 4)   // MinimumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(msg.minimumSOC!!.toLong().toUInt(), 7)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 2
-                    } else if (msg.targetSOC != null) {
-                        w.writeBits(2u, 4)   // TargetSOC
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(msg.targetSOC!!.toLong().toUInt(), 7)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 3
-                    } else if (msg.maximumSOC != null) {
-                        w.writeBits(3u, 4)   // MaximumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 4
-                    } else if (msg.remainingTimeToMinimumSOC != null) {
-                        w.writeBits(4u, 4)   // RemainingTimeToMinimumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 5
-                    } else if (msg.remainingTimeToTargetSOC != null) {
-                        w.writeBits(5u, 4)   // RemainingTimeToTargetSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 6
-                    } else if (msg.remainingTimeToMaximumSOC != null) {
-                        w.writeBits(6u, 4)   // RemainingTimeToMaximumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 7
-                    } else if (msg.chargingComplete != null) {
-                        w.writeBits(7u, 4)   // ChargingComplete
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 8
-                    } else if (msg.batteryEnergyCapacity != null) {
-                        w.writeBits(8u, 4)   // BatteryEnergyCapacity
-                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                        st2 = 9
-                    } else if (msg.inletHot != null) {
-                        w.writeBits(9u, 4)   // InletHot
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 10
-                    } else {
-                        w.writeBits(10u, 4)   // element EE
-                        done2 = true
-                    }
-                }
-                1 -> {
-                    if (msg.minimumSOC != null) {
-                        w.writeBits(0u, 4)   // MinimumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(msg.minimumSOC!!.toLong().toUInt(), 7)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 2
-                    } else if (msg.targetSOC != null) {
-                        w.writeBits(1u, 4)   // TargetSOC
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(msg.targetSOC!!.toLong().toUInt(), 7)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 3
-                    } else if (msg.maximumSOC != null) {
-                        w.writeBits(2u, 4)   // MaximumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 4
-                    } else if (msg.remainingTimeToMinimumSOC != null) {
-                        w.writeBits(3u, 4)   // RemainingTimeToMinimumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 5
-                    } else if (msg.remainingTimeToTargetSOC != null) {
-                        w.writeBits(4u, 4)   // RemainingTimeToTargetSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 6
-                    } else if (msg.remainingTimeToMaximumSOC != null) {
-                        w.writeBits(5u, 4)   // RemainingTimeToMaximumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 7
-                    } else if (msg.chargingComplete != null) {
-                        w.writeBits(6u, 4)   // ChargingComplete
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 8
-                    } else if (msg.batteryEnergyCapacity != null) {
-                        w.writeBits(7u, 4)   // BatteryEnergyCapacity
-                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                        st2 = 9
-                    } else if (msg.inletHot != null) {
-                        w.writeBits(8u, 4)   // InletHot
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 10
-                    } else {
-                        w.writeBits(9u, 4)   // element EE
-                        done2 = true
-                    }
-                }
-                2 -> {
-                    if (msg.targetSOC != null) {
-                        w.writeBits(0u, 4)   // TargetSOC
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(msg.targetSOC!!.toLong().toUInt(), 7)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 3
-                    } else if (msg.maximumSOC != null) {
-                        w.writeBits(1u, 4)   // MaximumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 4
-                    } else if (msg.remainingTimeToMinimumSOC != null) {
-                        w.writeBits(2u, 4)   // RemainingTimeToMinimumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 5
-                    } else if (msg.remainingTimeToTargetSOC != null) {
-                        w.writeBits(3u, 4)   // RemainingTimeToTargetSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 6
-                    } else if (msg.remainingTimeToMaximumSOC != null) {
-                        w.writeBits(4u, 4)   // RemainingTimeToMaximumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 7
-                    } else if (msg.chargingComplete != null) {
-                        w.writeBits(5u, 4)   // ChargingComplete
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 8
-                    } else if (msg.batteryEnergyCapacity != null) {
-                        w.writeBits(6u, 4)   // BatteryEnergyCapacity
-                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                        st2 = 9
-                    } else if (msg.inletHot != null) {
-                        w.writeBits(7u, 4)   // InletHot
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 10
-                    } else {
-                        w.writeBits(8u, 4)   // element EE
-                        done2 = true
-                    }
-                }
-                3 -> {
-                    if (msg.maximumSOC != null) {
-                        w.writeBits(0u, 4)   // MaximumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 4
-                    } else if (msg.remainingTimeToMinimumSOC != null) {
-                        w.writeBits(1u, 4)   // RemainingTimeToMinimumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 5
-                    } else if (msg.remainingTimeToTargetSOC != null) {
-                        w.writeBits(2u, 4)   // RemainingTimeToTargetSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 6
-                    } else if (msg.remainingTimeToMaximumSOC != null) {
-                        w.writeBits(3u, 4)   // RemainingTimeToMaximumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 7
-                    } else if (msg.chargingComplete != null) {
-                        w.writeBits(4u, 4)   // ChargingComplete
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 8
-                    } else if (msg.batteryEnergyCapacity != null) {
-                        w.writeBits(5u, 4)   // BatteryEnergyCapacity
-                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                        st2 = 9
-                    } else if (msg.inletHot != null) {
-                        w.writeBits(6u, 4)   // InletHot
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 10
-                    } else {
-                        w.writeBits(7u, 4)   // element EE
-                        done2 = true
-                    }
-                }
-                4 -> {
-                    if (msg.remainingTimeToMinimumSOC != null) {
-                        w.writeBits(0u, 3)   // RemainingTimeToMinimumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 5
-                    } else if (msg.remainingTimeToTargetSOC != null) {
-                        w.writeBits(1u, 3)   // RemainingTimeToTargetSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 6
-                    } else if (msg.remainingTimeToMaximumSOC != null) {
-                        w.writeBits(2u, 3)   // RemainingTimeToMaximumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 7
-                    } else if (msg.chargingComplete != null) {
-                        w.writeBits(3u, 3)   // ChargingComplete
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 8
-                    } else if (msg.batteryEnergyCapacity != null) {
-                        w.writeBits(4u, 3)   // BatteryEnergyCapacity
-                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                        st2 = 9
-                    } else if (msg.inletHot != null) {
-                        w.writeBits(5u, 3)   // InletHot
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 10
-                    } else {
-                        w.writeBits(6u, 3)   // element EE
-                        done2 = true
-                    }
-                }
-                5 -> {
-                    if (msg.remainingTimeToTargetSOC != null) {
-                        w.writeBits(0u, 3)   // RemainingTimeToTargetSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 6
-                    } else if (msg.remainingTimeToMaximumSOC != null) {
-                        w.writeBits(1u, 3)   // RemainingTimeToMaximumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 7
-                    } else if (msg.chargingComplete != null) {
-                        w.writeBits(2u, 3)   // ChargingComplete
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 8
-                    } else if (msg.batteryEnergyCapacity != null) {
-                        w.writeBits(3u, 3)   // BatteryEnergyCapacity
-                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                        st2 = 9
-                    } else if (msg.inletHot != null) {
-                        w.writeBits(4u, 3)   // InletHot
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 10
-                    } else {
-                        w.writeBits(5u, 3)   // element EE
-                        done2 = true
-                    }
-                }
-                6 -> {
-                    if (msg.remainingTimeToMaximumSOC != null) {
-                        w.writeBits(0u, 3)   // RemainingTimeToMaximumSOC
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 7
-                    } else if (msg.chargingComplete != null) {
-                        w.writeBits(1u, 3)   // ChargingComplete
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 8
-                    } else if (msg.batteryEnergyCapacity != null) {
-                        w.writeBits(2u, 3)   // BatteryEnergyCapacity
-                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                        st2 = 9
-                    } else if (msg.inletHot != null) {
-                        w.writeBits(3u, 3)   // InletHot
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 10
-                    } else {
-                        w.writeBits(4u, 3)   // element EE
-                        done2 = true
-                    }
-                }
-                7 -> {
-                    if (msg.chargingComplete != null) {
-                        w.writeBits(0u, 3)   // ChargingComplete
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 8
-                    } else if (msg.batteryEnergyCapacity != null) {
-                        w.writeBits(1u, 3)   // BatteryEnergyCapacity
-                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                        st2 = 9
-                    } else if (msg.inletHot != null) {
-                        w.writeBits(2u, 3)   // InletHot
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 10
-                    } else {
-                        w.writeBits(3u, 3)   // element EE
-                        done2 = true
-                    }
-                }
-                8 -> {
-                    if (msg.batteryEnergyCapacity != null) {
-                        w.writeBits(0u, 2)   // BatteryEnergyCapacity
-                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                        st2 = 9
-                    } else if (msg.inletHot != null) {
-                        w.writeBits(1u, 2)   // InletHot
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 10
-                    } else {
-                        w.writeBits(2u, 2)   // element EE
-                        done2 = true
-                    }
-                }
-                9 -> {
-                    if (msg.inletHot != null) {
-                        w.writeBits(0u, 2)   // InletHot
-                        w.writeBits(0u, 1)   // value-start
-                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
-                        w.writeBits(0u, 1)   // child EE
-                        st2 = 10
-                    } else {
-                        w.writeBits(1u, 2)   // element EE
-                        done2 = true
-                    }
-                }
-                10 -> {
-                    w.writeBits(0u, 1)   // element EE
-                    done2 = true
-                }
-            }
-        }
-    }
-
-    private fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
-        var _presentSOC: Byte? = null
-        var _minimumSOC: Byte? = null
-        var _targetSOC: Byte? = null
-        var _maximumSOC: Byte? = null
-        var _remainingTimeToMinimumSOC: UInt? = null
-        var _remainingTimeToTargetSOC: UInt? = null
-        var _remainingTimeToMaximumSOC: UInt? = null
-        var _chargingComplete: Boolean? = null
-        var _batteryEnergyCapacity: RationalNumberType? = null
-        var _inletHot: Boolean? = null
-        var st3 = 0
-        var done3 = false
-        while (!done3) {
-            when (st3) {
-                0 -> {
-                    when (r.readBits(4)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _presentSOC = r.readBits(7).toByte()
-                            r.readBits(1)   // child EE
-                            st3 = 1
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _minimumSOC = r.readBits(7).toByte()
-                            r.readBits(1)   // child EE
-                            st3 = 2
-                        }
-                        2u -> {
-                            r.readBits(1)   // value-start
-                            _targetSOC = r.readBits(7).toByte()
-                            r.readBits(1)   // child EE
-                            st3 = 3
-                        }
-                        3u -> {
-                            r.readBits(1)   // value-start
-                            _maximumSOC = r.readBits(7).toByte()
-                            r.readBits(1)   // child EE
-                            st3 = 4
-                        }
-                        4u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 5
-                        }
-                        5u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 6
-                        }
-                        6u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 7
-                        }
-                        7u -> {
-                            r.readBits(1)   // value-start
-                            _chargingComplete = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 8
-                        }
-                        8u -> {
-                            _batteryEnergyCapacity = decodeRationalNumberType(r)
-                            st3 = 9
-                        }
-                        9u -> {
-                            r.readBits(1)   // value-start
-                            _inletHot = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 10
-                        }
-                        10u -> done3 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                1 -> {
-                    when (r.readBits(4)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _minimumSOC = r.readBits(7).toByte()
-                            r.readBits(1)   // child EE
-                            st3 = 2
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _targetSOC = r.readBits(7).toByte()
-                            r.readBits(1)   // child EE
-                            st3 = 3
-                        }
-                        2u -> {
-                            r.readBits(1)   // value-start
-                            _maximumSOC = r.readBits(7).toByte()
-                            r.readBits(1)   // child EE
-                            st3 = 4
-                        }
-                        3u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 5
-                        }
-                        4u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 6
-                        }
-                        5u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 7
-                        }
-                        6u -> {
-                            r.readBits(1)   // value-start
-                            _chargingComplete = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 8
-                        }
-                        7u -> {
-                            _batteryEnergyCapacity = decodeRationalNumberType(r)
-                            st3 = 9
-                        }
-                        8u -> {
-                            r.readBits(1)   // value-start
-                            _inletHot = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 10
-                        }
-                        9u -> done3 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                2 -> {
-                    when (r.readBits(4)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _targetSOC = r.readBits(7).toByte()
-                            r.readBits(1)   // child EE
-                            st3 = 3
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _maximumSOC = r.readBits(7).toByte()
-                            r.readBits(1)   // child EE
-                            st3 = 4
-                        }
-                        2u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 5
-                        }
-                        3u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 6
-                        }
-                        4u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 7
-                        }
-                        5u -> {
-                            r.readBits(1)   // value-start
-                            _chargingComplete = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 8
-                        }
-                        6u -> {
-                            _batteryEnergyCapacity = decodeRationalNumberType(r)
-                            st3 = 9
-                        }
-                        7u -> {
-                            r.readBits(1)   // value-start
-                            _inletHot = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 10
-                        }
-                        8u -> done3 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                3 -> {
-                    when (r.readBits(4)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _maximumSOC = r.readBits(7).toByte()
-                            r.readBits(1)   // child EE
-                            st3 = 4
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 5
-                        }
-                        2u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 6
-                        }
-                        3u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 7
-                        }
-                        4u -> {
-                            r.readBits(1)   // value-start
-                            _chargingComplete = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 8
-                        }
-                        5u -> {
-                            _batteryEnergyCapacity = decodeRationalNumberType(r)
-                            st3 = 9
-                        }
-                        6u -> {
-                            r.readBits(1)   // value-start
-                            _inletHot = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 10
-                        }
-                        7u -> done3 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                4 -> {
-                    when (r.readBits(3)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 5
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 6
-                        }
-                        2u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 7
-                        }
-                        3u -> {
-                            r.readBits(1)   // value-start
-                            _chargingComplete = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 8
-                        }
-                        4u -> {
-                            _batteryEnergyCapacity = decodeRationalNumberType(r)
-                            st3 = 9
-                        }
-                        5u -> {
-                            r.readBits(1)   // value-start
-                            _inletHot = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 10
-                        }
-                        6u -> done3 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                5 -> {
-                    when (r.readBits(3)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 6
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 7
-                        }
-                        2u -> {
-                            r.readBits(1)   // value-start
-                            _chargingComplete = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 8
-                        }
-                        3u -> {
-                            _batteryEnergyCapacity = decodeRationalNumberType(r)
-                            st3 = 9
-                        }
-                        4u -> {
-                            r.readBits(1)   // value-start
-                            _inletHot = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 10
-                        }
-                        5u -> done3 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                6 -> {
-                    when (r.readBits(3)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
-                            r.readBits(1)   // child EE
-                            st3 = 7
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _chargingComplete = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 8
-                        }
-                        2u -> {
-                            _batteryEnergyCapacity = decodeRationalNumberType(r)
-                            st3 = 9
-                        }
-                        3u -> {
-                            r.readBits(1)   // value-start
-                            _inletHot = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 10
-                        }
-                        4u -> done3 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                7 -> {
-                    when (r.readBits(3)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _chargingComplete = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 8
-                        }
-                        1u -> {
-                            _batteryEnergyCapacity = decodeRationalNumberType(r)
-                            st3 = 9
-                        }
-                        2u -> {
-                            r.readBits(1)   // value-start
-                            _inletHot = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 10
-                        }
-                        3u -> done3 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                8 -> {
-                    when (r.readBits(2)) {
-                        0u -> {
-                            _batteryEnergyCapacity = decodeRationalNumberType(r)
-                            st3 = 9
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _inletHot = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 10
-                        }
-                        2u -> done3 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                9 -> {
-                    when (r.readBits(2)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _inletHot = r.readBits(1).toInt() != 0
-                            r.readBits(1)   // child EE
-                            st3 = 10
-                        }
-                        1u -> done3 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                10 -> {
-                    when (r.readBits(1)) {
-                        0u -> done3 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-            }
-        }
-        return DisplayParametersType(_presentSOC, _minimumSOC, _targetSOC, _maximumSOC, _remainingTimeToMinimumSOC, _remainingTimeToTargetSOC, _remainingTimeToMaximumSOC, _chargingComplete, _batteryEnergyCapacity, _inletHot)
-    }
-
-    private fun encodeEVSEStatusType(w: BitWriter, msg: EVSEStatusType) {
-        w.writeBits(0u, 1)   // SE
-        w.writeBits(0u, 1)   // value-start
-        ExiPrimitives.writeUnsignedInteger(w, msg.notificationMaxDelay.toULong())
-        w.writeBits(0u, 1)   // child EE
-        w.writeBits(0u, 1)   // SE
-        w.writeBits(0u, 1)   // value-start
-        w.writeBits(msg.eVSENotification.ordinal.toUInt(), 3)
-        w.writeBits(0u, 1)   // child EE
-        w.writeBits(0u, 1)   // element EE
-    }
-
-    private fun decodeEVSEStatusType(r: BitReader): EVSEStatusType {
-        r.readBits(1)   // SE
-        r.readBits(1)   // value-start
-        val _notificationMaxDelay = ExiPrimitives.readUnsignedInteger(r).toUShort()
-        r.readBits(1)   // child EE
-        r.readBits(1)   // SE
-        r.readBits(1)   // value-start
-        val _eVSENotification = EvseNotification.entries[r.readBits(3).toInt()]
-        r.readBits(1)   // child EE
-        r.readBits(1)   // element EE
-        return EVSEStatusType(_notificationMaxDelay, _eVSENotification)
-    }
-
-    private fun encodeRationalNumberType(w: BitWriter, msg: RationalNumberType) {
-        w.writeBits(0u, 1)   // SE
-        w.writeBits(0u, 1)   // value-start
-        w.writeBits((msg.exponent.toLong() - -128L).toUInt(), 8)
-        w.writeBits(0u, 1)   // child EE
-        w.writeBits(0u, 1)   // SE
-        w.writeBits(0u, 1)   // value-start
-        ExiPrimitives.writeSignedInteger(w, msg.value.toLong())
-        w.writeBits(0u, 1)   // child EE
-        w.writeBits(0u, 1)   // element EE
-    }
-
-    private fun decodeRationalNumberType(r: BitReader): RationalNumberType {
-        r.readBits(1)   // SE
-        r.readBits(1)   // value-start
-        val _exponent = (r.readBits(8).toLong() + -128L).toByte()
-        r.readBits(1)   // child EE
-        r.readBits(1)   // SE
-        r.readBits(1)   // value-start
-        val _value = ExiPrimitives.readSignedInteger(r).toShort()
-        r.readBits(1)   // child EE
-        r.readBits(1)   // element EE
-        return RationalNumberType(_exponent, _value)
-    }
-
-    private fun encodeMeterInfoType(w: BitWriter, msg: MeterInfoType) {
-        w.writeBits(0u, 1)   // SE
-        w.writeBits(0u, 1)   // value-start
-        ExiPrimitives.writeStringValue(w, msg.meterID)
-        w.writeBits(0u, 1)   // child EE
-        w.writeBits(0u, 1)   // SE
-        w.writeBits(0u, 1)   // value-start
-        ExiPrimitives.writeUnsignedInteger(w, msg.chargedEnergyReadingWh.toULong())
-        w.writeBits(0u, 1)   // child EE
-        var st4 = 0
-        var done4 = false
-        while (!done4) {
-            when (st4) {
-                0 -> {
-                    if (msg.bPT_DischargedEnergyReadingWh != null) {
-                        w.writeBits(0u, 3)   // BPT_DischargedEnergyReadingWh
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.bPT_DischargedEnergyReadingWh!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 1
-                    } else if (msg.capacitiveEnergyReadingVARh != null) {
-                        w.writeBits(1u, 3)   // CapacitiveEnergyReadingVARh
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.capacitiveEnergyReadingVARh!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 2
-                    } else if (msg.bPT_InductiveEnergyReadingVARh != null) {
-                        w.writeBits(2u, 3)   // BPT_InductiveEnergyReadingVARh
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.bPT_InductiveEnergyReadingVARh!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 3
-                    } else if (msg.meterSignature != null) {
-                        w.writeBits(3u, 3)   // MeterSignature
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeBinary(w, msg.meterSignature!!)
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 4
-                    } else if (msg.meterStatus != null) {
-                        w.writeBits(4u, 3)   // MeterStatus
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 5
-                    } else if (msg.meterTimestamp != null) {
-                        w.writeBits(5u, 3)   // MeterTimestamp
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 6
-                    } else {
-                        w.writeBits(6u, 3)   // element EE
-                        done4 = true
-                    }
-                }
-                1 -> {
-                    if (msg.capacitiveEnergyReadingVARh != null) {
-                        w.writeBits(0u, 3)   // CapacitiveEnergyReadingVARh
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.capacitiveEnergyReadingVARh!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 2
-                    } else if (msg.bPT_InductiveEnergyReadingVARh != null) {
-                        w.writeBits(1u, 3)   // BPT_InductiveEnergyReadingVARh
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.bPT_InductiveEnergyReadingVARh!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 3
-                    } else if (msg.meterSignature != null) {
-                        w.writeBits(2u, 3)   // MeterSignature
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeBinary(w, msg.meterSignature!!)
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 4
-                    } else if (msg.meterStatus != null) {
-                        w.writeBits(3u, 3)   // MeterStatus
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 5
-                    } else if (msg.meterTimestamp != null) {
-                        w.writeBits(4u, 3)   // MeterTimestamp
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 6
-                    } else {
-                        w.writeBits(5u, 3)   // element EE
-                        done4 = true
-                    }
-                }
-                2 -> {
-                    if (msg.bPT_InductiveEnergyReadingVARh != null) {
-                        w.writeBits(0u, 3)   // BPT_InductiveEnergyReadingVARh
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.bPT_InductiveEnergyReadingVARh!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 3
-                    } else if (msg.meterSignature != null) {
-                        w.writeBits(1u, 3)   // MeterSignature
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeBinary(w, msg.meterSignature!!)
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 4
-                    } else if (msg.meterStatus != null) {
-                        w.writeBits(2u, 3)   // MeterStatus
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 5
-                    } else if (msg.meterTimestamp != null) {
-                        w.writeBits(3u, 3)   // MeterTimestamp
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 6
-                    } else {
-                        w.writeBits(4u, 3)   // element EE
-                        done4 = true
-                    }
-                }
-                3 -> {
-                    if (msg.meterSignature != null) {
-                        w.writeBits(0u, 3)   // MeterSignature
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeBinary(w, msg.meterSignature!!)
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 4
-                    } else if (msg.meterStatus != null) {
-                        w.writeBits(1u, 3)   // MeterStatus
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 5
-                    } else if (msg.meterTimestamp != null) {
-                        w.writeBits(2u, 3)   // MeterTimestamp
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 6
-                    } else {
-                        w.writeBits(3u, 3)   // element EE
-                        done4 = true
-                    }
-                }
-                4 -> {
-                    if (msg.meterStatus != null) {
-                        w.writeBits(0u, 2)   // MeterStatus
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 5
-                    } else if (msg.meterTimestamp != null) {
-                        w.writeBits(1u, 2)   // MeterTimestamp
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 6
-                    } else {
-                        w.writeBits(2u, 2)   // element EE
-                        done4 = true
-                    }
-                }
-                5 -> {
-                    if (msg.meterTimestamp != null) {
-                        w.writeBits(0u, 2)   // MeterTimestamp
-                        w.writeBits(0u, 1)   // value-start
-                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
-                        w.writeBits(0u, 1)   // child EE
-                        st4 = 6
-                    } else {
-                        w.writeBits(1u, 2)   // element EE
-                        done4 = true
-                    }
-                }
-                6 -> {
-                    w.writeBits(0u, 1)   // element EE
-                    done4 = true
-                }
-            }
-        }
-    }
-
-    private fun decodeMeterInfoType(r: BitReader): MeterInfoType {
-        r.readBits(1)   // SE
-        r.readBits(1)   // value-start
-        val _meterID = ExiPrimitives.readStringValue(r)
-        r.readBits(1)   // child EE
-        r.readBits(1)   // SE
-        r.readBits(1)   // value-start
-        val _chargedEnergyReadingWh = ExiPrimitives.readUnsignedInteger(r).toULong()
-        r.readBits(1)   // child EE
-        var _bPT_DischargedEnergyReadingWh: ULong? = null
-        var _capacitiveEnergyReadingVARh: ULong? = null
-        var _bPT_InductiveEnergyReadingVARh: ULong? = null
-        var _meterSignature: ByteArray? = null
-        var _meterStatus: Short? = null
-        var _meterTimestamp: ULong? = null
-        var st5 = 0
-        var done5 = false
-        while (!done5) {
-            when (st5) {
-                0 -> {
-                    when (r.readBits(3)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _bPT_DischargedEnergyReadingWh = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 1
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _capacitiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 2
-                        }
-                        2u -> {
-                            r.readBits(1)   // value-start
-                            _bPT_InductiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 3
-                        }
-                        3u -> {
-                            r.readBits(1)   // value-start
-                            _meterSignature = ExiPrimitives.readBinary(r)
-                            r.readBits(1)   // child EE
-                            st5 = 4
-                        }
-                        4u -> {
-                            r.readBits(1)   // value-start
-                            _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
-                            r.readBits(1)   // child EE
-                            st5 = 5
-                        }
-                        5u -> {
-                            r.readBits(1)   // value-start
-                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 6
-                        }
-                        6u -> done5 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                1 -> {
-                    when (r.readBits(3)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _capacitiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 2
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _bPT_InductiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 3
-                        }
-                        2u -> {
-                            r.readBits(1)   // value-start
-                            _meterSignature = ExiPrimitives.readBinary(r)
-                            r.readBits(1)   // child EE
-                            st5 = 4
-                        }
-                        3u -> {
-                            r.readBits(1)   // value-start
-                            _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
-                            r.readBits(1)   // child EE
-                            st5 = 5
-                        }
-                        4u -> {
-                            r.readBits(1)   // value-start
-                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 6
-                        }
-                        5u -> done5 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                2 -> {
-                    when (r.readBits(3)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _bPT_InductiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 3
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _meterSignature = ExiPrimitives.readBinary(r)
-                            r.readBits(1)   // child EE
-                            st5 = 4
-                        }
-                        2u -> {
-                            r.readBits(1)   // value-start
-                            _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
-                            r.readBits(1)   // child EE
-                            st5 = 5
-                        }
-                        3u -> {
-                            r.readBits(1)   // value-start
-                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 6
-                        }
-                        4u -> done5 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                3 -> {
-                    when (r.readBits(3)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _meterSignature = ExiPrimitives.readBinary(r)
-                            r.readBits(1)   // child EE
-                            st5 = 4
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
-                            r.readBits(1)   // child EE
-                            st5 = 5
-                        }
-                        2u -> {
-                            r.readBits(1)   // value-start
-                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 6
-                        }
-                        3u -> done5 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                4 -> {
-                    when (r.readBits(2)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
-                            r.readBits(1)   // child EE
-                            st5 = 5
-                        }
-                        1u -> {
-                            r.readBits(1)   // value-start
-                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 6
-                        }
-                        2u -> done5 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                5 -> {
-                    when (r.readBits(2)) {
-                        0u -> {
-                            r.readBits(1)   // value-start
-                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
-                            r.readBits(1)   // child EE
-                            st5 = 6
-                        }
-                        1u -> done5 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                6 -> {
-                    when (r.readBits(1)) {
-                        0u -> done5 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-            }
-        }
-        return MeterInfoType(_meterID, _chargedEnergyReadingWh, _bPT_DischargedEnergyReadingWh, _capacitiveEnergyReadingVARh, _bPT_InductiveEnergyReadingVARh, _meterSignature, _meterStatus, _meterTimestamp)
-    }
-
-    private fun encodeDetailedCostType(w: BitWriter, msg: DetailedCostType) {
-        w.writeBits(0u, 1)   // SE
-        encodeRationalNumberType(w, msg.amount)
-        w.writeBits(0u, 1)   // SE
-        encodeRationalNumberType(w, msg.costPerUnit)
-        w.writeBits(0u, 1)   // element EE
-    }
-
-    private fun decodeDetailedCostType(r: BitReader): DetailedCostType {
-        r.readBits(1)   // SE
-        val _amount = decodeRationalNumberType(r)
-        r.readBits(1)   // SE
-        val _costPerUnit = decodeRationalNumberType(r)
-        r.readBits(1)   // element EE
-        return DetailedCostType(_amount, _costPerUnit)
-    }
-
-    private fun encodeDetailedTaxType(w: BitWriter, msg: DetailedTaxType) {
-        w.writeBits(0u, 1)   // SE
-        w.writeBits(0u, 1)   // value-start
-        ExiPrimitives.writeUnsignedInteger(w, msg.taxRuleID.toULong())
-        w.writeBits(0u, 1)   // child EE
-        w.writeBits(0u, 1)   // SE
-        encodeRationalNumberType(w, msg.amount)
-        w.writeBits(0u, 1)   // element EE
-    }
-
-    private fun decodeDetailedTaxType(r: BitReader): DetailedTaxType {
-        r.readBits(1)   // SE
-        r.readBits(1)   // value-start
-        val _taxRuleID = ExiPrimitives.readUnsignedInteger(r).toUInt()
-        r.readBits(1)   // child EE
-        r.readBits(1)   // SE
-        val _amount = decodeRationalNumberType(r)
-        r.readBits(1)   // element EE
-        return DetailedTaxType(_taxRuleID, _amount)
-    }
-
-    private fun encodeReceiptType(w: BitWriter, msg: ReceiptType) {
-        w.writeBits(0u, 1)   // SE
-        w.writeBits(0u, 1)   // value-start
-        ExiPrimitives.writeUnsignedInteger(w, msg.timeAnchor.toULong())
-        w.writeBits(0u, 1)   // child EE
-        var st6 = 0
-        var done6 = false
-        while (!done6) {
-            when (st6) {
-                0 -> {
-                    if (msg.energyCosts != null) {
-                        w.writeBits(0u, 3)   // EnergyCosts
-                        encodeDetailedCostType(w, msg.energyCosts!!)
-                        st6 = 1
-                    } else if (msg.occupancyCosts != null) {
-                        w.writeBits(1u, 3)   // OccupancyCosts
-                        encodeDetailedCostType(w, msg.occupancyCosts!!)
-                        st6 = 2
-                    } else if (msg.additionalServicesCosts != null) {
-                        w.writeBits(2u, 3)   // AdditionalServicesCosts
-                        encodeDetailedCostType(w, msg.additionalServicesCosts!!)
-                        st6 = 3
-                    } else if (msg.overstayCosts != null) {
-                        w.writeBits(3u, 3)   // OverstayCosts
-                        encodeDetailedCostType(w, msg.overstayCosts!!)
-                        st6 = 4
-                    } else if (msg.taxCosts.isNotEmpty()) {
-                        require(msg.taxCosts.size <= 10) { "list size out of schema range" }
-                        w.writeBits(4u, 3)   // TaxCosts
-                        encodeDetailedTaxType(w, msg.taxCosts[0])
-                        for (ci in 1 until msg.taxCosts.size) {
-                            w.writeBits(0u, 2)   // TaxCosts
-                            encodeDetailedTaxType(w, msg.taxCosts[ci])
-                        }
-                        w.writeBits(1u, 2)   // element EE (list end)
-                        done6 = true
-                    } else {
-                        w.writeBits(5u, 3)   // element EE
-                        done6 = true
-                    }
-                }
-                1 -> {
-                    if (msg.occupancyCosts != null) {
-                        w.writeBits(0u, 3)   // OccupancyCosts
-                        encodeDetailedCostType(w, msg.occupancyCosts!!)
-                        st6 = 2
-                    } else if (msg.additionalServicesCosts != null) {
-                        w.writeBits(1u, 3)   // AdditionalServicesCosts
-                        encodeDetailedCostType(w, msg.additionalServicesCosts!!)
-                        st6 = 3
-                    } else if (msg.overstayCosts != null) {
-                        w.writeBits(2u, 3)   // OverstayCosts
-                        encodeDetailedCostType(w, msg.overstayCosts!!)
-                        st6 = 4
-                    } else if (msg.taxCosts.isNotEmpty()) {
-                        require(msg.taxCosts.size <= 10) { "list size out of schema range" }
-                        w.writeBits(3u, 3)   // TaxCosts
-                        encodeDetailedTaxType(w, msg.taxCosts[0])
-                        for (ci in 1 until msg.taxCosts.size) {
-                            w.writeBits(0u, 2)   // TaxCosts
-                            encodeDetailedTaxType(w, msg.taxCosts[ci])
-                        }
-                        w.writeBits(1u, 2)   // element EE (list end)
-                        done6 = true
-                    } else {
-                        w.writeBits(4u, 3)   // element EE
-                        done6 = true
-                    }
-                }
-                2 -> {
-                    if (msg.additionalServicesCosts != null) {
-                        w.writeBits(0u, 3)   // AdditionalServicesCosts
-                        encodeDetailedCostType(w, msg.additionalServicesCosts!!)
-                        st6 = 3
-                    } else if (msg.overstayCosts != null) {
-                        w.writeBits(1u, 3)   // OverstayCosts
-                        encodeDetailedCostType(w, msg.overstayCosts!!)
-                        st6 = 4
-                    } else if (msg.taxCosts.isNotEmpty()) {
-                        require(msg.taxCosts.size <= 10) { "list size out of schema range" }
-                        w.writeBits(2u, 3)   // TaxCosts
-                        encodeDetailedTaxType(w, msg.taxCosts[0])
-                        for (ci in 1 until msg.taxCosts.size) {
-                            w.writeBits(0u, 2)   // TaxCosts
-                            encodeDetailedTaxType(w, msg.taxCosts[ci])
-                        }
-                        w.writeBits(1u, 2)   // element EE (list end)
-                        done6 = true
-                    } else {
-                        w.writeBits(3u, 3)   // element EE
-                        done6 = true
-                    }
-                }
-                3 -> {
-                    if (msg.overstayCosts != null) {
-                        w.writeBits(0u, 2)   // OverstayCosts
-                        encodeDetailedCostType(w, msg.overstayCosts!!)
-                        st6 = 4
-                    } else if (msg.taxCosts.isNotEmpty()) {
-                        require(msg.taxCosts.size <= 10) { "list size out of schema range" }
-                        w.writeBits(1u, 2)   // TaxCosts
-                        encodeDetailedTaxType(w, msg.taxCosts[0])
-                        for (ci in 1 until msg.taxCosts.size) {
-                            w.writeBits(0u, 2)   // TaxCosts
-                            encodeDetailedTaxType(w, msg.taxCosts[ci])
-                        }
-                        w.writeBits(1u, 2)   // element EE (list end)
-                        done6 = true
-                    } else {
-                        w.writeBits(2u, 2)   // element EE
-                        done6 = true
-                    }
-                }
-                4 -> {
-                    if (msg.taxCosts.isNotEmpty()) {
-                        require(msg.taxCosts.size <= 10) { "list size out of schema range" }
-                        w.writeBits(0u, 2)   // TaxCosts
-                        encodeDetailedTaxType(w, msg.taxCosts[0])
-                        for (ci in 1 until msg.taxCosts.size) {
-                            w.writeBits(0u, 2)   // TaxCosts
-                            encodeDetailedTaxType(w, msg.taxCosts[ci])
-                        }
-                        w.writeBits(1u, 2)   // element EE (list end)
-                        done6 = true
-                    } else {
-                        w.writeBits(1u, 2)   // element EE
-                        done6 = true
-                    }
-                }
-                5 -> {
-                    w.writeBits(0u, 1)   // element EE
-                    done6 = true
-                }
-            }
-        }
-    }
-
-    private fun decodeReceiptType(r: BitReader): ReceiptType {
-        r.readBits(1)   // SE
-        r.readBits(1)   // value-start
-        val _timeAnchor = ExiPrimitives.readUnsignedInteger(r).toULong()
-        r.readBits(1)   // child EE
-        var _energyCosts: DetailedCostType? = null
-        var _occupancyCosts: DetailedCostType? = null
-        var _additionalServicesCosts: DetailedCostType? = null
-        var _overstayCosts: DetailedCostType? = null
-        val taxCostsList = ArrayList<DetailedTaxType>()
-        var st7 = 0
-        var done7 = false
-        while (!done7) {
-            when (st7) {
-                0 -> {
-                    when (r.readBits(3)) {
-                        0u -> {
-                            _energyCosts = decodeDetailedCostType(r)
-                            st7 = 1
-                        }
-                        1u -> {
-                            _occupancyCosts = decodeDetailedCostType(r)
-                            st7 = 2
-                        }
-                        2u -> {
-                            _additionalServicesCosts = decodeDetailedCostType(r)
-                            st7 = 3
-                        }
-                        3u -> {
-                            _overstayCosts = decodeDetailedCostType(r)
-                            st7 = 4
-                        }
-                        4u -> {   // TaxCosts
-                            taxCostsList.add(decodeDetailedTaxType(r))
-                            while (true) {
-                                val lc = r.readBits(2)
-                                if (lc == 1u) break   // element EE (list end)
-                                require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
-                                taxCostsList.add(decodeDetailedTaxType(r))
-                            }
-                            done7 = true
-                        }
-                        5u -> done7 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                1 -> {
-                    when (r.readBits(3)) {
-                        0u -> {
-                            _occupancyCosts = decodeDetailedCostType(r)
-                            st7 = 2
-                        }
-                        1u -> {
-                            _additionalServicesCosts = decodeDetailedCostType(r)
-                            st7 = 3
-                        }
-                        2u -> {
-                            _overstayCosts = decodeDetailedCostType(r)
-                            st7 = 4
-                        }
-                        3u -> {   // TaxCosts
-                            taxCostsList.add(decodeDetailedTaxType(r))
-                            while (true) {
-                                val lc = r.readBits(2)
-                                if (lc == 1u) break   // element EE (list end)
-                                require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
-                                taxCostsList.add(decodeDetailedTaxType(r))
-                            }
-                            done7 = true
-                        }
-                        4u -> done7 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                2 -> {
-                    when (r.readBits(3)) {
-                        0u -> {
-                            _additionalServicesCosts = decodeDetailedCostType(r)
-                            st7 = 3
-                        }
-                        1u -> {
-                            _overstayCosts = decodeDetailedCostType(r)
-                            st7 = 4
-                        }
-                        2u -> {   // TaxCosts
-                            taxCostsList.add(decodeDetailedTaxType(r))
-                            while (true) {
-                                val lc = r.readBits(2)
-                                if (lc == 1u) break   // element EE (list end)
-                                require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
-                                taxCostsList.add(decodeDetailedTaxType(r))
-                            }
-                            done7 = true
-                        }
-                        3u -> done7 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                3 -> {
-                    when (r.readBits(2)) {
-                        0u -> {
-                            _overstayCosts = decodeDetailedCostType(r)
-                            st7 = 4
-                        }
-                        1u -> {   // TaxCosts
-                            taxCostsList.add(decodeDetailedTaxType(r))
-                            while (true) {
-                                val lc = r.readBits(2)
-                                if (lc == 1u) break   // element EE (list end)
-                                require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
-                                taxCostsList.add(decodeDetailedTaxType(r))
-                            }
-                            done7 = true
-                        }
-                        2u -> done7 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                4 -> {
-                    when (r.readBits(2)) {
-                        0u -> {   // TaxCosts
-                            taxCostsList.add(decodeDetailedTaxType(r))
-                            while (true) {
-                                val lc = r.readBits(2)
-                                if (lc == 1u) break   // element EE (list end)
-                                require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
-                                taxCostsList.add(decodeDetailedTaxType(r))
-                            }
-                            done7 = true
-                        }
-                        1u -> done7 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-                5 -> {
-                    when (r.readBits(1)) {
-                        0u -> done7 = true   // element EE
-                        else -> throw IllegalArgumentException("invalid optional-run event code")
-                    }
-                }
-            }
-        }
-        return ReceiptType(_timeAnchor, _energyCosts, _occupancyCosts, _additionalServicesCosts, _overstayCosts, taxCostsList)
-    }
-
-    private fun encodeListOfRootCertificateIDsType(w: BitWriter, msg: ListOfRootCertificateIDsType) {
-        val list = msg.rootCertificateID
-        require(list.size in 1..20) { "list size out of schema range" }
-        for (i in list.indices) {
-            w.writeBits(0u, if (i == 0) 1 else 2)   // SE(item)
-            encodeX509IssuerSerialType(w, list[i])
-        }
-        w.writeBits(1u, 2)   // list terminator / element EE
-    }
-
-    private fun decodeListOfRootCertificateIDsType(r: BitReader): ListOfRootCertificateIDsType {
-        val list = ArrayList<X509IssuerSerialType>()
-        r.readBits(1)   // SE(item) first
-        list.add(decodeX509IssuerSerialType(r))
-        while (true) {
-            val ec = r.readBits(2)
-            if (ec == 1u) break   // element EE
-            require(ec == 0u && list.size < 20) { "invalid repeating-element event code" }
-            list.add(decodeX509IssuerSerialType(r))
-        }
-        return ListOfRootCertificateIDsType(list)
-    }
-
     private fun encodeWPT_FinePositioningSetupReqType(w: BitWriter, msg: WPT_FinePositioningSetupReqType) {
         w.writeBits(0u, 1)   // SE
         encodeMessageHeaderType(w, msg.header)
@@ -2451,21 +834,21 @@ object WPTCodec {
         ExiPrimitives.writeUnsignedInteger(w, msg.naturalOffset.toULong())
         w.writeBits(0u, 1)   // child EE
         require(msg.vendorSpecificDataContainer.size <= 2) { "VendorSpecificDataContainer: cbV2G's grammar for this position caps this list at 2 items." }
-        var st8 = 0
-        var done8 = false
-        while (!done8) {
-            when (st8) {
+        var st0 = 0
+        var done0 = false
+        while (!done0) {
+            when (st0) {
                 0 -> {
                     if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                         w.writeBits(0u, 2)   // VendorSpecificDataContainer
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeBinary(w, msg.vendorSpecificDataContainer[0])
                         w.writeBits(0u, 1)   // child EE
-                        st8 = 1
+                        st0 = 1
                     } else {
                         require(msg.lF_SystemSetupData == null) { "LF_SystemSetupData cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
-                        done8 = true
+                        done0 = true
                     }
                 }
                 1 -> {
@@ -2474,15 +857,15 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeBinary(w, msg.vendorSpecificDataContainer[1])
                         w.writeBits(0u, 1)   // child EE
-                        st8 = 2
+                        st0 = 2
                     } else if (msg.lF_SystemSetupData != null) {
                         w.writeBits(1u, 2)   // LF_SystemSetupData
                         encodeWPT_LF_SystemSetupDataType(w, msg.lF_SystemSetupData!!)
                         w.writeBits(0u, 1)   // element EE
-                        done8 = true
+                        done0 = true
                     } else {
                         w.writeBits(2u, 2)   // element EE
-                        done8 = true
+                        done0 = true
                     }
                 }
                 2 -> {
@@ -2490,10 +873,10 @@ object WPTCodec {
                         w.writeBits(0u, 2)   // LF_SystemSetupData
                         encodeWPT_LF_SystemSetupDataType(w, msg.lF_SystemSetupData!!)
                         w.writeBits(0u, 1)   // element EE
-                        done8 = true
+                        done0 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done8 = true
+                        done0 = true
                     }
                 }
             }
@@ -2519,10 +902,10 @@ object WPTCodec {
         r.readBits(1)   // child EE
         val vendorSpecificDataContainerList = ArrayList<ByteArray>()
         var _lF_SystemSetupData: WPT_LF_SystemSetupDataType? = null
-        var st9 = 0
-        var done9 = false
-        while (!done9) {
-            when (st9) {
+        var st1 = 0
+        var done1 = false
+        while (!done1) {
+            when (st1) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {   // VendorSpecificDataContainer
@@ -2530,9 +913,9 @@ object WPTCodec {
                             val vendorSpecificDataContainerListFirst = ExiPrimitives.readBinary(r)
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListFirst)
-                            st9 = 1
+                            st1 = 1
                         }
-                        1u -> done9 = true   // element EE
+                        1u -> done1 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -2543,13 +926,13 @@ object WPTCodec {
                             val vendorSpecificDataContainerListNext = ExiPrimitives.readBinary(r)
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
-                            st9 = 2
+                            st1 = 2
                         }
                         1u -> {   // LF_SystemSetupData
                             _lF_SystemSetupData = decodeWPT_LF_SystemSetupDataType(r)
-                            st9 = 3
+                            st1 = 3
                         }
-                        2u -> done9 = true   // element EE
+                        2u -> done1 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -2557,15 +940,15 @@ object WPTCodec {
                     when (r.readBits(2)) {
                         0u -> {   // LF_SystemSetupData
                             _lF_SystemSetupData = decodeWPT_LF_SystemSetupDataType(r)
-                            st9 = 3
+                            st1 = 3
                         }
-                        1u -> done9 = true   // element EE
+                        1u -> done1 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 3 -> {
                     r.readBits(1)   // element EE
-                    done9 = true
+                    done1 = true
                 }
             }
         }
@@ -2590,21 +973,21 @@ object WPTCodec {
         ExiPrimitives.writeUnsignedInteger(w, msg.naturalOffset.toULong())
         w.writeBits(0u, 1)   // child EE
         require(msg.vendorSpecificDataContainer.size <= 2) { "VendorSpecificDataContainer: cbV2G's grammar for this position caps this list at 2 items." }
-        var st10 = 0
-        var done10 = false
-        while (!done10) {
-            when (st10) {
+        var st2 = 0
+        var done2 = false
+        while (!done2) {
+            when (st2) {
                 0 -> {
                     if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                         w.writeBits(0u, 2)   // VendorSpecificDataContainer
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeBinary(w, msg.vendorSpecificDataContainer[0])
                         w.writeBits(0u, 1)   // child EE
-                        st10 = 1
+                        st2 = 1
                     } else {
                         require(msg.lF_SystemSetupData == null) { "LF_SystemSetupData cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
-                        done10 = true
+                        done2 = true
                     }
                 }
                 1 -> {
@@ -2613,15 +996,15 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeBinary(w, msg.vendorSpecificDataContainer[1])
                         w.writeBits(0u, 1)   // child EE
-                        st10 = 2
+                        st2 = 2
                     } else if (msg.lF_SystemSetupData != null) {
                         w.writeBits(1u, 2)   // LF_SystemSetupData
                         encodeWPT_LF_SystemSetupDataType(w, msg.lF_SystemSetupData!!)
                         w.writeBits(0u, 1)   // element EE
-                        done10 = true
+                        done2 = true
                     } else {
                         w.writeBits(2u, 2)   // element EE
-                        done10 = true
+                        done2 = true
                     }
                 }
                 2 -> {
@@ -2629,10 +1012,10 @@ object WPTCodec {
                         w.writeBits(0u, 2)   // LF_SystemSetupData
                         encodeWPT_LF_SystemSetupDataType(w, msg.lF_SystemSetupData!!)
                         w.writeBits(0u, 1)   // element EE
-                        done10 = true
+                        done2 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done10 = true
+                        done2 = true
                     }
                 }
             }
@@ -2658,10 +1041,10 @@ object WPTCodec {
         r.readBits(1)   // child EE
         val vendorSpecificDataContainerList = ArrayList<ByteArray>()
         var _lF_SystemSetupData: WPT_LF_SystemSetupDataType? = null
-        var st11 = 0
-        var done11 = false
-        while (!done11) {
-            when (st11) {
+        var st3 = 0
+        var done3 = false
+        while (!done3) {
+            when (st3) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {   // VendorSpecificDataContainer
@@ -2669,9 +1052,9 @@ object WPTCodec {
                             val vendorSpecificDataContainerListFirst = ExiPrimitives.readBinary(r)
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListFirst)
-                            st11 = 1
+                            st3 = 1
                         }
-                        1u -> done11 = true   // element EE
+                        1u -> done3 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -2682,13 +1065,13 @@ object WPTCodec {
                             val vendorSpecificDataContainerListNext = ExiPrimitives.readBinary(r)
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
-                            st11 = 2
+                            st3 = 2
                         }
                         1u -> {   // LF_SystemSetupData
                             _lF_SystemSetupData = decodeWPT_LF_SystemSetupDataType(r)
-                            st11 = 3
+                            st3 = 3
                         }
-                        2u -> done11 = true   // element EE
+                        2u -> done3 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -2696,15 +1079,15 @@ object WPTCodec {
                     when (r.readBits(2)) {
                         0u -> {   // LF_SystemSetupData
                             _lF_SystemSetupData = decodeWPT_LF_SystemSetupDataType(r)
-                            st11 = 3
+                            st3 = 3
                         }
-                        1u -> done11 = true   // element EE
+                        1u -> done3 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 3 -> {
                     r.readBits(1)   // element EE
-                    done11 = true
+                    done3 = true
                 }
             }
         }
@@ -2723,21 +1106,21 @@ object WPTCodec {
         w.writeBits(msg.eVResultCode.ordinal.toUInt(), 2)
         w.writeBits(0u, 1)   // child EE
         require(msg.vendorSpecificDataContainer.size <= 2) { "VendorSpecificDataContainer: cbV2G's grammar for this position caps this list at 2 items." }
-        var st12 = 0
-        var done12 = false
-        while (!done12) {
-            when (st12) {
+        var st4 = 0
+        var done4 = false
+        while (!done4) {
+            when (st4) {
                 0 -> {
                     if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                         w.writeBits(0u, 2)   // VendorSpecificDataContainer
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeBinary(w, msg.vendorSpecificDataContainer[0])
                         w.writeBits(0u, 1)   // child EE
-                        st12 = 1
+                        st4 = 1
                     } else {
                         require(msg.wPT_LF_DataPackageList == null) { "WPT_LF_DataPackageList cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
-                        done12 = true
+                        done4 = true
                     }
                 }
                 1 -> {
@@ -2746,15 +1129,15 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeBinary(w, msg.vendorSpecificDataContainer[1])
                         w.writeBits(0u, 1)   // child EE
-                        st12 = 2
+                        st4 = 2
                     } else if (msg.wPT_LF_DataPackageList != null) {
                         w.writeBits(1u, 2)   // WPT_LF_DataPackageList
                         encodeWPT_LF_DataPackageListType(w, msg.wPT_LF_DataPackageList!!)
                         w.writeBits(0u, 1)   // element EE
-                        done12 = true
+                        done4 = true
                     } else {
                         w.writeBits(2u, 2)   // element EE
-                        done12 = true
+                        done4 = true
                     }
                 }
                 2 -> {
@@ -2762,10 +1145,10 @@ object WPTCodec {
                         w.writeBits(0u, 2)   // WPT_LF_DataPackageList
                         encodeWPT_LF_DataPackageListType(w, msg.wPT_LF_DataPackageList!!)
                         w.writeBits(0u, 1)   // element EE
-                        done12 = true
+                        done4 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done12 = true
+                        done4 = true
                     }
                 }
             }
@@ -2785,10 +1168,10 @@ object WPTCodec {
         r.readBits(1)   // child EE
         val vendorSpecificDataContainerList = ArrayList<ByteArray>()
         var _wPT_LF_DataPackageList: WPT_LF_DataPackageListType? = null
-        var st13 = 0
-        var done13 = false
-        while (!done13) {
-            when (st13) {
+        var st5 = 0
+        var done5 = false
+        while (!done5) {
+            when (st5) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {   // VendorSpecificDataContainer
@@ -2796,9 +1179,9 @@ object WPTCodec {
                             val vendorSpecificDataContainerListFirst = ExiPrimitives.readBinary(r)
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListFirst)
-                            st13 = 1
+                            st5 = 1
                         }
-                        1u -> done13 = true   // element EE
+                        1u -> done5 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -2809,13 +1192,13 @@ object WPTCodec {
                             val vendorSpecificDataContainerListNext = ExiPrimitives.readBinary(r)
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
-                            st13 = 2
+                            st5 = 2
                         }
                         1u -> {   // WPT_LF_DataPackageList
                             _wPT_LF_DataPackageList = decodeWPT_LF_DataPackageListType(r)
-                            st13 = 3
+                            st5 = 3
                         }
-                        2u -> done13 = true   // element EE
+                        2u -> done5 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -2823,15 +1206,15 @@ object WPTCodec {
                     when (r.readBits(2)) {
                         0u -> {   // WPT_LF_DataPackageList
                             _wPT_LF_DataPackageList = decodeWPT_LF_DataPackageListType(r)
-                            st13 = 3
+                            st5 = 3
                         }
-                        1u -> done13 = true   // element EE
+                        1u -> done5 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 3 -> {
                     r.readBits(1)   // element EE
-                    done13 = true
+                    done5 = true
                 }
             }
         }
@@ -2850,21 +1233,21 @@ object WPTCodec {
         w.writeBits(msg.eVSEProcessing.ordinal.toUInt(), 2)
         w.writeBits(0u, 1)   // child EE
         require(msg.vendorSpecificDataContainer.size <= 2) { "VendorSpecificDataContainer: cbV2G's grammar for this position caps this list at 2 items." }
-        var st14 = 0
-        var done14 = false
-        while (!done14) {
-            when (st14) {
+        var st6 = 0
+        var done6 = false
+        while (!done6) {
+            when (st6) {
                 0 -> {
                     if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                         w.writeBits(0u, 2)   // VendorSpecificDataContainer
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeBinary(w, msg.vendorSpecificDataContainer[0])
                         w.writeBits(0u, 1)   // child EE
-                        st14 = 1
+                        st6 = 1
                     } else {
                         require(msg.wPT_LF_DataPackageList == null) { "WPT_LF_DataPackageList cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
                         w.writeBits(1u, 2)   // element EE
-                        done14 = true
+                        done6 = true
                     }
                 }
                 1 -> {
@@ -2873,15 +1256,15 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeBinary(w, msg.vendorSpecificDataContainer[1])
                         w.writeBits(0u, 1)   // child EE
-                        st14 = 2
+                        st6 = 2
                     } else if (msg.wPT_LF_DataPackageList != null) {
                         w.writeBits(1u, 2)   // WPT_LF_DataPackageList
                         encodeWPT_LF_DataPackageListType(w, msg.wPT_LF_DataPackageList!!)
                         w.writeBits(0u, 1)   // element EE
-                        done14 = true
+                        done6 = true
                     } else {
                         w.writeBits(2u, 2)   // element EE
-                        done14 = true
+                        done6 = true
                     }
                 }
                 2 -> {
@@ -2889,10 +1272,10 @@ object WPTCodec {
                         w.writeBits(0u, 2)   // WPT_LF_DataPackageList
                         encodeWPT_LF_DataPackageListType(w, msg.wPT_LF_DataPackageList!!)
                         w.writeBits(0u, 1)   // element EE
-                        done14 = true
+                        done6 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done14 = true
+                        done6 = true
                     }
                 }
             }
@@ -2912,10 +1295,10 @@ object WPTCodec {
         r.readBits(1)   // child EE
         val vendorSpecificDataContainerList = ArrayList<ByteArray>()
         var _wPT_LF_DataPackageList: WPT_LF_DataPackageListType? = null
-        var st15 = 0
-        var done15 = false
-        while (!done15) {
-            when (st15) {
+        var st7 = 0
+        var done7 = false
+        while (!done7) {
+            when (st7) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {   // VendorSpecificDataContainer
@@ -2923,9 +1306,9 @@ object WPTCodec {
                             val vendorSpecificDataContainerListFirst = ExiPrimitives.readBinary(r)
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListFirst)
-                            st15 = 1
+                            st7 = 1
                         }
-                        1u -> done15 = true   // element EE
+                        1u -> done7 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -2936,13 +1319,13 @@ object WPTCodec {
                             val vendorSpecificDataContainerListNext = ExiPrimitives.readBinary(r)
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
-                            st15 = 2
+                            st7 = 2
                         }
                         1u -> {   // WPT_LF_DataPackageList
                             _wPT_LF_DataPackageList = decodeWPT_LF_DataPackageListType(r)
-                            st15 = 3
+                            st7 = 3
                         }
-                        2u -> done15 = true   // element EE
+                        2u -> done7 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -2950,15 +1333,15 @@ object WPTCodec {
                     when (r.readBits(2)) {
                         0u -> {   // WPT_LF_DataPackageList
                             _wPT_LF_DataPackageList = decodeWPT_LF_DataPackageListType(r)
-                            st15 = 3
+                            st7 = 3
                         }
-                        1u -> done15 = true   // element EE
+                        1u -> done7 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 3 -> {
                     r.readBits(1)   // element EE
-                    done15 = true
+                    done7 = true
                 }
             }
         }
@@ -2972,23 +1355,23 @@ object WPTCodec {
         w.writeBits(0u, 1)   // value-start
         w.writeBits(msg.eVProcessing.ordinal.toUInt(), 2)
         w.writeBits(0u, 1)   // child EE
-        var st16 = 0
-        var done16 = false
-        while (!done16) {
-            when (st16) {
+        var st8 = 0
+        var done8 = false
+        while (!done8) {
+            when (st8) {
                 0 -> {
                     if (msg.observedIDCode != null) {
                         w.writeBits(0u, 2)   // ObservedIDCode
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeUnsignedInteger(w, msg.observedIDCode!!.toULong())
                         w.writeBits(0u, 1)   // child EE
-                        st16 = 1
+                        st8 = 1
                     } else {
                         w.writeBits(1u, 2)   // SE(EVResultCode)
                         w.writeBits(0u, 1)   // value-start
                         w.writeBits(msg.eVResultCode.ordinal.toUInt(), 2)
                         w.writeBits(0u, 1)   // child EE
-                        done16 = true
+                        done8 = true
                     }
                 }
                 1 -> {
@@ -2996,14 +1379,14 @@ object WPTCodec {
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.eVResultCode.ordinal.toUInt(), 2)
                     w.writeBits(0u, 1)   // child EE
-                    done16 = true
+                    done8 = true
                 }
             }
         }
-        var st17 = 0
-        var done17 = false
-        while (!done17) {
-            when (st17) {
+        var st9 = 0
+        var done9 = false
+        while (!done9) {
+            when (st9) {
                 0 -> {
                     if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                         require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
@@ -3018,15 +1401,15 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done17 = true
+                        done9 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done17 = true
+                        done9 = true
                     }
                 }
                 1 -> {
                     w.writeBits(0u, 1)   // element EE
-                    done17 = true
+                    done9 = true
                 }
             }
         }
@@ -3041,23 +1424,23 @@ object WPTCodec {
         r.readBits(1)   // child EE
         var _observedIDCode: UInt? = null
         var _eVResultCode: WPT_EVResult? = null
-        var st18 = 0
-        var done18 = false
-        while (!done18) {
-            when (st18) {
+        var st10 = 0
+        var done10 = false
+        while (!done10) {
+            when (st10) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {
                             r.readBits(1)   // value-start
                             _observedIDCode = ExiPrimitives.readUnsignedInteger(r).toUInt()
                             r.readBits(1)   // child EE
-                            st18 = 1
+                            st10 = 1
                         }
                         1u -> {   // SE(EVResultCode)
                             r.readBits(1)   // value-start
                             _eVResultCode = WPT_EVResult.entries[r.readBits(2).toInt()]
                             r.readBits(1)   // child EE
-                            done18 = true
+                            done10 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -3068,7 +1451,7 @@ object WPTCodec {
                             r.readBits(1)   // value-start
                             _eVResultCode = WPT_EVResult.entries[r.readBits(2).toInt()]
                             r.readBits(1)   // child EE
-                            done18 = true
+                            done10 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -3076,10 +1459,10 @@ object WPTCodec {
             }
         }
         val vendorSpecificDataContainerList = ArrayList<ByteArray>()
-        var st19 = 0
-        var done19 = false
-        while (!done19) {
-            when (st19) {
+        var st11 = 0
+        var done11 = false
+        while (!done11) {
+            when (st11) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {   // VendorSpecificDataContainer
@@ -3096,15 +1479,15 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                             }
-                            done19 = true
+                            done11 = true
                         }
-                        1u -> done19 = true   // element EE
+                        1u -> done11 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 1 -> {
                     when (r.readBits(1)) {
-                        0u -> done19 = true   // element EE
+                        0u -> done11 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -3124,21 +1507,21 @@ object WPTCodec {
         w.writeBits(0u, 1)   // value-start
         w.writeBits(msg.eVSEProcessing.ordinal.toUInt(), 2)
         w.writeBits(0u, 1)   // child EE
-        var st20 = 0
-        var done20 = false
-        while (!done20) {
-            when (st20) {
+        var st12 = 0
+        var done12 = false
+        while (!done12) {
+            when (st12) {
                 0 -> {
                     if (msg.observedIDCode != null) {
                         w.writeBits(0u, 3)   // ObservedIDCode
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeUnsignedInteger(w, msg.observedIDCode!!.toULong())
                         w.writeBits(0u, 1)   // child EE
-                        st20 = 1
+                        st12 = 1
                     } else if (msg.alternativeSECCList != null) {
                         w.writeBits(1u, 3)   // AlternativeSECCList
                         encodeAlternativeSECCListType(w, msg.alternativeSECCList!!)
-                        st20 = 2
+                        st12 = 2
                     } else if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                         require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
                         w.writeBits(2u, 3)   // VendorSpecificDataContainer
@@ -3152,17 +1535,17 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done20 = true
+                        done12 = true
                     } else {
                         w.writeBits(3u, 3)   // element EE
-                        done20 = true
+                        done12 = true
                     }
                 }
                 1 -> {
                     if (msg.alternativeSECCList != null) {
                         w.writeBits(0u, 2)   // AlternativeSECCList
                         encodeAlternativeSECCListType(w, msg.alternativeSECCList!!)
-                        st20 = 2
+                        st12 = 2
                     } else if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                         require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
                         w.writeBits(1u, 2)   // VendorSpecificDataContainer
@@ -3176,10 +1559,10 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done20 = true
+                        done12 = true
                     } else {
                         w.writeBits(2u, 2)   // element EE
-                        done20 = true
+                        done12 = true
                     }
                 }
                 2 -> {
@@ -3196,15 +1579,15 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done20 = true
+                        done12 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done20 = true
+                        done12 = true
                     }
                 }
                 3 -> {
                     w.writeBits(0u, 1)   // element EE
-                    done20 = true
+                    done12 = true
                 }
             }
         }
@@ -3224,21 +1607,21 @@ object WPTCodec {
         var _observedIDCode: UInt? = null
         var _alternativeSECCList: AlternativeSECCListType? = null
         val vendorSpecificDataContainerList = ArrayList<ByteArray>()
-        var st21 = 0
-        var done21 = false
-        while (!done21) {
-            when (st21) {
+        var st13 = 0
+        var done13 = false
+        while (!done13) {
+            when (st13) {
                 0 -> {
                     when (r.readBits(3)) {
                         0u -> {
                             r.readBits(1)   // value-start
                             _observedIDCode = ExiPrimitives.readUnsignedInteger(r).toUInt()
                             r.readBits(1)   // child EE
-                            st21 = 1
+                            st13 = 1
                         }
                         1u -> {
                             _alternativeSECCList = decodeAlternativeSECCListType(r)
-                            st21 = 2
+                            st13 = 2
                         }
                         2u -> {   // VendorSpecificDataContainer
                             r.readBits(1)   // value-start
@@ -3254,9 +1637,9 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                             }
-                            done21 = true
+                            done13 = true
                         }
-                        3u -> done21 = true   // element EE
+                        3u -> done13 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -3264,7 +1647,7 @@ object WPTCodec {
                     when (r.readBits(2)) {
                         0u -> {
                             _alternativeSECCList = decodeAlternativeSECCListType(r)
-                            st21 = 2
+                            st13 = 2
                         }
                         1u -> {   // VendorSpecificDataContainer
                             r.readBits(1)   // value-start
@@ -3280,9 +1663,9 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                             }
-                            done21 = true
+                            done13 = true
                         }
-                        2u -> done21 = true   // element EE
+                        2u -> done13 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -3302,15 +1685,15 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                             }
-                            done21 = true
+                            done13 = true
                         }
-                        1u -> done21 = true   // element EE
+                        1u -> done13 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 3 -> {
                     when (r.readBits(1)) {
-                        0u -> done21 = true   // element EE
+                        0u -> done13 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -3338,10 +1721,10 @@ object WPTCodec {
         w.writeBits(0u, 1)   // value-start
         w.writeBits(if (msg.eVPCDeviceLocalControl) 1u else 0u, 1)
         w.writeBits(0u, 1)   // child EE
-        var st22 = 0
-        var done22 = false
-        while (!done22) {
-            when (st22) {
+        var st14 = 0
+        var done14 = false
+        while (!done14) {
+            when (st14) {
                 0 -> {
                     if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                         require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
@@ -3356,15 +1739,15 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done22 = true
+                        done14 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done22 = true
+                        done14 = true
                     }
                 }
                 1 -> {
                     w.writeBits(0u, 1)   // element EE
-                    done22 = true
+                    done14 = true
                 }
             }
         }
@@ -3390,10 +1773,10 @@ object WPTCodec {
         val _eVPCDeviceLocalControl = r.readBits(1).toInt() != 0
         r.readBits(1)   // child EE
         val vendorSpecificDataContainerList = ArrayList<ByteArray>()
-        var st23 = 0
-        var done23 = false
-        while (!done23) {
-            when (st23) {
+        var st15 = 0
+        var done15 = false
+        while (!done15) {
+            when (st15) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {   // VendorSpecificDataContainer
@@ -3410,15 +1793,15 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                             }
-                            done23 = true
+                            done15 = true
                         }
-                        1u -> done23 = true   // element EE
+                        1u -> done15 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 1 -> {
                     when (r.readBits(1)) {
-                        0u -> done23 = true   // element EE
+                        0u -> done15 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -3454,10 +1837,10 @@ object WPTCodec {
         encodeRationalNumberType(w, msg.pDMinCoilCurrent)
         w.writeBits(0u, 1)   // SE
         encodeRationalNumberType(w, msg.pDMaxCoilCurrent)
-        var st24 = 0
-        var done24 = false
-        while (!done24) {
-            when (st24) {
+        var st16 = 0
+        var done16 = false
+        while (!done16) {
+            when (st16) {
                 0 -> {
                     if (msg.sDManufacturerSpecificDataContainer.isNotEmpty()) {
                         require(msg.sDManufacturerSpecificDataContainer.size <= 16) { "list size out of schema range" }
@@ -3472,15 +1855,15 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done24 = true
+                        done16 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done24 = true
+                        done16 = true
                     }
                 }
                 1 -> {
                     w.writeBits(0u, 1)   // element EE
-                    done24 = true
+                    done16 = true
                 }
             }
         }
@@ -3514,10 +1897,10 @@ object WPTCodec {
         r.readBits(1)   // SE
         val _pDMaxCoilCurrent = decodeRationalNumberType(r)
         val sDManufacturerSpecificDataContainerList = ArrayList<ByteArray>()
-        var st25 = 0
-        var done25 = false
-        while (!done25) {
-            when (st25) {
+        var st17 = 0
+        var done17 = false
+        while (!done17) {
+            when (st17) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {   // SDManufacturerSpecificDataContainer
@@ -3534,15 +1917,15 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 sDManufacturerSpecificDataContainerList.add(sDManufacturerSpecificDataContainerListNext)
                             }
-                            done25 = true
+                            done17 = true
                         }
-                        1u -> done25 = true   // element EE
+                        1u -> done17 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 1 -> {
                     when (r.readBits(1)) {
-                        0u -> done25 = true   // element EE
+                        0u -> done17 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -3558,21 +1941,21 @@ object WPTCodec {
         w.writeBits(0u, 1)   // value-start
         w.writeBits(msg.eVProcessing.ordinal.toUInt(), 2)
         w.writeBits(0u, 1)   // child EE
-        var st26 = 0
-        var done26 = false
-        while (!done26) {
-            when (st26) {
+        var st18 = 0
+        var done18 = false
+        while (!done18) {
+            when (st18) {
                 0 -> {
                     if (msg.targetCoilCurrent != null) {
                         w.writeBits(0u, 2)   // TargetCoilCurrent
                         encodeRationalNumberType(w, msg.targetCoilCurrent!!)
-                        st26 = 1
+                        st18 = 1
                     } else {
                         w.writeBits(1u, 2)   // SE(EVResultCode)
                         w.writeBits(0u, 1)   // value-start
                         w.writeBits(msg.eVResultCode.ordinal.toUInt(), 2)
                         w.writeBits(0u, 1)   // child EE
-                        done26 = true
+                        done18 = true
                     }
                 }
                 1 -> {
@@ -3580,14 +1963,14 @@ object WPTCodec {
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.eVResultCode.ordinal.toUInt(), 2)
                     w.writeBits(0u, 1)   // child EE
-                    done26 = true
+                    done18 = true
                 }
             }
         }
-        var st27 = 0
-        var done27 = false
-        while (!done27) {
-            when (st27) {
+        var st19 = 0
+        var done19 = false
+        while (!done19) {
+            when (st19) {
                 0 -> {
                     if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                         require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
@@ -3602,15 +1985,15 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done27 = true
+                        done19 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done27 = true
+                        done19 = true
                     }
                 }
                 1 -> {
                     w.writeBits(0u, 1)   // element EE
-                    done27 = true
+                    done19 = true
                 }
             }
         }
@@ -3625,21 +2008,21 @@ object WPTCodec {
         r.readBits(1)   // child EE
         var _targetCoilCurrent: RationalNumberType? = null
         var _eVResultCode: WPT_EVResult? = null
-        var st28 = 0
-        var done28 = false
-        while (!done28) {
-            when (st28) {
+        var st20 = 0
+        var done20 = false
+        while (!done20) {
+            when (st20) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {
                             _targetCoilCurrent = decodeRationalNumberType(r)
-                            st28 = 1
+                            st20 = 1
                         }
                         1u -> {   // SE(EVResultCode)
                             r.readBits(1)   // value-start
                             _eVResultCode = WPT_EVResult.entries[r.readBits(2).toInt()]
                             r.readBits(1)   // child EE
-                            done28 = true
+                            done20 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -3650,7 +2033,7 @@ object WPTCodec {
                             r.readBits(1)   // value-start
                             _eVResultCode = WPT_EVResult.entries[r.readBits(2).toInt()]
                             r.readBits(1)   // child EE
-                            done28 = true
+                            done20 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -3658,10 +2041,10 @@ object WPTCodec {
             }
         }
         val vendorSpecificDataContainerList = ArrayList<ByteArray>()
-        var st29 = 0
-        var done29 = false
-        while (!done29) {
-            when (st29) {
+        var st21 = 0
+        var done21 = false
+        while (!done21) {
+            when (st21) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {   // VendorSpecificDataContainer
@@ -3678,15 +2061,15 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                             }
-                            done29 = true
+                            done21 = true
                         }
-                        1u -> done29 = true   // element EE
+                        1u -> done21 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 1 -> {
                     when (r.readBits(1)) {
-                        0u -> done29 = true   // element EE
+                        0u -> done21 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -3706,19 +2089,19 @@ object WPTCodec {
         w.writeBits(0u, 1)   // value-start
         w.writeBits(msg.eVSEProcessing.ordinal.toUInt(), 2)
         w.writeBits(0u, 1)   // child EE
-        var st30 = 0
-        var done30 = false
-        while (!done30) {
-            when (st30) {
+        var st22 = 0
+        var done22 = false
+        while (!done22) {
+            when (st22) {
                 0 -> {
                     if (msg.powerTransmitted != null) {
                         w.writeBits(0u, 3)   // PowerTransmitted
                         encodeRationalNumberType(w, msg.powerTransmitted!!)
-                        st30 = 1
+                        st22 = 1
                     } else if (msg.supplyDeviceCurrent != null) {
                         w.writeBits(1u, 3)   // SupplyDeviceCurrent
                         encodeRationalNumberType(w, msg.supplyDeviceCurrent!!)
-                        st30 = 2
+                        st22 = 2
                     } else if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                         require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
                         w.writeBits(2u, 3)   // VendorSpecificDataContainer
@@ -3732,17 +2115,17 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done30 = true
+                        done22 = true
                     } else {
                         w.writeBits(3u, 3)   // element EE
-                        done30 = true
+                        done22 = true
                     }
                 }
                 1 -> {
                     if (msg.supplyDeviceCurrent != null) {
                         w.writeBits(0u, 2)   // SupplyDeviceCurrent
                         encodeRationalNumberType(w, msg.supplyDeviceCurrent!!)
-                        st30 = 2
+                        st22 = 2
                     } else if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                         require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
                         w.writeBits(1u, 2)   // VendorSpecificDataContainer
@@ -3756,10 +2139,10 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done30 = true
+                        done22 = true
                     } else {
                         w.writeBits(2u, 2)   // element EE
-                        done30 = true
+                        done22 = true
                     }
                 }
                 2 -> {
@@ -3776,15 +2159,15 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done30 = true
+                        done22 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done30 = true
+                        done22 = true
                     }
                 }
                 3 -> {
                     w.writeBits(0u, 1)   // element EE
-                    done30 = true
+                    done22 = true
                 }
             }
         }
@@ -3804,19 +2187,19 @@ object WPTCodec {
         var _powerTransmitted: RationalNumberType? = null
         var _supplyDeviceCurrent: RationalNumberType? = null
         val vendorSpecificDataContainerList = ArrayList<ByteArray>()
-        var st31 = 0
-        var done31 = false
-        while (!done31) {
-            when (st31) {
+        var st23 = 0
+        var done23 = false
+        while (!done23) {
+            when (st23) {
                 0 -> {
                     when (r.readBits(3)) {
                         0u -> {
                             _powerTransmitted = decodeRationalNumberType(r)
-                            st31 = 1
+                            st23 = 1
                         }
                         1u -> {
                             _supplyDeviceCurrent = decodeRationalNumberType(r)
-                            st31 = 2
+                            st23 = 2
                         }
                         2u -> {   // VendorSpecificDataContainer
                             r.readBits(1)   // value-start
@@ -3832,9 +2215,9 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                             }
-                            done31 = true
+                            done23 = true
                         }
-                        3u -> done31 = true   // element EE
+                        3u -> done23 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -3842,7 +2225,7 @@ object WPTCodec {
                     when (r.readBits(2)) {
                         0u -> {
                             _supplyDeviceCurrent = decodeRationalNumberType(r)
-                            st31 = 2
+                            st23 = 2
                         }
                         1u -> {   // VendorSpecificDataContainer
                             r.readBits(1)   // value-start
@@ -3858,9 +2241,9 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                             }
-                            done31 = true
+                            done23 = true
                         }
-                        2u -> done31 = true   // element EE
+                        2u -> done23 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -3880,15 +2263,15 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                             }
-                            done31 = true
+                            done23 = true
                         }
-                        1u -> done31 = true   // element EE
+                        1u -> done23 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 3 -> {
                     when (r.readBits(1)) {
-                        0u -> done31 = true   // element EE
+                        0u -> done23 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -3900,21 +2283,21 @@ object WPTCodec {
     private fun encodeWPT_ChargeLoopReqType(w: BitWriter, msg: WPT_ChargeLoopReqType) {
         w.writeBits(0u, 1)   // SE
         encodeMessageHeaderType(w, msg.header)
-        var st32 = 0
-        var done32 = false
-        while (!done32) {
-            when (st32) {
+        var st24 = 0
+        var done24 = false
+        while (!done24) {
+            when (st24) {
                 0 -> {
                     if (msg.displayParameters != null) {
                         w.writeBits(0u, 2)   // DisplayParameters
                         encodeDisplayParametersType(w, msg.displayParameters!!)
-                        st32 = 1
+                        st24 = 1
                     } else {
                         w.writeBits(1u, 2)   // SE(MeterInfoRequested)
                         w.writeBits(0u, 1)   // value-start
                         w.writeBits(if (msg.meterInfoRequested) 1u else 0u, 1)
                         w.writeBits(0u, 1)   // child EE
-                        done32 = true
+                        done24 = true
                     }
                 }
                 1 -> {
@@ -3922,7 +2305,7 @@ object WPTCodec {
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.meterInfoRequested) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    done32 = true
+                    done24 = true
                 }
             }
         }
@@ -3934,19 +2317,19 @@ object WPTCodec {
         w.writeBits(0u, 1)   // value-start
         w.writeBits(msg.eVPCChargeDiagnostics.ordinal.toUInt(), 2)
         w.writeBits(0u, 1)   // child EE
-        var st33 = 0
-        var done33 = false
-        while (!done33) {
-            when (st33) {
+        var st25 = 0
+        var done25 = false
+        while (!done25) {
+            when (st25) {
                 0 -> {
                     if (msg.eVPCOperatingFrequency != null) {
                         w.writeBits(0u, 3)   // EVPCOperatingFrequency
                         encodeRationalNumberType(w, msg.eVPCOperatingFrequency!!)
-                        st33 = 1
+                        st25 = 1
                     } else if (msg.eVPCPowerControlParameter != null) {
                         w.writeBits(1u, 3)   // EVPCPowerControlParameter
                         encodeWPT_EVPCPowerControlParameterType(w, msg.eVPCPowerControlParameter!!)
-                        st33 = 2
+                        st25 = 2
                     } else if (msg.manufacturerSpecificDataContainer.isNotEmpty()) {
                         require(msg.manufacturerSpecificDataContainer.size <= 16) { "list size out of schema range" }
                         w.writeBits(2u, 3)   // ManufacturerSpecificDataContainer
@@ -3960,17 +2343,17 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done33 = true
+                        done25 = true
                     } else {
                         w.writeBits(3u, 3)   // element EE
-                        done33 = true
+                        done25 = true
                     }
                 }
                 1 -> {
                     if (msg.eVPCPowerControlParameter != null) {
                         w.writeBits(0u, 2)   // EVPCPowerControlParameter
                         encodeWPT_EVPCPowerControlParameterType(w, msg.eVPCPowerControlParameter!!)
-                        st33 = 2
+                        st25 = 2
                     } else if (msg.manufacturerSpecificDataContainer.isNotEmpty()) {
                         require(msg.manufacturerSpecificDataContainer.size <= 16) { "list size out of schema range" }
                         w.writeBits(1u, 2)   // ManufacturerSpecificDataContainer
@@ -3984,10 +2367,10 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done33 = true
+                        done25 = true
                     } else {
                         w.writeBits(2u, 2)   // element EE
-                        done33 = true
+                        done25 = true
                     }
                 }
                 2 -> {
@@ -4004,15 +2387,15 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done33 = true
+                        done25 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done33 = true
+                        done25 = true
                     }
                 }
                 3 -> {
                     w.writeBits(0u, 1)   // element EE
-                    done33 = true
+                    done25 = true
                 }
             }
         }
@@ -4023,21 +2406,21 @@ object WPTCodec {
         val _header = decodeMessageHeaderType(r)
         var _displayParameters: DisplayParametersType? = null
         var _meterInfoRequested: Boolean? = null
-        var st34 = 0
-        var done34 = false
-        while (!done34) {
-            when (st34) {
+        var st26 = 0
+        var done26 = false
+        while (!done26) {
+            when (st26) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {
                             _displayParameters = decodeDisplayParametersType(r)
-                            st34 = 1
+                            st26 = 1
                         }
                         1u -> {   // SE(MeterInfoRequested)
                             r.readBits(1)   // value-start
                             _meterInfoRequested = r.readBits(1).toInt() != 0
                             r.readBits(1)   // child EE
-                            done34 = true
+                            done26 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -4048,7 +2431,7 @@ object WPTCodec {
                             r.readBits(1)   // value-start
                             _meterInfoRequested = r.readBits(1).toInt() != 0
                             r.readBits(1)   // child EE
-                            done34 = true
+                            done26 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -4066,19 +2449,19 @@ object WPTCodec {
         var _eVPCOperatingFrequency: RationalNumberType? = null
         var _eVPCPowerControlParameter: WPT_EVPCPowerControlParameterType? = null
         val manufacturerSpecificDataContainerList = ArrayList<ByteArray>()
-        var st35 = 0
-        var done35 = false
-        while (!done35) {
-            when (st35) {
+        var st27 = 0
+        var done27 = false
+        while (!done27) {
+            when (st27) {
                 0 -> {
                     when (r.readBits(3)) {
                         0u -> {
                             _eVPCOperatingFrequency = decodeRationalNumberType(r)
-                            st35 = 1
+                            st27 = 1
                         }
                         1u -> {
                             _eVPCPowerControlParameter = decodeWPT_EVPCPowerControlParameterType(r)
-                            st35 = 2
+                            st27 = 2
                         }
                         2u -> {   // ManufacturerSpecificDataContainer
                             r.readBits(1)   // value-start
@@ -4094,9 +2477,9 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 manufacturerSpecificDataContainerList.add(manufacturerSpecificDataContainerListNext)
                             }
-                            done35 = true
+                            done27 = true
                         }
-                        3u -> done35 = true   // element EE
+                        3u -> done27 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -4104,7 +2487,7 @@ object WPTCodec {
                     when (r.readBits(2)) {
                         0u -> {
                             _eVPCPowerControlParameter = decodeWPT_EVPCPowerControlParameterType(r)
-                            st35 = 2
+                            st27 = 2
                         }
                         1u -> {   // ManufacturerSpecificDataContainer
                             r.readBits(1)   // value-start
@@ -4120,9 +2503,9 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 manufacturerSpecificDataContainerList.add(manufacturerSpecificDataContainerListNext)
                             }
-                            done35 = true
+                            done27 = true
                         }
-                        2u -> done35 = true   // element EE
+                        2u -> done27 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -4142,15 +2525,15 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 manufacturerSpecificDataContainerList.add(manufacturerSpecificDataContainerListNext)
                             }
-                            done35 = true
+                            done27 = true
                         }
-                        1u -> done35 = true   // element EE
+                        1u -> done27 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 3 -> {
                     when (r.readBits(1)) {
-                        0u -> done35 = true   // element EE
+                        0u -> done27 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -4166,81 +2549,81 @@ object WPTCodec {
         w.writeBits(0u, 1)   // value-start
         w.writeBits(msg.responseCode.ordinal.toUInt(), 6)
         w.writeBits(0u, 1)   // child EE
-        var st36 = 0
-        var done36 = false
-        while (!done36) {
-            when (st36) {
+        var st28 = 0
+        var done28 = false
+        while (!done28) {
+            when (st28) {
                 0 -> {
                     if (msg.eVSEStatus != null) {
                         w.writeBits(0u, 3)   // EVSEStatus
                         encodeEVSEStatusType(w, msg.eVSEStatus!!)
-                        st36 = 1
+                        st28 = 1
                     } else if (msg.meterInfo != null) {
                         w.writeBits(1u, 3)   // MeterInfo
                         encodeMeterInfoType(w, msg.meterInfo!!)
-                        st36 = 2
+                        st28 = 2
                     } else if (msg.receipt != null) {
                         w.writeBits(2u, 3)   // Receipt
                         encodeReceiptType(w, msg.receipt!!)
-                        st36 = 3
+                        st28 = 3
                     } else {
                         w.writeBits(3u, 3)   // SE(EVPCPowerRequest)
                         encodeRationalNumberType(w, msg.eVPCPowerRequest)
-                        done36 = true
+                        done28 = true
                     }
                 }
                 1 -> {
                     if (msg.meterInfo != null) {
                         w.writeBits(0u, 2)   // MeterInfo
                         encodeMeterInfoType(w, msg.meterInfo!!)
-                        st36 = 2
+                        st28 = 2
                     } else if (msg.receipt != null) {
                         w.writeBits(1u, 2)   // Receipt
                         encodeReceiptType(w, msg.receipt!!)
-                        st36 = 3
+                        st28 = 3
                     } else {
                         w.writeBits(2u, 2)   // SE(EVPCPowerRequest)
                         encodeRationalNumberType(w, msg.eVPCPowerRequest)
-                        done36 = true
+                        done28 = true
                     }
                 }
                 2 -> {
                     if (msg.receipt != null) {
                         w.writeBits(0u, 2)   // Receipt
                         encodeReceiptType(w, msg.receipt!!)
-                        st36 = 3
+                        st28 = 3
                     } else {
                         w.writeBits(1u, 2)   // SE(EVPCPowerRequest)
                         encodeRationalNumberType(w, msg.eVPCPowerRequest)
-                        done36 = true
+                        done28 = true
                     }
                 }
                 3 -> {
                     w.writeBits(0u, 1)   // SE(EVPCPowerRequest)
                     encodeRationalNumberType(w, msg.eVPCPowerRequest)
-                    done36 = true
+                    done28 = true
                 }
             }
         }
-        var st37 = 0
-        var done37 = false
-        while (!done37) {
-            when (st37) {
+        var st29 = 0
+        var done29 = false
+        while (!done29) {
+            when (st29) {
                 0 -> {
                     if (msg.sDPowerInput != null) {
                         w.writeBits(0u, 2)   // SDPowerInput
                         encodeRationalNumberType(w, msg.sDPowerInput!!)
-                        st37 = 1
+                        st29 = 1
                     } else {
                         w.writeBits(1u, 2)   // SE(SPCMaxOutputPowerLimit)
                         encodeRationalNumberType(w, msg.sPCMaxOutputPowerLimit)
-                        done37 = true
+                        done29 = true
                     }
                 }
                 1 -> {
                     w.writeBits(0u, 1)   // SE(SPCMaxOutputPowerLimit)
                     encodeRationalNumberType(w, msg.sPCMaxOutputPowerLimit)
-                    done37 = true
+                    done29 = true
                 }
             }
         }
@@ -4250,19 +2633,19 @@ object WPTCodec {
         w.writeBits(0u, 1)   // value-start
         w.writeBits(msg.sPCChargeDiagnostics.ordinal.toUInt(), 3)
         w.writeBits(0u, 1)   // child EE
-        var st38 = 0
-        var done38 = false
-        while (!done38) {
-            when (st38) {
+        var st30 = 0
+        var done30 = false
+        while (!done30) {
+            when (st30) {
                 0 -> {
                     if (msg.sPCOperatingFrequency != null) {
                         w.writeBits(0u, 3)   // SPCOperatingFrequency
                         encodeRationalNumberType(w, msg.sPCOperatingFrequency!!)
-                        st38 = 1
+                        st30 = 1
                     } else if (msg.sPCPowerControlParameter != null) {
                         w.writeBits(1u, 3)   // SPCPowerControlParameter
                         encodeWPT_SPCPowerControlParameterType(w, msg.sPCPowerControlParameter!!)
-                        st38 = 2
+                        st30 = 2
                     } else if (msg.manufacturerSpecificDataContainer.isNotEmpty()) {
                         require(msg.manufacturerSpecificDataContainer.size <= 16) { "list size out of schema range" }
                         w.writeBits(2u, 3)   // ManufacturerSpecificDataContainer
@@ -4276,17 +2659,17 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done38 = true
+                        done30 = true
                     } else {
                         w.writeBits(3u, 3)   // element EE
-                        done38 = true
+                        done30 = true
                     }
                 }
                 1 -> {
                     if (msg.sPCPowerControlParameter != null) {
                         w.writeBits(0u, 2)   // SPCPowerControlParameter
                         encodeWPT_SPCPowerControlParameterType(w, msg.sPCPowerControlParameter!!)
-                        st38 = 2
+                        st30 = 2
                     } else if (msg.manufacturerSpecificDataContainer.isNotEmpty()) {
                         require(msg.manufacturerSpecificDataContainer.size <= 16) { "list size out of schema range" }
                         w.writeBits(1u, 2)   // ManufacturerSpecificDataContainer
@@ -4300,10 +2683,10 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done38 = true
+                        done30 = true
                     } else {
                         w.writeBits(2u, 2)   // element EE
-                        done38 = true
+                        done30 = true
                     }
                 }
                 2 -> {
@@ -4320,15 +2703,15 @@ object WPTCodec {
                             w.writeBits(0u, 1)   // child EE
                         }
                         w.writeBits(1u, 2)   // element EE (list end)
-                        done38 = true
+                        done30 = true
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done38 = true
+                        done30 = true
                     }
                 }
                 3 -> {
                     w.writeBits(0u, 1)   // element EE
-                    done38 = true
+                    done30 = true
                 }
             }
         }
@@ -4345,27 +2728,27 @@ object WPTCodec {
         var _meterInfo: MeterInfoType? = null
         var _receipt: ReceiptType? = null
         var _eVPCPowerRequest: RationalNumberType? = null
-        var st39 = 0
-        var done39 = false
-        while (!done39) {
-            when (st39) {
+        var st31 = 0
+        var done31 = false
+        while (!done31) {
+            when (st31) {
                 0 -> {
                     when (r.readBits(3)) {
                         0u -> {
                             _eVSEStatus = decodeEVSEStatusType(r)
-                            st39 = 1
+                            st31 = 1
                         }
                         1u -> {
                             _meterInfo = decodeMeterInfoType(r)
-                            st39 = 2
+                            st31 = 2
                         }
                         2u -> {
                             _receipt = decodeReceiptType(r)
-                            st39 = 3
+                            st31 = 3
                         }
                         3u -> {   // SE(EVPCPowerRequest)
                             _eVPCPowerRequest = decodeRationalNumberType(r)
-                            done39 = true
+                            done31 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -4374,15 +2757,15 @@ object WPTCodec {
                     when (r.readBits(2)) {
                         0u -> {
                             _meterInfo = decodeMeterInfoType(r)
-                            st39 = 2
+                            st31 = 2
                         }
                         1u -> {
                             _receipt = decodeReceiptType(r)
-                            st39 = 3
+                            st31 = 3
                         }
                         2u -> {   // SE(EVPCPowerRequest)
                             _eVPCPowerRequest = decodeRationalNumberType(r)
-                            done39 = true
+                            done31 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -4391,11 +2774,11 @@ object WPTCodec {
                     when (r.readBits(2)) {
                         0u -> {
                             _receipt = decodeReceiptType(r)
-                            st39 = 3
+                            st31 = 3
                         }
                         1u -> {   // SE(EVPCPowerRequest)
                             _eVPCPowerRequest = decodeRationalNumberType(r)
-                            done39 = true
+                            done31 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -4404,7 +2787,7 @@ object WPTCodec {
                     when (r.readBits(1)) {
                         0u -> {   // SE(EVPCPowerRequest)
                             _eVPCPowerRequest = decodeRationalNumberType(r)
-                            done39 = true
+                            done31 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -4413,19 +2796,19 @@ object WPTCodec {
         }
         var _sDPowerInput: RationalNumberType? = null
         var _sPCMaxOutputPowerLimit: RationalNumberType? = null
-        var st40 = 0
-        var done40 = false
-        while (!done40) {
-            when (st40) {
+        var st32 = 0
+        var done32 = false
+        while (!done32) {
+            when (st32) {
                 0 -> {
                     when (r.readBits(2)) {
                         0u -> {
                             _sDPowerInput = decodeRationalNumberType(r)
-                            st40 = 1
+                            st32 = 1
                         }
                         1u -> {   // SE(SPCMaxOutputPowerLimit)
                             _sPCMaxOutputPowerLimit = decodeRationalNumberType(r)
-                            done40 = true
+                            done32 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -4434,7 +2817,7 @@ object WPTCodec {
                     when (r.readBits(1)) {
                         0u -> {   // SE(SPCMaxOutputPowerLimit)
                             _sPCMaxOutputPowerLimit = decodeRationalNumberType(r)
-                            done40 = true
+                            done32 = true
                         }
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
@@ -4450,19 +2833,19 @@ object WPTCodec {
         var _sPCOperatingFrequency: RationalNumberType? = null
         var _sPCPowerControlParameter: WPT_SPCPowerControlParameterType? = null
         val manufacturerSpecificDataContainerList = ArrayList<ByteArray>()
-        var st41 = 0
-        var done41 = false
-        while (!done41) {
-            when (st41) {
+        var st33 = 0
+        var done33 = false
+        while (!done33) {
+            when (st33) {
                 0 -> {
                     when (r.readBits(3)) {
                         0u -> {
                             _sPCOperatingFrequency = decodeRationalNumberType(r)
-                            st41 = 1
+                            st33 = 1
                         }
                         1u -> {
                             _sPCPowerControlParameter = decodeWPT_SPCPowerControlParameterType(r)
-                            st41 = 2
+                            st33 = 2
                         }
                         2u -> {   // ManufacturerSpecificDataContainer
                             r.readBits(1)   // value-start
@@ -4478,9 +2861,9 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 manufacturerSpecificDataContainerList.add(manufacturerSpecificDataContainerListNext)
                             }
-                            done41 = true
+                            done33 = true
                         }
-                        3u -> done41 = true   // element EE
+                        3u -> done33 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -4488,7 +2871,7 @@ object WPTCodec {
                     when (r.readBits(2)) {
                         0u -> {
                             _sPCPowerControlParameter = decodeWPT_SPCPowerControlParameterType(r)
-                            st41 = 2
+                            st33 = 2
                         }
                         1u -> {   // ManufacturerSpecificDataContainer
                             r.readBits(1)   // value-start
@@ -4504,9 +2887,9 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 manufacturerSpecificDataContainerList.add(manufacturerSpecificDataContainerListNext)
                             }
-                            done41 = true
+                            done33 = true
                         }
-                        2u -> done41 = true   // element EE
+                        2u -> done33 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -4526,15 +2909,15 @@ object WPTCodec {
                                 r.readBits(1)   // child EE
                                 manufacturerSpecificDataContainerList.add(manufacturerSpecificDataContainerListNext)
                             }
-                            done41 = true
+                            done33 = true
                         }
-                        1u -> done41 = true   // element EE
+                        1u -> done33 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
                 3 -> {
                     when (r.readBits(1)) {
-                        0u -> done41 = true   // element EE
+                        0u -> done33 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -4737,8 +3120,8 @@ object WPTCodec {
         r.readBits(1)   // SE(TxSpecData) first
         txSpecDataList.add(decodeWPT_TxRxSpecDataType(r))
         var _txPackageSpecData: WPT_TxRxPackageSpecDataType? = null
-        var done42 = false
-        while (!done42) {
+        var done34 = false
+        while (!done34) {
             val rc = r.readBits(2)
             if (rc == 0u) {
                 require(txSpecDataList.size < 255) { "invalid repeating-element event code" }
@@ -4746,9 +3129,9 @@ object WPTCodec {
             } else if (rc == 1u) {
                 _txPackageSpecData = decodeWPT_TxRxPackageSpecDataType(r)
                 r.readBits(1)   // element EE
-                done42 = true
+                done34 = true
             } else if (rc == 2u) {
-                done42 = true   // element EE
+                done34 = true   // element EE
             } else {
                 throw IllegalArgumentException("invalid event code")
             }
@@ -4873,8 +3256,8 @@ object WPTCodec {
         r.readBits(1)   // SE(PulseSequenceOrder) first
         pulseSequenceOrderList.add(decodeWPT_TxRxPulseOrderType(r))
         var _pulseSeparationTime: UShort? = null
-        var done43 = false
-        while (!done43) {
+        var done35 = false
+        while (!done35) {
             val rc = r.readBits(2)
             if (rc == 0u) {
                 require(pulseSequenceOrderList.size < 255) { "invalid repeating-element event code" }
@@ -4883,7 +3266,7 @@ object WPTCodec {
                 r.readBits(1)   // value-start
                 _pulseSeparationTime = ExiPrimitives.readUnsignedInteger(r).toUShort()
                 r.readBits(1)   // child EE
-                done43 = true
+                done35 = true
             } else {
                 throw IllegalArgumentException("invalid event code")
             }
@@ -5109,38 +3492,38 @@ object WPTCodec {
     }
 
     private fun encodeAlternativeSECCType(w: BitWriter, msg: AlternativeSECCType) {
-        var st44 = 0
-        var done44 = false
-        while (!done44) {
-            when (st44) {
+        var st36 = 0
+        var done36 = false
+        while (!done36) {
+            when (st36) {
                 0 -> {
                     if (msg.sSID != null) {
                         w.writeBits(0u, 3)   // SSID
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeStringValue(w, msg.sSID!!)
                         w.writeBits(0u, 1)   // child EE
-                        st44 = 1
+                        st36 = 1
                     } else if (msg.bSSID != null) {
                         w.writeBits(1u, 3)   // BSSID
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeStringValue(w, msg.bSSID!!)
                         w.writeBits(0u, 1)   // child EE
-                        st44 = 2
+                        st36 = 2
                     } else if (msg.iPAddress != null) {
                         w.writeBits(2u, 3)   // IPAddress
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeStringValue(w, msg.iPAddress!!)
                         w.writeBits(0u, 1)   // child EE
-                        st44 = 3
+                        st36 = 3
                     } else if (msg.port != null) {
                         w.writeBits(3u, 3)   // Port
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeUnsignedInteger(w, msg.port!!.toULong())
                         w.writeBits(0u, 1)   // child EE
-                        st44 = 4
+                        st36 = 4
                     } else {
                         w.writeBits(4u, 3)   // element EE
-                        done44 = true
+                        done36 = true
                     }
                 }
                 1 -> {
@@ -5149,22 +3532,22 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeStringValue(w, msg.bSSID!!)
                         w.writeBits(0u, 1)   // child EE
-                        st44 = 2
+                        st36 = 2
                     } else if (msg.iPAddress != null) {
                         w.writeBits(1u, 3)   // IPAddress
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeStringValue(w, msg.iPAddress!!)
                         w.writeBits(0u, 1)   // child EE
-                        st44 = 3
+                        st36 = 3
                     } else if (msg.port != null) {
                         w.writeBits(2u, 3)   // Port
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeUnsignedInteger(w, msg.port!!.toULong())
                         w.writeBits(0u, 1)   // child EE
-                        st44 = 4
+                        st36 = 4
                     } else {
                         w.writeBits(3u, 3)   // element EE
-                        done44 = true
+                        done36 = true
                     }
                 }
                 2 -> {
@@ -5173,16 +3556,16 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeStringValue(w, msg.iPAddress!!)
                         w.writeBits(0u, 1)   // child EE
-                        st44 = 3
+                        st36 = 3
                     } else if (msg.port != null) {
                         w.writeBits(1u, 2)   // Port
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeUnsignedInteger(w, msg.port!!.toULong())
                         w.writeBits(0u, 1)   // child EE
-                        st44 = 4
+                        st36 = 4
                     } else {
                         w.writeBits(2u, 2)   // element EE
-                        done44 = true
+                        done36 = true
                     }
                 }
                 3 -> {
@@ -5191,15 +3574,15 @@ object WPTCodec {
                         w.writeBits(0u, 1)   // value-start
                         ExiPrimitives.writeUnsignedInteger(w, msg.port!!.toULong())
                         w.writeBits(0u, 1)   // child EE
-                        st44 = 4
+                        st36 = 4
                     } else {
                         w.writeBits(1u, 2)   // element EE
-                        done44 = true
+                        done36 = true
                     }
                 }
                 4 -> {
                     w.writeBits(0u, 1)   // element EE
-                    done44 = true
+                    done36 = true
                 }
             }
         }
@@ -5210,37 +3593,37 @@ object WPTCodec {
         var _bSSID: String? = null
         var _iPAddress: String? = null
         var _port: UShort? = null
-        var st45 = 0
-        var done45 = false
-        while (!done45) {
-            when (st45) {
+        var st37 = 0
+        var done37 = false
+        while (!done37) {
+            when (st37) {
                 0 -> {
                     when (r.readBits(3)) {
                         0u -> {
                             r.readBits(1)   // value-start
                             _sSID = ExiPrimitives.readStringValue(r)
                             r.readBits(1)   // child EE
-                            st45 = 1
+                            st37 = 1
                         }
                         1u -> {
                             r.readBits(1)   // value-start
                             _bSSID = ExiPrimitives.readStringValue(r)
                             r.readBits(1)   // child EE
-                            st45 = 2
+                            st37 = 2
                         }
                         2u -> {
                             r.readBits(1)   // value-start
                             _iPAddress = ExiPrimitives.readStringValue(r)
                             r.readBits(1)   // child EE
-                            st45 = 3
+                            st37 = 3
                         }
                         3u -> {
                             r.readBits(1)   // value-start
                             _port = ExiPrimitives.readUnsignedInteger(r).toUShort()
                             r.readBits(1)   // child EE
-                            st45 = 4
+                            st37 = 4
                         }
-                        4u -> done45 = true   // element EE
+                        4u -> done37 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -5250,21 +3633,21 @@ object WPTCodec {
                             r.readBits(1)   // value-start
                             _bSSID = ExiPrimitives.readStringValue(r)
                             r.readBits(1)   // child EE
-                            st45 = 2
+                            st37 = 2
                         }
                         1u -> {
                             r.readBits(1)   // value-start
                             _iPAddress = ExiPrimitives.readStringValue(r)
                             r.readBits(1)   // child EE
-                            st45 = 3
+                            st37 = 3
                         }
                         2u -> {
                             r.readBits(1)   // value-start
                             _port = ExiPrimitives.readUnsignedInteger(r).toUShort()
                             r.readBits(1)   // child EE
-                            st45 = 4
+                            st37 = 4
                         }
-                        3u -> done45 = true   // element EE
+                        3u -> done37 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -5274,15 +3657,15 @@ object WPTCodec {
                             r.readBits(1)   // value-start
                             _iPAddress = ExiPrimitives.readStringValue(r)
                             r.readBits(1)   // child EE
-                            st45 = 3
+                            st37 = 3
                         }
                         1u -> {
                             r.readBits(1)   // value-start
                             _port = ExiPrimitives.readUnsignedInteger(r).toUShort()
                             r.readBits(1)   // child EE
-                            st45 = 4
+                            st37 = 4
                         }
-                        2u -> done45 = true   // element EE
+                        2u -> done37 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
@@ -5292,13 +3675,1607 @@ object WPTCodec {
                             r.readBits(1)   // value-start
                             _port = ExiPrimitives.readUnsignedInteger(r).toUShort()
                             r.readBits(1)   // child EE
+                            st37 = 4
+                        }
+                        1u -> done37 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                4 -> {
+                    when (r.readBits(1)) {
+                        0u -> done37 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+            }
+        }
+        return AlternativeSECCType(_sSID, _bSSID, _iPAddress, _port)
+    }
+
+    private fun encodeMessageHeaderType(w: BitWriter, msg: MessageHeaderType) {
+        w.writeBits(0u, 1)   // SE
+        w.writeBits(0u, 1)   // value-start
+        ExiPrimitives.writeBinary(w, msg.sessionID)
+        w.writeBits(0u, 1)   // child EE
+        w.writeBits(0u, 1)   // SE
+        w.writeBits(0u, 1)   // value-start
+        ExiPrimitives.writeUnsignedInteger(w, msg.timeStamp.toULong())
+        w.writeBits(0u, 1)   // child EE
+        var st38 = 0
+        var done38 = false
+        while (!done38) {
+            when (st38) {
+                0 -> {
+                    if (msg.signature != null) {
+                        w.writeBits(0u, 2)   // Signature
+                        encodeSignatureType(w, msg.signature!!)
+                        st38 = 1
+                    } else {
+                        w.writeBits(1u, 2)   // element EE
+                        done38 = true
+                    }
+                }
+                1 -> {
+                    w.writeBits(0u, 1)   // element EE
+                    done38 = true
+                }
+            }
+        }
+    }
+
+    private fun decodeMessageHeaderType(r: BitReader): MessageHeaderType {
+        r.readBits(1)   // SE
+        r.readBits(1)   // value-start
+        val _sessionID = ExiPrimitives.readBinary(r)
+        r.readBits(1)   // child EE
+        r.readBits(1)   // SE
+        r.readBits(1)   // value-start
+        val _timeStamp = ExiPrimitives.readUnsignedInteger(r).toULong()
+        r.readBits(1)   // child EE
+        var _signature: SignatureType? = null
+        var st39 = 0
+        var done39 = false
+        while (!done39) {
+            when (st39) {
+                0 -> {
+                    when (r.readBits(2)) {
+                        0u -> {
+                            _signature = decodeSignatureType(r)
+                            st39 = 1
+                        }
+                        1u -> done39 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                1 -> {
+                    when (r.readBits(1)) {
+                        0u -> done39 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+            }
+        }
+        return MessageHeaderType(_sessionID, _timeStamp, _signature)
+    }
+
+    private fun encodeDisplayParametersType(w: BitWriter, msg: DisplayParametersType) {
+        var st40 = 0
+        var done40 = false
+        while (!done40) {
+            when (st40) {
+                0 -> {
+                    if (msg.presentSOC != null) {
+                        w.writeBits(0u, 4)   // PresentSOC
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(msg.presentSOC!!.toLong().toUInt(), 7)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 1
+                    } else if (msg.minimumSOC != null) {
+                        w.writeBits(1u, 4)   // MinimumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(msg.minimumSOC!!.toLong().toUInt(), 7)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 2
+                    } else if (msg.targetSOC != null) {
+                        w.writeBits(2u, 4)   // TargetSOC
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(msg.targetSOC!!.toLong().toUInt(), 7)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 3
+                    } else if (msg.maximumSOC != null) {
+                        w.writeBits(3u, 4)   // MaximumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 4
+                    } else if (msg.remainingTimeToMinimumSOC != null) {
+                        w.writeBits(4u, 4)   // RemainingTimeToMinimumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 5
+                    } else if (msg.remainingTimeToTargetSOC != null) {
+                        w.writeBits(5u, 4)   // RemainingTimeToTargetSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 6
+                    } else if (msg.remainingTimeToMaximumSOC != null) {
+                        w.writeBits(6u, 4)   // RemainingTimeToMaximumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 7
+                    } else if (msg.chargingComplete != null) {
+                        w.writeBits(7u, 4)   // ChargingComplete
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 8
+                    } else if (msg.batteryEnergyCapacity != null) {
+                        w.writeBits(8u, 4)   // BatteryEnergyCapacity
+                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
+                        st40 = 9
+                    } else if (msg.inletHot != null) {
+                        w.writeBits(9u, 4)   // InletHot
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 10
+                    } else {
+                        w.writeBits(10u, 4)   // element EE
+                        done40 = true
+                    }
+                }
+                1 -> {
+                    if (msg.minimumSOC != null) {
+                        w.writeBits(0u, 4)   // MinimumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(msg.minimumSOC!!.toLong().toUInt(), 7)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 2
+                    } else if (msg.targetSOC != null) {
+                        w.writeBits(1u, 4)   // TargetSOC
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(msg.targetSOC!!.toLong().toUInt(), 7)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 3
+                    } else if (msg.maximumSOC != null) {
+                        w.writeBits(2u, 4)   // MaximumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 4
+                    } else if (msg.remainingTimeToMinimumSOC != null) {
+                        w.writeBits(3u, 4)   // RemainingTimeToMinimumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 5
+                    } else if (msg.remainingTimeToTargetSOC != null) {
+                        w.writeBits(4u, 4)   // RemainingTimeToTargetSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 6
+                    } else if (msg.remainingTimeToMaximumSOC != null) {
+                        w.writeBits(5u, 4)   // RemainingTimeToMaximumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 7
+                    } else if (msg.chargingComplete != null) {
+                        w.writeBits(6u, 4)   // ChargingComplete
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 8
+                    } else if (msg.batteryEnergyCapacity != null) {
+                        w.writeBits(7u, 4)   // BatteryEnergyCapacity
+                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
+                        st40 = 9
+                    } else if (msg.inletHot != null) {
+                        w.writeBits(8u, 4)   // InletHot
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 10
+                    } else {
+                        w.writeBits(9u, 4)   // element EE
+                        done40 = true
+                    }
+                }
+                2 -> {
+                    if (msg.targetSOC != null) {
+                        w.writeBits(0u, 4)   // TargetSOC
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(msg.targetSOC!!.toLong().toUInt(), 7)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 3
+                    } else if (msg.maximumSOC != null) {
+                        w.writeBits(1u, 4)   // MaximumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 4
+                    } else if (msg.remainingTimeToMinimumSOC != null) {
+                        w.writeBits(2u, 4)   // RemainingTimeToMinimumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 5
+                    } else if (msg.remainingTimeToTargetSOC != null) {
+                        w.writeBits(3u, 4)   // RemainingTimeToTargetSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 6
+                    } else if (msg.remainingTimeToMaximumSOC != null) {
+                        w.writeBits(4u, 4)   // RemainingTimeToMaximumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 7
+                    } else if (msg.chargingComplete != null) {
+                        w.writeBits(5u, 4)   // ChargingComplete
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 8
+                    } else if (msg.batteryEnergyCapacity != null) {
+                        w.writeBits(6u, 4)   // BatteryEnergyCapacity
+                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
+                        st40 = 9
+                    } else if (msg.inletHot != null) {
+                        w.writeBits(7u, 4)   // InletHot
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 10
+                    } else {
+                        w.writeBits(8u, 4)   // element EE
+                        done40 = true
+                    }
+                }
+                3 -> {
+                    if (msg.maximumSOC != null) {
+                        w.writeBits(0u, 4)   // MaximumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 4
+                    } else if (msg.remainingTimeToMinimumSOC != null) {
+                        w.writeBits(1u, 4)   // RemainingTimeToMinimumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 5
+                    } else if (msg.remainingTimeToTargetSOC != null) {
+                        w.writeBits(2u, 4)   // RemainingTimeToTargetSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 6
+                    } else if (msg.remainingTimeToMaximumSOC != null) {
+                        w.writeBits(3u, 4)   // RemainingTimeToMaximumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 7
+                    } else if (msg.chargingComplete != null) {
+                        w.writeBits(4u, 4)   // ChargingComplete
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 8
+                    } else if (msg.batteryEnergyCapacity != null) {
+                        w.writeBits(5u, 4)   // BatteryEnergyCapacity
+                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
+                        st40 = 9
+                    } else if (msg.inletHot != null) {
+                        w.writeBits(6u, 4)   // InletHot
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 10
+                    } else {
+                        w.writeBits(7u, 4)   // element EE
+                        done40 = true
+                    }
+                }
+                4 -> {
+                    if (msg.remainingTimeToMinimumSOC != null) {
+                        w.writeBits(0u, 3)   // RemainingTimeToMinimumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 5
+                    } else if (msg.remainingTimeToTargetSOC != null) {
+                        w.writeBits(1u, 3)   // RemainingTimeToTargetSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 6
+                    } else if (msg.remainingTimeToMaximumSOC != null) {
+                        w.writeBits(2u, 3)   // RemainingTimeToMaximumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 7
+                    } else if (msg.chargingComplete != null) {
+                        w.writeBits(3u, 3)   // ChargingComplete
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 8
+                    } else if (msg.batteryEnergyCapacity != null) {
+                        w.writeBits(4u, 3)   // BatteryEnergyCapacity
+                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
+                        st40 = 9
+                    } else if (msg.inletHot != null) {
+                        w.writeBits(5u, 3)   // InletHot
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 10
+                    } else {
+                        w.writeBits(6u, 3)   // element EE
+                        done40 = true
+                    }
+                }
+                5 -> {
+                    if (msg.remainingTimeToTargetSOC != null) {
+                        w.writeBits(0u, 3)   // RemainingTimeToTargetSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 6
+                    } else if (msg.remainingTimeToMaximumSOC != null) {
+                        w.writeBits(1u, 3)   // RemainingTimeToMaximumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 7
+                    } else if (msg.chargingComplete != null) {
+                        w.writeBits(2u, 3)   // ChargingComplete
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 8
+                    } else if (msg.batteryEnergyCapacity != null) {
+                        w.writeBits(3u, 3)   // BatteryEnergyCapacity
+                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
+                        st40 = 9
+                    } else if (msg.inletHot != null) {
+                        w.writeBits(4u, 3)   // InletHot
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 10
+                    } else {
+                        w.writeBits(5u, 3)   // element EE
+                        done40 = true
+                    }
+                }
+                6 -> {
+                    if (msg.remainingTimeToMaximumSOC != null) {
+                        w.writeBits(0u, 3)   // RemainingTimeToMaximumSOC
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 7
+                    } else if (msg.chargingComplete != null) {
+                        w.writeBits(1u, 3)   // ChargingComplete
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 8
+                    } else if (msg.batteryEnergyCapacity != null) {
+                        w.writeBits(2u, 3)   // BatteryEnergyCapacity
+                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
+                        st40 = 9
+                    } else if (msg.inletHot != null) {
+                        w.writeBits(3u, 3)   // InletHot
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 10
+                    } else {
+                        w.writeBits(4u, 3)   // element EE
+                        done40 = true
+                    }
+                }
+                7 -> {
+                    if (msg.chargingComplete != null) {
+                        w.writeBits(0u, 3)   // ChargingComplete
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 8
+                    } else if (msg.batteryEnergyCapacity != null) {
+                        w.writeBits(1u, 3)   // BatteryEnergyCapacity
+                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
+                        st40 = 9
+                    } else if (msg.inletHot != null) {
+                        w.writeBits(2u, 3)   // InletHot
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 10
+                    } else {
+                        w.writeBits(3u, 3)   // element EE
+                        done40 = true
+                    }
+                }
+                8 -> {
+                    if (msg.batteryEnergyCapacity != null) {
+                        w.writeBits(0u, 2)   // BatteryEnergyCapacity
+                        encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
+                        st40 = 9
+                    } else if (msg.inletHot != null) {
+                        w.writeBits(1u, 2)   // InletHot
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 10
+                    } else {
+                        w.writeBits(2u, 2)   // element EE
+                        done40 = true
+                    }
+                }
+                9 -> {
+                    if (msg.inletHot != null) {
+                        w.writeBits(0u, 2)   // InletHot
+                        w.writeBits(0u, 1)   // value-start
+                        w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
+                        w.writeBits(0u, 1)   // child EE
+                        st40 = 10
+                    } else {
+                        w.writeBits(1u, 2)   // element EE
+                        done40 = true
+                    }
+                }
+                10 -> {
+                    w.writeBits(0u, 1)   // element EE
+                    done40 = true
+                }
+            }
+        }
+    }
+
+    private fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
+        var _presentSOC: Byte? = null
+        var _minimumSOC: Byte? = null
+        var _targetSOC: Byte? = null
+        var _maximumSOC: Byte? = null
+        var _remainingTimeToMinimumSOC: UInt? = null
+        var _remainingTimeToTargetSOC: UInt? = null
+        var _remainingTimeToMaximumSOC: UInt? = null
+        var _chargingComplete: Boolean? = null
+        var _batteryEnergyCapacity: RationalNumberType? = null
+        var _inletHot: Boolean? = null
+        var st41 = 0
+        var done41 = false
+        while (!done41) {
+            when (st41) {
+                0 -> {
+                    when (r.readBits(4)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _presentSOC = r.readBits(7).toByte()
+                            r.readBits(1)   // child EE
+                            st41 = 1
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _minimumSOC = r.readBits(7).toByte()
+                            r.readBits(1)   // child EE
+                            st41 = 2
+                        }
+                        2u -> {
+                            r.readBits(1)   // value-start
+                            _targetSOC = r.readBits(7).toByte()
+                            r.readBits(1)   // child EE
+                            st41 = 3
+                        }
+                        3u -> {
+                            r.readBits(1)   // value-start
+                            _maximumSOC = r.readBits(7).toByte()
+                            r.readBits(1)   // child EE
+                            st41 = 4
+                        }
+                        4u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 5
+                        }
+                        5u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 6
+                        }
+                        6u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 7
+                        }
+                        7u -> {
+                            r.readBits(1)   // value-start
+                            _chargingComplete = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 8
+                        }
+                        8u -> {
+                            _batteryEnergyCapacity = decodeRationalNumberType(r)
+                            st41 = 9
+                        }
+                        9u -> {
+                            r.readBits(1)   // value-start
+                            _inletHot = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 10
+                        }
+                        10u -> done41 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                1 -> {
+                    when (r.readBits(4)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _minimumSOC = r.readBits(7).toByte()
+                            r.readBits(1)   // child EE
+                            st41 = 2
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _targetSOC = r.readBits(7).toByte()
+                            r.readBits(1)   // child EE
+                            st41 = 3
+                        }
+                        2u -> {
+                            r.readBits(1)   // value-start
+                            _maximumSOC = r.readBits(7).toByte()
+                            r.readBits(1)   // child EE
+                            st41 = 4
+                        }
+                        3u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 5
+                        }
+                        4u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 6
+                        }
+                        5u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 7
+                        }
+                        6u -> {
+                            r.readBits(1)   // value-start
+                            _chargingComplete = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 8
+                        }
+                        7u -> {
+                            _batteryEnergyCapacity = decodeRationalNumberType(r)
+                            st41 = 9
+                        }
+                        8u -> {
+                            r.readBits(1)   // value-start
+                            _inletHot = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 10
+                        }
+                        9u -> done41 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                2 -> {
+                    when (r.readBits(4)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _targetSOC = r.readBits(7).toByte()
+                            r.readBits(1)   // child EE
+                            st41 = 3
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _maximumSOC = r.readBits(7).toByte()
+                            r.readBits(1)   // child EE
+                            st41 = 4
+                        }
+                        2u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 5
+                        }
+                        3u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 6
+                        }
+                        4u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 7
+                        }
+                        5u -> {
+                            r.readBits(1)   // value-start
+                            _chargingComplete = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 8
+                        }
+                        6u -> {
+                            _batteryEnergyCapacity = decodeRationalNumberType(r)
+                            st41 = 9
+                        }
+                        7u -> {
+                            r.readBits(1)   // value-start
+                            _inletHot = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 10
+                        }
+                        8u -> done41 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                3 -> {
+                    when (r.readBits(4)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _maximumSOC = r.readBits(7).toByte()
+                            r.readBits(1)   // child EE
+                            st41 = 4
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 5
+                        }
+                        2u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 6
+                        }
+                        3u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 7
+                        }
+                        4u -> {
+                            r.readBits(1)   // value-start
+                            _chargingComplete = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 8
+                        }
+                        5u -> {
+                            _batteryEnergyCapacity = decodeRationalNumberType(r)
+                            st41 = 9
+                        }
+                        6u -> {
+                            r.readBits(1)   // value-start
+                            _inletHot = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 10
+                        }
+                        7u -> done41 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                4 -> {
+                    when (r.readBits(3)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 5
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 6
+                        }
+                        2u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 7
+                        }
+                        3u -> {
+                            r.readBits(1)   // value-start
+                            _chargingComplete = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 8
+                        }
+                        4u -> {
+                            _batteryEnergyCapacity = decodeRationalNumberType(r)
+                            st41 = 9
+                        }
+                        5u -> {
+                            r.readBits(1)   // value-start
+                            _inletHot = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 10
+                        }
+                        6u -> done41 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                5 -> {
+                    when (r.readBits(3)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 6
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 7
+                        }
+                        2u -> {
+                            r.readBits(1)   // value-start
+                            _chargingComplete = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 8
+                        }
+                        3u -> {
+                            _batteryEnergyCapacity = decodeRationalNumberType(r)
+                            st41 = 9
+                        }
+                        4u -> {
+                            r.readBits(1)   // value-start
+                            _inletHot = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 10
+                        }
+                        5u -> done41 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                6 -> {
+                    when (r.readBits(3)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
+                            r.readBits(1)   // child EE
+                            st41 = 7
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _chargingComplete = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 8
+                        }
+                        2u -> {
+                            _batteryEnergyCapacity = decodeRationalNumberType(r)
+                            st41 = 9
+                        }
+                        3u -> {
+                            r.readBits(1)   // value-start
+                            _inletHot = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 10
+                        }
+                        4u -> done41 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                7 -> {
+                    when (r.readBits(3)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _chargingComplete = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 8
+                        }
+                        1u -> {
+                            _batteryEnergyCapacity = decodeRationalNumberType(r)
+                            st41 = 9
+                        }
+                        2u -> {
+                            r.readBits(1)   // value-start
+                            _inletHot = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 10
+                        }
+                        3u -> done41 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                8 -> {
+                    when (r.readBits(2)) {
+                        0u -> {
+                            _batteryEnergyCapacity = decodeRationalNumberType(r)
+                            st41 = 9
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _inletHot = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 10
+                        }
+                        2u -> done41 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                9 -> {
+                    when (r.readBits(2)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _inletHot = r.readBits(1).toInt() != 0
+                            r.readBits(1)   // child EE
+                            st41 = 10
+                        }
+                        1u -> done41 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                10 -> {
+                    when (r.readBits(1)) {
+                        0u -> done41 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+            }
+        }
+        return DisplayParametersType(_presentSOC, _minimumSOC, _targetSOC, _maximumSOC, _remainingTimeToMinimumSOC, _remainingTimeToTargetSOC, _remainingTimeToMaximumSOC, _chargingComplete, _batteryEnergyCapacity, _inletHot)
+    }
+
+    private fun encodeEVSEStatusType(w: BitWriter, msg: EVSEStatusType) {
+        w.writeBits(0u, 1)   // SE
+        w.writeBits(0u, 1)   // value-start
+        ExiPrimitives.writeUnsignedInteger(w, msg.notificationMaxDelay.toULong())
+        w.writeBits(0u, 1)   // child EE
+        w.writeBits(0u, 1)   // SE
+        w.writeBits(0u, 1)   // value-start
+        w.writeBits(msg.eVSENotification.ordinal.toUInt(), 3)
+        w.writeBits(0u, 1)   // child EE
+        w.writeBits(0u, 1)   // element EE
+    }
+
+    private fun decodeEVSEStatusType(r: BitReader): EVSEStatusType {
+        r.readBits(1)   // SE
+        r.readBits(1)   // value-start
+        val _notificationMaxDelay = ExiPrimitives.readUnsignedInteger(r).toUShort()
+        r.readBits(1)   // child EE
+        r.readBits(1)   // SE
+        r.readBits(1)   // value-start
+        val _eVSENotification = EvseNotification.entries[r.readBits(3).toInt()]
+        r.readBits(1)   // child EE
+        r.readBits(1)   // element EE
+        return EVSEStatusType(_notificationMaxDelay, _eVSENotification)
+    }
+
+    private fun encodeRationalNumberType(w: BitWriter, msg: RationalNumberType) {
+        w.writeBits(0u, 1)   // SE
+        w.writeBits(0u, 1)   // value-start
+        w.writeBits((msg.exponent.toLong() - -128L).toUInt(), 8)
+        w.writeBits(0u, 1)   // child EE
+        w.writeBits(0u, 1)   // SE
+        w.writeBits(0u, 1)   // value-start
+        ExiPrimitives.writeSignedInteger(w, msg.value.toLong())
+        w.writeBits(0u, 1)   // child EE
+        w.writeBits(0u, 1)   // element EE
+    }
+
+    private fun decodeRationalNumberType(r: BitReader): RationalNumberType {
+        r.readBits(1)   // SE
+        r.readBits(1)   // value-start
+        val _exponent = (r.readBits(8).toLong() + -128L).toByte()
+        r.readBits(1)   // child EE
+        r.readBits(1)   // SE
+        r.readBits(1)   // value-start
+        val _value = ExiPrimitives.readSignedInteger(r).toShort()
+        r.readBits(1)   // child EE
+        r.readBits(1)   // element EE
+        return RationalNumberType(_exponent, _value)
+    }
+
+    private fun encodeMeterInfoType(w: BitWriter, msg: MeterInfoType) {
+        w.writeBits(0u, 1)   // SE
+        w.writeBits(0u, 1)   // value-start
+        ExiPrimitives.writeStringValue(w, msg.meterID)
+        w.writeBits(0u, 1)   // child EE
+        w.writeBits(0u, 1)   // SE
+        w.writeBits(0u, 1)   // value-start
+        ExiPrimitives.writeUnsignedInteger(w, msg.chargedEnergyReadingWh.toULong())
+        w.writeBits(0u, 1)   // child EE
+        var st42 = 0
+        var done42 = false
+        while (!done42) {
+            when (st42) {
+                0 -> {
+                    if (msg.bPT_DischargedEnergyReadingWh != null) {
+                        w.writeBits(0u, 3)   // BPT_DischargedEnergyReadingWh
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.bPT_DischargedEnergyReadingWh!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 1
+                    } else if (msg.capacitiveEnergyReadingVARh != null) {
+                        w.writeBits(1u, 3)   // CapacitiveEnergyReadingVARh
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.capacitiveEnergyReadingVARh!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 2
+                    } else if (msg.bPT_InductiveEnergyReadingVARh != null) {
+                        w.writeBits(2u, 3)   // BPT_InductiveEnergyReadingVARh
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.bPT_InductiveEnergyReadingVARh!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 3
+                    } else if (msg.meterSignature != null) {
+                        w.writeBits(3u, 3)   // MeterSignature
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeBinary(w, msg.meterSignature!!)
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 4
+                    } else if (msg.meterStatus != null) {
+                        w.writeBits(4u, 3)   // MeterStatus
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 5
+                    } else if (msg.meterTimestamp != null) {
+                        w.writeBits(5u, 3)   // MeterTimestamp
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 6
+                    } else {
+                        w.writeBits(6u, 3)   // element EE
+                        done42 = true
+                    }
+                }
+                1 -> {
+                    if (msg.capacitiveEnergyReadingVARh != null) {
+                        w.writeBits(0u, 3)   // CapacitiveEnergyReadingVARh
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.capacitiveEnergyReadingVARh!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 2
+                    } else if (msg.bPT_InductiveEnergyReadingVARh != null) {
+                        w.writeBits(1u, 3)   // BPT_InductiveEnergyReadingVARh
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.bPT_InductiveEnergyReadingVARh!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 3
+                    } else if (msg.meterSignature != null) {
+                        w.writeBits(2u, 3)   // MeterSignature
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeBinary(w, msg.meterSignature!!)
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 4
+                    } else if (msg.meterStatus != null) {
+                        w.writeBits(3u, 3)   // MeterStatus
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 5
+                    } else if (msg.meterTimestamp != null) {
+                        w.writeBits(4u, 3)   // MeterTimestamp
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 6
+                    } else {
+                        w.writeBits(5u, 3)   // element EE
+                        done42 = true
+                    }
+                }
+                2 -> {
+                    if (msg.bPT_InductiveEnergyReadingVARh != null) {
+                        w.writeBits(0u, 3)   // BPT_InductiveEnergyReadingVARh
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.bPT_InductiveEnergyReadingVARh!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 3
+                    } else if (msg.meterSignature != null) {
+                        w.writeBits(1u, 3)   // MeterSignature
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeBinary(w, msg.meterSignature!!)
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 4
+                    } else if (msg.meterStatus != null) {
+                        w.writeBits(2u, 3)   // MeterStatus
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 5
+                    } else if (msg.meterTimestamp != null) {
+                        w.writeBits(3u, 3)   // MeterTimestamp
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 6
+                    } else {
+                        w.writeBits(4u, 3)   // element EE
+                        done42 = true
+                    }
+                }
+                3 -> {
+                    if (msg.meterSignature != null) {
+                        w.writeBits(0u, 3)   // MeterSignature
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeBinary(w, msg.meterSignature!!)
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 4
+                    } else if (msg.meterStatus != null) {
+                        w.writeBits(1u, 3)   // MeterStatus
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 5
+                    } else if (msg.meterTimestamp != null) {
+                        w.writeBits(2u, 3)   // MeterTimestamp
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 6
+                    } else {
+                        w.writeBits(3u, 3)   // element EE
+                        done42 = true
+                    }
+                }
+                4 -> {
+                    if (msg.meterStatus != null) {
+                        w.writeBits(0u, 2)   // MeterStatus
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 5
+                    } else if (msg.meterTimestamp != null) {
+                        w.writeBits(1u, 2)   // MeterTimestamp
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 6
+                    } else {
+                        w.writeBits(2u, 2)   // element EE
+                        done42 = true
+                    }
+                }
+                5 -> {
+                    if (msg.meterTimestamp != null) {
+                        w.writeBits(0u, 2)   // MeterTimestamp
+                        w.writeBits(0u, 1)   // value-start
+                        ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
+                        w.writeBits(0u, 1)   // child EE
+                        st42 = 6
+                    } else {
+                        w.writeBits(1u, 2)   // element EE
+                        done42 = true
+                    }
+                }
+                6 -> {
+                    w.writeBits(0u, 1)   // element EE
+                    done42 = true
+                }
+            }
+        }
+    }
+
+    private fun decodeMeterInfoType(r: BitReader): MeterInfoType {
+        r.readBits(1)   // SE
+        r.readBits(1)   // value-start
+        val _meterID = ExiPrimitives.readStringValue(r)
+        r.readBits(1)   // child EE
+        r.readBits(1)   // SE
+        r.readBits(1)   // value-start
+        val _chargedEnergyReadingWh = ExiPrimitives.readUnsignedInteger(r).toULong()
+        r.readBits(1)   // child EE
+        var _bPT_DischargedEnergyReadingWh: ULong? = null
+        var _capacitiveEnergyReadingVARh: ULong? = null
+        var _bPT_InductiveEnergyReadingVARh: ULong? = null
+        var _meterSignature: ByteArray? = null
+        var _meterStatus: Short? = null
+        var _meterTimestamp: ULong? = null
+        var st43 = 0
+        var done43 = false
+        while (!done43) {
+            when (st43) {
+                0 -> {
+                    when (r.readBits(3)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _bPT_DischargedEnergyReadingWh = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 1
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _capacitiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 2
+                        }
+                        2u -> {
+                            r.readBits(1)   // value-start
+                            _bPT_InductiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 3
+                        }
+                        3u -> {
+                            r.readBits(1)   // value-start
+                            _meterSignature = ExiPrimitives.readBinary(r)
+                            r.readBits(1)   // child EE
+                            st43 = 4
+                        }
+                        4u -> {
+                            r.readBits(1)   // value-start
+                            _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
+                            r.readBits(1)   // child EE
+                            st43 = 5
+                        }
+                        5u -> {
+                            r.readBits(1)   // value-start
+                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 6
+                        }
+                        6u -> done43 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                1 -> {
+                    when (r.readBits(3)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _capacitiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 2
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _bPT_InductiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 3
+                        }
+                        2u -> {
+                            r.readBits(1)   // value-start
+                            _meterSignature = ExiPrimitives.readBinary(r)
+                            r.readBits(1)   // child EE
+                            st43 = 4
+                        }
+                        3u -> {
+                            r.readBits(1)   // value-start
+                            _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
+                            r.readBits(1)   // child EE
+                            st43 = 5
+                        }
+                        4u -> {
+                            r.readBits(1)   // value-start
+                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 6
+                        }
+                        5u -> done43 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                2 -> {
+                    when (r.readBits(3)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _bPT_InductiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 3
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _meterSignature = ExiPrimitives.readBinary(r)
+                            r.readBits(1)   // child EE
+                            st43 = 4
+                        }
+                        2u -> {
+                            r.readBits(1)   // value-start
+                            _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
+                            r.readBits(1)   // child EE
+                            st43 = 5
+                        }
+                        3u -> {
+                            r.readBits(1)   // value-start
+                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 6
+                        }
+                        4u -> done43 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                3 -> {
+                    when (r.readBits(3)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _meterSignature = ExiPrimitives.readBinary(r)
+                            r.readBits(1)   // child EE
+                            st43 = 4
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
+                            r.readBits(1)   // child EE
+                            st43 = 5
+                        }
+                        2u -> {
+                            r.readBits(1)   // value-start
+                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 6
+                        }
+                        3u -> done43 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                4 -> {
+                    when (r.readBits(2)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
+                            r.readBits(1)   // child EE
+                            st43 = 5
+                        }
+                        1u -> {
+                            r.readBits(1)   // value-start
+                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 6
+                        }
+                        2u -> done43 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                5 -> {
+                    when (r.readBits(2)) {
+                        0u -> {
+                            r.readBits(1)   // value-start
+                            _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
+                            r.readBits(1)   // child EE
+                            st43 = 6
+                        }
+                        1u -> done43 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                6 -> {
+                    when (r.readBits(1)) {
+                        0u -> done43 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+            }
+        }
+        return MeterInfoType(_meterID, _chargedEnergyReadingWh, _bPT_DischargedEnergyReadingWh, _capacitiveEnergyReadingVARh, _bPT_InductiveEnergyReadingVARh, _meterSignature, _meterStatus, _meterTimestamp)
+    }
+
+    private fun encodeDetailedCostType(w: BitWriter, msg: DetailedCostType) {
+        w.writeBits(0u, 1)   // SE
+        encodeRationalNumberType(w, msg.amount)
+        w.writeBits(0u, 1)   // SE
+        encodeRationalNumberType(w, msg.costPerUnit)
+        w.writeBits(0u, 1)   // element EE
+    }
+
+    private fun decodeDetailedCostType(r: BitReader): DetailedCostType {
+        r.readBits(1)   // SE
+        val _amount = decodeRationalNumberType(r)
+        r.readBits(1)   // SE
+        val _costPerUnit = decodeRationalNumberType(r)
+        r.readBits(1)   // element EE
+        return DetailedCostType(_amount, _costPerUnit)
+    }
+
+    private fun encodeDetailedTaxType(w: BitWriter, msg: DetailedTaxType) {
+        w.writeBits(0u, 1)   // SE
+        w.writeBits(0u, 1)   // value-start
+        ExiPrimitives.writeUnsignedInteger(w, msg.taxRuleID.toULong())
+        w.writeBits(0u, 1)   // child EE
+        w.writeBits(0u, 1)   // SE
+        encodeRationalNumberType(w, msg.amount)
+        w.writeBits(0u, 1)   // element EE
+    }
+
+    private fun decodeDetailedTaxType(r: BitReader): DetailedTaxType {
+        r.readBits(1)   // SE
+        r.readBits(1)   // value-start
+        val _taxRuleID = ExiPrimitives.readUnsignedInteger(r).toUInt()
+        r.readBits(1)   // child EE
+        r.readBits(1)   // SE
+        val _amount = decodeRationalNumberType(r)
+        r.readBits(1)   // element EE
+        return DetailedTaxType(_taxRuleID, _amount)
+    }
+
+    private fun encodeReceiptType(w: BitWriter, msg: ReceiptType) {
+        w.writeBits(0u, 1)   // SE
+        w.writeBits(0u, 1)   // value-start
+        ExiPrimitives.writeUnsignedInteger(w, msg.timeAnchor.toULong())
+        w.writeBits(0u, 1)   // child EE
+        var st44 = 0
+        var done44 = false
+        while (!done44) {
+            when (st44) {
+                0 -> {
+                    if (msg.energyCosts != null) {
+                        w.writeBits(0u, 3)   // EnergyCosts
+                        encodeDetailedCostType(w, msg.energyCosts!!)
+                        st44 = 1
+                    } else if (msg.occupancyCosts != null) {
+                        w.writeBits(1u, 3)   // OccupancyCosts
+                        encodeDetailedCostType(w, msg.occupancyCosts!!)
+                        st44 = 2
+                    } else if (msg.additionalServicesCosts != null) {
+                        w.writeBits(2u, 3)   // AdditionalServicesCosts
+                        encodeDetailedCostType(w, msg.additionalServicesCosts!!)
+                        st44 = 3
+                    } else if (msg.overstayCosts != null) {
+                        w.writeBits(3u, 3)   // OverstayCosts
+                        encodeDetailedCostType(w, msg.overstayCosts!!)
+                        st44 = 4
+                    } else if (msg.taxCosts.isNotEmpty()) {
+                        require(msg.taxCosts.size <= 10) { "list size out of schema range" }
+                        w.writeBits(4u, 3)   // TaxCosts
+                        encodeDetailedTaxType(w, msg.taxCosts[0])
+                        for (ci in 1 until msg.taxCosts.size) {
+                            w.writeBits(0u, 2)   // TaxCosts
+                            encodeDetailedTaxType(w, msg.taxCosts[ci])
+                        }
+                        w.writeBits(1u, 2)   // element EE (list end)
+                        done44 = true
+                    } else {
+                        w.writeBits(5u, 3)   // element EE
+                        done44 = true
+                    }
+                }
+                1 -> {
+                    if (msg.occupancyCosts != null) {
+                        w.writeBits(0u, 3)   // OccupancyCosts
+                        encodeDetailedCostType(w, msg.occupancyCosts!!)
+                        st44 = 2
+                    } else if (msg.additionalServicesCosts != null) {
+                        w.writeBits(1u, 3)   // AdditionalServicesCosts
+                        encodeDetailedCostType(w, msg.additionalServicesCosts!!)
+                        st44 = 3
+                    } else if (msg.overstayCosts != null) {
+                        w.writeBits(2u, 3)   // OverstayCosts
+                        encodeDetailedCostType(w, msg.overstayCosts!!)
+                        st44 = 4
+                    } else if (msg.taxCosts.isNotEmpty()) {
+                        require(msg.taxCosts.size <= 10) { "list size out of schema range" }
+                        w.writeBits(3u, 3)   // TaxCosts
+                        encodeDetailedTaxType(w, msg.taxCosts[0])
+                        for (ci in 1 until msg.taxCosts.size) {
+                            w.writeBits(0u, 2)   // TaxCosts
+                            encodeDetailedTaxType(w, msg.taxCosts[ci])
+                        }
+                        w.writeBits(1u, 2)   // element EE (list end)
+                        done44 = true
+                    } else {
+                        w.writeBits(4u, 3)   // element EE
+                        done44 = true
+                    }
+                }
+                2 -> {
+                    if (msg.additionalServicesCosts != null) {
+                        w.writeBits(0u, 3)   // AdditionalServicesCosts
+                        encodeDetailedCostType(w, msg.additionalServicesCosts!!)
+                        st44 = 3
+                    } else if (msg.overstayCosts != null) {
+                        w.writeBits(1u, 3)   // OverstayCosts
+                        encodeDetailedCostType(w, msg.overstayCosts!!)
+                        st44 = 4
+                    } else if (msg.taxCosts.isNotEmpty()) {
+                        require(msg.taxCosts.size <= 10) { "list size out of schema range" }
+                        w.writeBits(2u, 3)   // TaxCosts
+                        encodeDetailedTaxType(w, msg.taxCosts[0])
+                        for (ci in 1 until msg.taxCosts.size) {
+                            w.writeBits(0u, 2)   // TaxCosts
+                            encodeDetailedTaxType(w, msg.taxCosts[ci])
+                        }
+                        w.writeBits(1u, 2)   // element EE (list end)
+                        done44 = true
+                    } else {
+                        w.writeBits(3u, 3)   // element EE
+                        done44 = true
+                    }
+                }
+                3 -> {
+                    if (msg.overstayCosts != null) {
+                        w.writeBits(0u, 2)   // OverstayCosts
+                        encodeDetailedCostType(w, msg.overstayCosts!!)
+                        st44 = 4
+                    } else if (msg.taxCosts.isNotEmpty()) {
+                        require(msg.taxCosts.size <= 10) { "list size out of schema range" }
+                        w.writeBits(1u, 2)   // TaxCosts
+                        encodeDetailedTaxType(w, msg.taxCosts[0])
+                        for (ci in 1 until msg.taxCosts.size) {
+                            w.writeBits(0u, 2)   // TaxCosts
+                            encodeDetailedTaxType(w, msg.taxCosts[ci])
+                        }
+                        w.writeBits(1u, 2)   // element EE (list end)
+                        done44 = true
+                    } else {
+                        w.writeBits(2u, 2)   // element EE
+                        done44 = true
+                    }
+                }
+                4 -> {
+                    if (msg.taxCosts.isNotEmpty()) {
+                        require(msg.taxCosts.size <= 10) { "list size out of schema range" }
+                        w.writeBits(0u, 2)   // TaxCosts
+                        encodeDetailedTaxType(w, msg.taxCosts[0])
+                        for (ci in 1 until msg.taxCosts.size) {
+                            w.writeBits(0u, 2)   // TaxCosts
+                            encodeDetailedTaxType(w, msg.taxCosts[ci])
+                        }
+                        w.writeBits(1u, 2)   // element EE (list end)
+                        done44 = true
+                    } else {
+                        w.writeBits(1u, 2)   // element EE
+                        done44 = true
+                    }
+                }
+                5 -> {
+                    w.writeBits(0u, 1)   // element EE
+                    done44 = true
+                }
+            }
+        }
+    }
+
+    private fun decodeReceiptType(r: BitReader): ReceiptType {
+        r.readBits(1)   // SE
+        r.readBits(1)   // value-start
+        val _timeAnchor = ExiPrimitives.readUnsignedInteger(r).toULong()
+        r.readBits(1)   // child EE
+        var _energyCosts: DetailedCostType? = null
+        var _occupancyCosts: DetailedCostType? = null
+        var _additionalServicesCosts: DetailedCostType? = null
+        var _overstayCosts: DetailedCostType? = null
+        val taxCostsList = ArrayList<DetailedTaxType>()
+        var st45 = 0
+        var done45 = false
+        while (!done45) {
+            when (st45) {
+                0 -> {
+                    when (r.readBits(3)) {
+                        0u -> {
+                            _energyCosts = decodeDetailedCostType(r)
+                            st45 = 1
+                        }
+                        1u -> {
+                            _occupancyCosts = decodeDetailedCostType(r)
+                            st45 = 2
+                        }
+                        2u -> {
+                            _additionalServicesCosts = decodeDetailedCostType(r)
+                            st45 = 3
+                        }
+                        3u -> {
+                            _overstayCosts = decodeDetailedCostType(r)
                             st45 = 4
+                        }
+                        4u -> {   // TaxCosts
+                            taxCostsList.add(decodeDetailedTaxType(r))
+                            while (true) {
+                                val lc = r.readBits(2)
+                                if (lc == 1u) break   // element EE (list end)
+                                require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
+                                taxCostsList.add(decodeDetailedTaxType(r))
+                            }
+                            done45 = true
+                        }
+                        5u -> done45 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                1 -> {
+                    when (r.readBits(3)) {
+                        0u -> {
+                            _occupancyCosts = decodeDetailedCostType(r)
+                            st45 = 2
+                        }
+                        1u -> {
+                            _additionalServicesCosts = decodeDetailedCostType(r)
+                            st45 = 3
+                        }
+                        2u -> {
+                            _overstayCosts = decodeDetailedCostType(r)
+                            st45 = 4
+                        }
+                        3u -> {   // TaxCosts
+                            taxCostsList.add(decodeDetailedTaxType(r))
+                            while (true) {
+                                val lc = r.readBits(2)
+                                if (lc == 1u) break   // element EE (list end)
+                                require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
+                                taxCostsList.add(decodeDetailedTaxType(r))
+                            }
+                            done45 = true
+                        }
+                        4u -> done45 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                2 -> {
+                    when (r.readBits(3)) {
+                        0u -> {
+                            _additionalServicesCosts = decodeDetailedCostType(r)
+                            st45 = 3
+                        }
+                        1u -> {
+                            _overstayCosts = decodeDetailedCostType(r)
+                            st45 = 4
+                        }
+                        2u -> {   // TaxCosts
+                            taxCostsList.add(decodeDetailedTaxType(r))
+                            while (true) {
+                                val lc = r.readBits(2)
+                                if (lc == 1u) break   // element EE (list end)
+                                require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
+                                taxCostsList.add(decodeDetailedTaxType(r))
+                            }
+                            done45 = true
+                        }
+                        3u -> done45 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                3 -> {
+                    when (r.readBits(2)) {
+                        0u -> {
+                            _overstayCosts = decodeDetailedCostType(r)
+                            st45 = 4
+                        }
+                        1u -> {   // TaxCosts
+                            taxCostsList.add(decodeDetailedTaxType(r))
+                            while (true) {
+                                val lc = r.readBits(2)
+                                if (lc == 1u) break   // element EE (list end)
+                                require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
+                                taxCostsList.add(decodeDetailedTaxType(r))
+                            }
+                            done45 = true
+                        }
+                        2u -> done45 = true   // element EE
+                        else -> throw IllegalArgumentException("invalid optional-run event code")
+                    }
+                }
+                4 -> {
+                    when (r.readBits(2)) {
+                        0u -> {   // TaxCosts
+                            taxCostsList.add(decodeDetailedTaxType(r))
+                            while (true) {
+                                val lc = r.readBits(2)
+                                if (lc == 1u) break   // element EE (list end)
+                                require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
+                                taxCostsList.add(decodeDetailedTaxType(r))
+                            }
+                            done45 = true
                         }
                         1u -> done45 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
                     }
                 }
-                4 -> {
+                5 -> {
                     when (r.readBits(1)) {
                         0u -> done45 = true   // element EE
                         else -> throw IllegalArgumentException("invalid optional-run event code")
@@ -5306,7 +5283,30 @@ object WPTCodec {
                 }
             }
         }
-        return AlternativeSECCType(_sSID, _bSSID, _iPAddress, _port)
+        return ReceiptType(_timeAnchor, _energyCosts, _occupancyCosts, _additionalServicesCosts, _overstayCosts, taxCostsList)
+    }
+
+    private fun encodeListOfRootCertificateIDsType(w: BitWriter, msg: ListOfRootCertificateIDsType) {
+        val list = msg.rootCertificateID
+        require(list.size in 1..20) { "list size out of schema range" }
+        for (i in list.indices) {
+            w.writeBits(0u, if (i == 0) 1 else 2)   // SE(item)
+            encodeX509IssuerSerialType(w, list[i])
+        }
+        w.writeBits(1u, 2)   // list terminator / element EE
+    }
+
+    private fun decodeListOfRootCertificateIDsType(r: BitReader): ListOfRootCertificateIDsType {
+        val list = ArrayList<X509IssuerSerialType>()
+        r.readBits(1)   // SE(item) first
+        list.add(decodeX509IssuerSerialType(r))
+        while (true) {
+            val ec = r.readBits(2)
+            if (ec == 1u) break   // element EE
+            require(ec == 0u && list.size < 20) { "invalid repeating-element event code" }
+            list.add(decodeX509IssuerSerialType(r))
+        }
+        return ListOfRootCertificateIDsType(list)
     }
 
     private fun encodeSignatureType(w: BitWriter, msg: SignatureType) {

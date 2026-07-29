@@ -714,6 +714,86 @@ object Iso15118_2Codec {
         }
     }
 
+    fun encodeFragment_AuthorizationReq(content: AuthorizationReqType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(4u, 8)   // fragment SE(AuthorizationReq)
+        encodeAuthorizationReqType(w, content)
+        w.writeBits(244u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_AuthorizationReq(src: ByteArray): AuthorizationReqType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 4u) { "Not a AuthorizationReq fragment." }
+        val result = decodeAuthorizationReqType(r)
+        require(r.readBits(8) == 244u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_MeteringReceiptReq(content: MeteringReceiptReqType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(121u, 8)   // fragment SE(MeteringReceiptReq)
+        encodeMeteringReceiptReqType(w, content)
+        w.writeBits(244u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_MeteringReceiptReq(src: ByteArray): MeteringReceiptReqType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 121u) { "Not a MeteringReceiptReq fragment." }
+        val result = decodeMeteringReceiptReqType(r)
+        require(r.readBits(8) == 244u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_SalesTariff(content: SalesTariffType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(174u, 8)   // fragment SE(SalesTariff)
+        encodeSalesTariffType(w, content)
+        w.writeBits(244u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_SalesTariff(src: ByteArray): SalesTariffType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 174u) { "Not a SalesTariff fragment." }
+        val result = decodeSalesTariffType(r)
+        require(r.readBits(8) == 244u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_SignedInfo(content: SignedInfoType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(208u, 8)   // fragment SE(SignedInfo)
+        encodeSignedInfoType(w, content)
+        w.writeBits(244u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_SignedInfo(src: ByteArray): SignedInfoType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 208u) { "Not a SignedInfo fragment." }
+        val result = decodeSignedInfoType(r)
+        require(r.readBits(8) == 244u) { "missing End Fragment." }
+        return result
+    }
+
     private fun encodeBodyType(w: BitWriter, msg: BodyType) {
         var st0 = 0
         var done0 = false
