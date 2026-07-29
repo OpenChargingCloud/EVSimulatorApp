@@ -797,18 +797,48 @@ parallel — it gives Track A a live counterpart to test against beyond the offl
 - Confirm the two repos build side by side (Vanaheimr already references `WWCP_ISO15118_PKI`).
 - **Exit:** `dotnet test` green from within this repo.
 
-### Phase 1 — Generator-seam spike 🔴 (3–5 days, timeboxed) — the new go/no-go
+### Phase 1 — Generator-seam spike ✅ **done (2026-07-29)** — go
 
-Replaces the old NativeAOT spike. Proves the port is mechanical before committing to it.
+Replaced the old NativeAOT spike. **Verdict: go.** The port is mechanical, and the vector corpus
+checks it for free — exactly the bet Option A rests on.
 
-- Extract an `ICodecEmitter` seam in the generator; keep `Xsd/` + `Grammar/` untouched as the
-  shared front end. **Re-emit C# through the seam unchanged and keep all 629 tests green** —
-  that is the gate that proves the front end is truly language-neutral.
-- Stand up a **KotlinEmitter** far enough to emit *one* message pair (e.g. `SessionSetup`), plus
-  a minimal Kotlin EXI runtime (BitReader/Writer + primitives).
-- **Exit:** the Kotlin codec round-trips the `SessionSetup` vectors **byte-exact against the
-  existing corpus**. If the seam can't reproduce C# byte-for-byte, stop and reconsider (fallback:
-  Option B). This is a much cheaper, earlier go/no-go than a runtime port would have been.
+What was built (submodule branch `feature/codec-emitter-seam`, commits `2977ece`, `c4ff18a`;
+Kotlin tree in this repo, `8d8d8c4`):
+
+- **`ICodecEmitter` seam**, with the C# spelling of a type and the C# nullability rule moved into
+  `Emit/CSharpSyntax.cs`.
+- **`Vanaheimr.V2G.Exi.Codegen`** — a Roslyn-free driver, because a Roslyn incremental generator
+  can only contribute C# to its own compilation. It links `Xsd/`, `Grammar/`, `Emit/` but *not*
+  the two Roslyn-bound files, so the front end's independence is enforced by the build.
+- **`KotlinCodecEmitter`** + a Kotlin EXI runtime (`kotlin/exi-runtime`), scoped to what
+  AppProtocol exercises and failing loud on the rest.
+
+Results against the three gates:
+
+| Gate | Result |
+|---|---|
+| C# re-emitted through the seam, unchanged | **9/9 codecs byte-identical** (122,558 lines) |
+| Full .NET suite still green | **629/629** |
+| CLI driver ≡ Roslyn generator | **9/9 byte-identical** (5.7 MB of C#) |
+| Kotlin codec vs the cbV2G vectors | **17/17 byte-exact**, all round-trip through decode |
+
+Target changed from `SessionSetup` to **AppProtocol**: it is the smaller schema (68 lines) and it
+still exercises strings, unsigned integers, n-bit fields with a bias, an enum, a bounded list and
+an optional tail — while having its own cbV2G-generated vector file.
+
+**Finding that contradicted the plan.** This section previously said to keep `Xsd/` + `Grammar/`
+*untouched*. That was wrong: the grammar layer was **not** language-neutral. It carried
+`CSharpRecordName`, a `CSharpType` holding `"uint"` / `"byte[]"` / `"string"`, and an
+`IsCSharpNullable` flag encoding C#'s value-type nullability. A Kotlin emitter would have received
+`"uint"` and had to guess. Neutralising it (`PrimitiveKind`, `TypeRef`, `IsValueType`) was
+unplanned work — small in the end (~100 call sites), but it means "the front end is already
+shared" was an assumption, not a fact. Track A's estimates should carry that lesson: the parts
+believed reusable are worth verifying before being counted.
+
+**Two bugs the byte-diff caught that tests alone would not have**, both in the first Kotlin
+output: a raw `TypeRef` interpolated into generated C# (`Primitive { Kind = Binary } Value`), and
+duplicate codec functions because a global element's body also lives in `ComplexTypes`. A third —
+list bounds read from the wrong plan object — surfaced as a loud failure rather than wrong bytes.
 
 ### Track A — Native stack port
 
