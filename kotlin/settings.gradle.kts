@@ -7,3 +7,7 @@ include("exi-iso20-common")
 
 include("exi-iso20-ac")
 include("exi-iso20-dc")
+include("exi-iso20-wpt")
+include("exi-iso20-acdp")
+include("exi-iso20-acderiec")
+include("exi-iso20-acdersae")

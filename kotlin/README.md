@@ -8,6 +8,10 @@
 | `exi-iso20-common` | Generated ISO 15118-20 CommonMessages codec + vector test (same loop). |
 | `exi-iso20-ac` | Generated ISO 15118-20 AC codec + vector test (same loop). |
 | `exi-iso20-dc` | Generated ISO 15118-20 DC codec + vector test (same loop). |
+| `exi-iso20-wpt` | Generated ISO 15118-20 WPT codec + vector test (same loop). |
+| `exi-iso20-acdp` | Generated ISO 15118-20 ACDP codec + vector test (same loop). |
+| `exi-iso20-acderiec` | Generated ISO 15118-20 AC_DER_IEC codec. **No vector corpus exists**, so this one is only checked by compiling and by the cross-emitter comparison. |
+| `exi-iso20-acdersae` | Generated ISO 15118-20 AC_DER_SAE codec. Same — no vectors. |
 
 ```bash
 gradle -p kotlin test --rerun-tasks
@@ -71,6 +75,30 @@ Two independent gates, and neither is sufficient alone:
 
 Bit-exactness and well-formedness are separate concerns: a byte-level diff says nothing about
 whether the emitted Kotlin *compiles*. Several real bugs here were caught only by the compiler.
+
+### Unvalidated construct
+
+One shape has **no working reference encoder**: the `TxSpecData` list in WPT's
+`WPT_LF_TransmitterDataType` (`minOccurs=2 maxOccurs=255`, followed by an optional
+`TxPackageSpecData`). `CodecEmitter` documents that cbexigen's own generated encoder for it cannot
+represent even the schema's required minimum, so both back ends emit a plain schema-informed
+non-strict reading instead. That is a design decision, not a diff against a reference — bytes from
+this construct are unvalidated. The current WPT vectors do not appear to exercise it.
+
+While porting it, a genuine defect surfaced **in the C# emitter**: its encoder writes a 1-bit
+element EE after a present optional tail, but its decoder never reads that bit, leaving the reader
+one bit short. The Kotlin decoder consumes it, so the two back ends differ by one `readBits(1)` in
+`decode:WPT_LF_TransmitterDataType`. This is the only intentional divergence between them; the
+cross-emitter comparison reports it (2 of 130 WPT functions — the second is only the tool seeing
+`when` where C# has `switch`).
+
+### Memory
+
+`gradle.properties` raises the Gradle and Kotlin daemon heaps. The generated DER codecs are around
+1 MB each in a single file, and the compiler exhausts the default heap on them — the failure moves
+between modules with build order, so it is pressure rather than one bad file. The real fix is the
+per-type file splitting the plan already calls for to stay under Android's DEX method limits; the
+compiler simply hits a wall first.
 
 ### Known warnings
 
