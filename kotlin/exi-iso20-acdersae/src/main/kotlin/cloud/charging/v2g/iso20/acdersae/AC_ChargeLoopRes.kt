@@ -62,10 +62,12 @@ internal fun encodeAC_ChargeLoopRes(w: BitWriter, msg: AC_ChargeLoopRes) {
                     encodeDER_Scheduled_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
                 } else if (sub_cLResControlMode is Dynamic_AC_CLResControlModeType) {
+                    require(sub_cLResControlMode::class == Dynamic_AC_CLResControlModeType::class) { "CLResControlMode: ${sub_cLResControlMode::class.simpleName} is not a substitution member" }
                     w.writeBits(9u, 4)   // Dynamic_AC_CLResControlMode
                     encodeDynamic_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
                 } else if (sub_cLResControlMode is Scheduled_AC_CLResControlModeType) {
+                    require(sub_cLResControlMode::class == Scheduled_AC_CLResControlModeType::class) { "CLResControlMode: ${sub_cLResControlMode::class.simpleName} is not a substitution member" }
                     w.writeBits(10u, 4)   // Scheduled_AC_CLResControlMode
                     encodeScheduled_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
@@ -104,10 +106,12 @@ internal fun encodeAC_ChargeLoopRes(w: BitWriter, msg: AC_ChargeLoopRes) {
                     encodeDER_Scheduled_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
                 } else if (sub_cLResControlMode is Dynamic_AC_CLResControlModeType) {
+                    require(sub_cLResControlMode::class == Dynamic_AC_CLResControlModeType::class) { "CLResControlMode: ${sub_cLResControlMode::class.simpleName} is not a substitution member" }
                     w.writeBits(8u, 4)   // Dynamic_AC_CLResControlMode
                     encodeDynamic_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
                 } else if (sub_cLResControlMode is Scheduled_AC_CLResControlModeType) {
+                    require(sub_cLResControlMode::class == Scheduled_AC_CLResControlModeType::class) { "CLResControlMode: ${sub_cLResControlMode::class.simpleName} is not a substitution member" }
                     w.writeBits(9u, 4)   // Scheduled_AC_CLResControlMode
                     encodeScheduled_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
@@ -142,10 +146,12 @@ internal fun encodeAC_ChargeLoopRes(w: BitWriter, msg: AC_ChargeLoopRes) {
                     encodeDER_Scheduled_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
                 } else if (sub_cLResControlMode is Dynamic_AC_CLResControlModeType) {
+                    require(sub_cLResControlMode::class == Dynamic_AC_CLResControlModeType::class) { "CLResControlMode: ${sub_cLResControlMode::class.simpleName} is not a substitution member" }
                     w.writeBits(7u, 4)   // Dynamic_AC_CLResControlMode
                     encodeDynamic_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
                 } else if (sub_cLResControlMode is Scheduled_AC_CLResControlModeType) {
+                    require(sub_cLResControlMode::class == Scheduled_AC_CLResControlModeType::class) { "CLResControlMode: ${sub_cLResControlMode::class.simpleName} is not a substitution member" }
                     w.writeBits(8u, 4)   // Scheduled_AC_CLResControlMode
                     encodeScheduled_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
@@ -176,10 +182,12 @@ internal fun encodeAC_ChargeLoopRes(w: BitWriter, msg: AC_ChargeLoopRes) {
                     encodeDER_Scheduled_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
                 } else if (sub_cLResControlMode is Dynamic_AC_CLResControlModeType) {
+                    require(sub_cLResControlMode::class == Dynamic_AC_CLResControlModeType::class) { "CLResControlMode: ${sub_cLResControlMode::class.simpleName} is not a substitution member" }
                     w.writeBits(6u, 4)   // Dynamic_AC_CLResControlMode
                     encodeDynamic_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
                 } else if (sub_cLResControlMode is Scheduled_AC_CLResControlModeType) {
+                    require(sub_cLResControlMode::class == Scheduled_AC_CLResControlModeType::class) { "CLResControlMode: ${sub_cLResControlMode::class.simpleName} is not a substitution member" }
                     w.writeBits(7u, 4)   // Scheduled_AC_CLResControlMode
                     encodeScheduled_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
@@ -206,10 +214,12 @@ internal fun encodeAC_ChargeLoopRes(w: BitWriter, msg: AC_ChargeLoopRes) {
                     encodeDER_Scheduled_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
                 } else if (sub_cLResControlMode is Dynamic_AC_CLResControlModeType) {
+                    require(sub_cLResControlMode::class == Dynamic_AC_CLResControlModeType::class) { "CLResControlMode: ${sub_cLResControlMode::class.simpleName} is not a substitution member" }
                     w.writeBits(5u, 3)   // Dynamic_AC_CLResControlMode
                     encodeDynamic_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true
                 } else if (sub_cLResControlMode is Scheduled_AC_CLResControlModeType) {
+                    require(sub_cLResControlMode::class == Scheduled_AC_CLResControlModeType::class) { "CLResControlMode: ${sub_cLResControlMode::class.simpleName} is not a substitution member" }
                     w.writeBits(6u, 3)   // Scheduled_AC_CLResControlMode
                     encodeScheduled_AC_CLResControlModeType(w, sub_cLResControlMode)
                     done280 = true

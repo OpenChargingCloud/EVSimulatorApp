@@ -187,3 +187,13 @@ both shapes.
 Nothing about the wire changed: branches are ordered most-derived-first, because Kotlin's `is`
 matches subtypes too, while each member keeps its own alphabetical event code. The AC and DC
 vectors cover the collapsed branch — putting a wrong code in it fails them.
+
+That `is` matching subtypes is also why each branch now `require`s the value to be **exactly** its
+member type. Within a schema set every derived type is itself a member, so the branches partition
+the generated types precisely; but the classes something extends are emitted `open`, and a consumer
+can extend them too. Such a value used to take its nearest ancestor's branch and be written with
+that member's event code and encoder — or, in an optional run, match no branch and disappear from
+the message. Both silent. The guard is emitted only where the member type is extensible at all
+(twelve types across the -20 sets); on a final class `is` already means "exactly this", and the
+check would be dead code. `SubstitutionGuardTest` in `exi-iso20-ac` builds an outsider and requires
+the encoder to refuse it; the C# back end carries the same guard and the same test.

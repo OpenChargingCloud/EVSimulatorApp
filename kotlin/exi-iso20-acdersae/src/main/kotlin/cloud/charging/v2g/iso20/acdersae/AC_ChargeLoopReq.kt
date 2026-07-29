@@ -60,10 +60,12 @@ internal fun encodeAC_ChargeLoopReq(w: BitWriter, msg: AC_ChargeLoopReq) {
             encodeDER_Scheduled_AC_CLReqControlModeType(w, v)
         }
         is Dynamic_AC_CLReqControlModeType -> {
+            require(v::class == Dynamic_AC_CLReqControlModeType::class) { "CLReqControlMode: ${v::class.simpleName} is not a substitution member" }
             w.writeBits(5u, 3)   // Dynamic_AC_CLReqControlMode
             encodeDynamic_AC_CLReqControlModeType(w, v)
         }
         is Scheduled_AC_CLReqControlModeType -> {
+            require(v::class == Scheduled_AC_CLReqControlModeType::class) { "CLReqControlMode: ${v::class.simpleName} is not a substitution member" }
             w.writeBits(6u, 3)   // Scheduled_AC_CLReqControlMode
             encodeScheduled_AC_CLReqControlModeType(w, v)
         }

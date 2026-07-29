@@ -20,6 +20,7 @@ internal fun encodeDC_ChargeParameterDiscoveryReq(w: BitWriter, msg: DC_ChargePa
             encodeBPT_DC_CPDReqEnergyTransferModeType(w, v)
         }
         else -> {
+            require(v::class == DC_CPDReqEnergyTransferModeType::class) { "DC_CPDReqEnergyTransferMode: ${v::class.simpleName} is not a substitution member" }
             w.writeBits(1u, 2)   // DC_CPDReqEnergyTransferMode
             encodeDC_CPDReqEnergyTransferModeType(w, v)
         }

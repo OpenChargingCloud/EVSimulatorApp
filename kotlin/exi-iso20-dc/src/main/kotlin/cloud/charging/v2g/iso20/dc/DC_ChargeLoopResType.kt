@@ -107,10 +107,12 @@ internal fun encodeDC_ChargeLoopResType(w: BitWriter, msg: DC_ChargeLoopResType)
             encodeBPT_Scheduled_DC_CLResControlModeType(w, v)
         }
         is Dynamic_DC_CLResControlModeType -> {
+            require(v::class == Dynamic_DC_CLResControlModeType::class) { "CLResControlMode: ${v::class.simpleName} is not a substitution member" }
             w.writeBits(3u, 3)   // Dynamic_DC_CLResControlMode
             encodeDynamic_DC_CLResControlModeType(w, v)
         }
         is Scheduled_DC_CLResControlModeType -> {
+            require(v::class == Scheduled_DC_CLResControlModeType::class) { "CLResControlMode: ${v::class.simpleName} is not a substitution member" }
             w.writeBits(4u, 3)   // Scheduled_DC_CLResControlMode
             encodeScheduled_DC_CLResControlModeType(w, v)
         }
