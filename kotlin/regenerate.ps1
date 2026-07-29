@@ -1,11 +1,13 @@
 # Regenerates every checked-in Kotlin codec in place.
 #
-# Two things this script exists to get right, both of which have bitten before:
-#   * --out names a FILE, so regeneration overwrites rather than dropping a second file alongside;
-#   * the ORDER of --xsd decides declaration order in the output, so the message set's own schema
-#     comes first. Passing a directory listing instead reorders the whole file while encoding the
-#     very same bytes.
+# The thing this script exists to get right: the ORDER of --xsd decides declaration order in the
+# output, so the message set's own schema comes first. Passing a directory listing instead
+# reorders everything while encoding the very same bytes.
 # The fragment element lists mirror <ExiFragmentElements> in the matching C# project.
+#
+# --out is the package DIRECTORY: the Kotlin back end emits one file per type. The driver deletes
+# generated files it no longer produces, so a renamed or dropped type does not leave a stale
+# declaration behind; hand-written sources in the same directory are left alone.
 #
 # Run from the repository root:  pwsh kotlin/regenerate.ps1
 # Regenerating without an emitter change must leave every file byte-identical.
@@ -17,8 +19,8 @@ $libs  = Join-Path $root 'libs/Vanaheimr.V2G.Exi'
 
 dotnet build $proj -c Release -v q --nologo
 
-function Generate($schemas, $outFile, $package, $codec, $fragments) {
-    $args = @('--xsd', ($schemas -join ';'), '--out', $outFile,
+function Generate($schemas, $outDir, $package, $codec, $fragments) {
+    $args = @('--xsd', ($schemas -join ';'), '--out', $outDir,
               '--lang', 'kotlin', '--namespace', $package, '--codec', $codec)
     if ($fragments) { $args += @('--fragments', $fragments) }
     dotnet run --project $proj -c Release --no-build -- @args
@@ -26,14 +28,14 @@ function Generate($schemas, $outFile, $package, $codec, $fragments) {
 
 # ---- ISO 15118 AppProtocol ----------------------------------------------------------------
 Generate @("$libs/Vanaheimr.V2G.Exi.Prototype/Schemas/V2G_CI_AppProtocol.xsd") `
-    "$root/kotlin/exi-appprotocol/src/main/kotlin/cloud/charging/v2g/appprotocol/AppProtocolCodec.kt" `
+    "$root/kotlin/exi-appprotocol/src/main/kotlin/cloud/charging/v2g/appprotocol" `
     'cloud.charging.v2g.appprotocol' 'SupportedAppProtocolCodec' $null
 
 # ---- ISO 15118-2 --------------------------------------------------------------------------
 $s = "$libs/Vanaheimr.V2G.Exi.Iso15118_2/Schemas"
 Generate @("$s/V2G_CI_MsgDef.xsd", "$s/V2G_CI_MsgBody.xsd", "$s/V2G_CI_MsgDataTypes.xsd",
            "$s/V2G_CI_MsgHeader.xsd", "$s/xmldsig-core-schema.xsd") `
-    "$root/kotlin/exi-iso2/src/main/kotlin/cloud/charging/v2g/iso2/Iso15118_2Codec.kt" `
+    "$root/kotlin/exi-iso2/src/main/kotlin/cloud/charging/v2g/iso2" `
     'cloud.charging.v2g.iso2' 'Iso15118_2Codec' `
     'AuthorizationReq MeteringReceiptReq SalesTariff SignedInfo'
 
@@ -61,6 +63,6 @@ foreach ($set in $sets) {
     $xsds += @("$s/V2G_CI_CommonTypes.xsd", "$s/xmldsig-core-schema.xsd")
 
     Generate $xsds `
-        "$root/kotlin/exi-iso20-$($set.Dir)/src/main/kotlin/cloud/charging/v2g/iso20/$($set.Dir)/$($set.Codec).kt" `
+        "$root/kotlin/exi-iso20-$($set.Dir)/src/main/kotlin/cloud/charging/v2g/iso20/$($set.Dir)" `
         "cloud.charging.v2g.iso20.$($set.Dir)" $set.Codec $set.Frag
 }

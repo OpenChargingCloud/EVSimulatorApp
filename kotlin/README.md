@@ -1,5 +1,16 @@
 # Kotlin EXI codecs
 
+## Layout
+
+Each module's generated code is **one file per type**: the data class and its
+`encode…` / `decode…` pair live together in `<TypeName>.kt`, as top-level `internal`
+functions. `<Codec>.kt` holds only the public face — `encode`, `decodeAny` and the fragment
+codecs — because that is what callers use and Kotlin cannot spread an `object` across files.
+
+That is not cosmetic. As a single file a message set reached ~1 MB, which exhausted the Kotlin
+compiler's heap, put every method of the set into one class file (Android counts those against a
+DEX file's 64k method limit all at once), and made the smallest schema change recompile everything.
+
 | Module | Contents |
 |---|---|
 | `exi-runtime` | Hand-written `BitReader` / `BitWriter` / `ExiPrimitives` — a port of the C# runtime. |
@@ -30,29 +41,30 @@ That script is the source of truth for how every checked-in codec was produced �
 output paths and fragment element lists. The commands below spell out what it does; prefer the
 script, because getting any of those three wrong is silent rather than loud.
 
-The generated files are checked in, and **regeneration must land on exactly those paths** — an
-extra file next to a stale one means duplicate declarations and a broken build. `--out` takes a
-file path here (a path with an extension is the file; without one it is a directory). Run these
-from the repository root:
+The generated files are checked in. `--out` is the **package directory**: the Kotlin back end
+emits one file per type, plus one for the codec object. The driver deletes generated files it no
+longer produces, so a renamed or dropped type cannot leave a stale declaration behind; files it
+did not write — `V2GSignature.kt` lives in the same directories — are identified by their first
+line and left alone. Run these from the repository root:
 
 ```bash
 dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release -- \
   --xsd libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Prototype/Schemas/V2G_CI_AppProtocol.xsd \
-  --out kotlin/exi-appprotocol/src/main/kotlin/cloud/charging/v2g/appprotocol/AppProtocolCodec.kt \
+  --out kotlin/exi-appprotocol/src/main/kotlin/cloud/charging/v2g/appprotocol \
   --lang kotlin --namespace cloud.charging.v2g.appprotocol --codec SupportedAppProtocolCodec
 ```
 
 ```bash
 dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release -- \
   --xsd "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDef.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgBody.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDataTypes.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgHeader.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/xmldsig-core-schema.xsd" \
-  --out kotlin/exi-iso2/src/main/kotlin/cloud/charging/v2g/iso2/Iso15118_2Codec.kt \
+  --out kotlin/exi-iso2/src/main/kotlin/cloud/charging/v2g/iso2 \
   --lang kotlin --namespace cloud.charging.v2g.iso2 --codec Iso15118_2Codec
 ```
 
 ```bash
 dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release -- \
   --xsd "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonMessages.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonTypes.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/xmldsig-core-schema.xsd" \
-  --out kotlin/exi-iso20-common/src/main/kotlin/cloud/charging/v2g/iso20/common/CommonMessagesCodec.kt \
+  --out kotlin/exi-iso20-common/src/main/kotlin/cloud/charging/v2g/iso20/common \
   --lang kotlin --namespace cloud.charging.v2g.iso20.common --codec CommonMessagesCodec
 ```
 
@@ -146,15 +158,14 @@ themselves are identical.
 
 ### Memory
 
-`gradle.properties` raises the Gradle and Kotlin daemon heaps. The generated DER codecs are around
-1 MB each in a single file, and the compiler exhausts the default heap on them — the failure moves
-between modules with build order, so it is pressure rather than one bad file. The real fix is the
-per-type file splitting the plan already calls for to stay under Android's DEX method limits; the
-compiler simply hits a wall first.
+`gradle.properties` raises the Kotlin daemon heap to 1 GB. The inherited default is still not
+enough, and the failure moves between modules with build order, so it is pressure across the build
+rather than one bad file. The figure is measured: 512m fails on `acdersae`, `dc` and `wpt`; 1g
+builds everything. Before the per-type split the same build needed 4 GB.
 
 ### Known warnings
 
-The AC and DC codecs emit eight `Check for instance is always 'true'` warnings. Their substitution
+The AC, DC and DER codecs emit sixteen `Check for instance is always 'true'` warnings. Their substitution
 head types are concrete, so the last branch of a dispatch chain tests against the property's own
 declared type. The dispatch is still correct — branches are emitted most-derived-first, so that
 branch is only reached once the derived checks have failed — but the compiler judges each `is` in
