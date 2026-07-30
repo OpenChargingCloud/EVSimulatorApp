@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../EVSimulatorApp.Pairing/EVSimulatorApp.Pairing.csproj" />
+    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation/Vanaheimr.V2G.Simulation.csproj" />
   </ItemGroup>
 
 </Project>

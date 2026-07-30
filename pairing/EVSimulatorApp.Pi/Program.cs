@@ -1,5 +1,10 @@
+using System.Net;
+using System.Security.Cryptography;
+
 using EVSimulatorApp.Pairing;
 using EVSimulatorApp.Pi;
+
+using Vanaheimr.V2G.Simulation.Metering;
 
 // The Pi-side host: the pairing display, and the rotation that drives it.
 //
@@ -37,8 +42,22 @@ var secret = config["station:totpSecret"]
                  "station:totpSecret is required — the rotating code is what makes this a proximity "
                + "proof rather than a photograph. Set it, or run a static display on purpose.");
 
-var slot = TimeSpan.FromSeconds(int.Parse(config["station:slotSeconds"] ?? "10"));
-var hub  = new StationHub(template, new PairingTotpVerifier(secret, slot));
+var slot      = TimeSpan.FromSeconds(int.Parse(config["station:slotSeconds"] ?? "10"));
+var verifier  = new PairingTotpVerifier(secret, slot);
+var hub       = new StationHub(template, verifier);
+var admission = new PairingAdmission(verifier);
+
+// A meter is opt-in. Without one the station reports unsigned readings, which is what every station
+// in the field does; with one, SigMeterReading carries a signature the app can check (§4.3).
+SigningMeter? meter = config["station:meterId"] is { Length: > 0 } meterId
+    ? new SigningMeter(meterId, ECDsa.Create(ECCurve.NamedCurves.nistP256), TimeProvider.System)
+    : null;
+
+builder.Services.AddSingleton(admission);
+builder.Services.AddSingleton(hub);
+builder.Services.AddHostedService(sp => new SeccStation(
+    new IPEndPoint(IPAddress.IPv6Any, int.Parse(config["station:listenPort"] ?? "15118")),
+    admission, hub, meter, sp.GetRequiredService<ILogger<SeccStation>>()));
 
 var app = builder.Build();
 
@@ -47,7 +66,7 @@ var qrScript = config["station:qrScript"]
                ?? Path.Combine(AppContext.BaseDirectory,
                                "../../../../../libs/DynamicQRCodes/TOTP/JavaScript-Web/QRCodeSVG/qrcode.min.js");
 
-app.MapPairingDisplay(hub, Path.GetFullPath(qrScript));
+app.MapPairingDisplay(hub, Path.GetFullPath(qrScript), admission);
 
 // Rotation. Aligned to the slot the verifier actually uses rather than to a timer of its own: the
 // page must never show a code the station has stopped accepting, and two independent clocks is how

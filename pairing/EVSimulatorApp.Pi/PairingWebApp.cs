@@ -36,7 +36,8 @@ public static class PairingWebApp
     /// comes off the internet is a display someone else can change.
     /// </param>
     public static WebApplication MapPairingDisplay(this WebApplication app, StationHub hub,
-                                                   string qrScriptPath)
+                                                   string qrScriptPath,
+                                                   PairingAdmission? admission = null)
     {
         app.UseWebSockets();
 
@@ -54,6 +55,32 @@ public static class PairingWebApp
                 ? Results.File(qrScriptPath, "text/javascript")
                 // Fail loudly rather than serving a page whose QR silently never appears.
                 : Results.Problem($"the vendored QR renderer is missing at {qrScriptPath}", statusCode: 500));
+
+        // Tier 1: the vehicle presents the code it read off the display, and its address is admitted
+        // to open a V2G connection. Deliberately outside the V2G session — the same slot SLAC
+        // occupies in a real deployment, so there is no schema deviation and -2 and -20 behave alike.
+        if (admission is not null)
+            app.MapPost("/pair", async (HttpContext http) =>
+            {
+                var code = (await new StreamReader(http.Request.Body).ReadToEndAsync()).Trim();
+                var from = http.Connection.RemoteIpAddress;
+                if (from is null) return Results.BadRequest();
+
+                var result = admission.Present(code, from);
+                await hub.LogAsync(result is PairingTotpResult.Accepted ? "rx" : "err",
+                                   $"pairing from {from}: {result}");
+
+                // The three refusals are reported apart, because they mean different things to
+                // whoever is watching: a replay is evidence somebody observed a real code, a stale
+                // one is usually a screenshot, and a wrong one is usually the wrong station.
+                return result switch
+                {
+                    PairingTotpResult.Accepted  => Results.NoContent(),
+                    PairingTotpResult.Replayed  => Results.StatusCode(StatusCodes.Status409Conflict),
+                    PairingTotpResult.Malformed => Results.BadRequest(),
+                    _                           => Results.StatusCode(StatusCodes.Status403Forbidden),
+                };
+            });
 
         app.Map(LivePath, async (HttpContext http) =>
         {
