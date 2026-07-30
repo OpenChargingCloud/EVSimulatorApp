@@ -139,9 +139,25 @@ The digest is taken over the **fragment**, never over a document-wrapped encodin
 content. That is the other silent way to produce a locally-consistent, universally-rejected
 signature, so it has its own test.
 
-**-20 signing is not implemented yet.** CryptoKit has P-521 natively, so the ECDSA half is
-straightforward; **Ed448 is not in CryptoKit at all** and needs a bundled library — the gap
-`docs/CONCEPT.md` §3.3 predicted, and the reason that document put the Swift port last.
+For -20 the same helper appears in **every** set — CommonMessages, AC, DC and both DER sets — and
+that repetition is the point rather than an oversight. Each set embeds its own copy of the XMLDSig
+schema and sizes the fragment selector over the whole set, so the same `SignedInfo` lands on 230/9
+bits under CommonMessages, 135/8 under AC and 129/8 under DC. Borrowing another set's helper would
+sign octets no peer asked for. `V2GDispatchTests/FragmentDivergenceTests` is the only place that
+sees several sets at once, and it checks exactly this — so collapsing the helpers into one fails
+there instead of on a charger.
+
+-20 uses SHA-512 and the raw `r‖s` pair over secp521r1: 66 + 66 = 132 bytes, pinned the same way.
+
+**Ed448 is not implemented, and cannot be here.** It is the -20 suite's second algorithm (RFC 8032,
+114 bytes) and CryptoKit does not have the curve at all — not an unregistered provider as on the
+JVM, where BouncyCastle supplies it, but a missing primitive. It needs a bundled crypto library
+(BC-Swift, OpenSSL, wolfSSL), which is a dependency and binary-size decision for the app rather
+than something this layer can settle. See `docs/CONCEPT.md` §3.3.
+
+Rather than a stub that would look implemented, `verify` **throws `ed448NotAvailable`** for an
+Ed448-shaped signature. A caller has to be able to tell "unsupported algorithm" from "invalid
+signature": the first is a reason to renegotiate, the second a reason to reject the peer.
 
 ## How these codecs are checked
 
