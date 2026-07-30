@@ -185,16 +185,26 @@ needed it:
    cannot: they pin the *encoder*, and the decoder is then checked by round-tripping through that
    same encoder.
 
-   It covers every set the back end generates — -2 and all four -20 sets — and they all agree. It has found three real bugs so far,
-   and the third makes the case better than any argument: `SalesTariffEntryType` wrote a 1-bit run
-   selector where cbV2G writes 2, because an optional *list* was treated as terminating the run
-   rather than belonging to it. That codec compiled, and round-tripped against itself perfectly.
-   Every bit after the selector was wrong.
+   It covers **seven whole sets** — -2, CommonMessages, DC, AC, ACDP, AC_DER_IEC and AC_DER_SAE —
+   and they all agree. (Kotlin is compared on AppProtocol only; the two back ends are not equally
+   covered by this gate.)
 
-   It also found a divergence on its first run. Swift decoded enumerations through a *generated*
-   wrapper where C# and Kotlin read the index inline, so the operation sequences differed even
-   though the bytes did not. The fix was to move the fallible lookup into the runtime
-   (`ExiRuntime.exiEnum`) and leave the read inline — the comparison was right that a wrapper
+   It has found **four real bugs**, and two of them make the case better than any argument:
+
+   * `SalesTariffEntryType` wrote a 1-bit run selector where cbV2G writes 2, because an optional
+     *list* was treated as terminating the run rather than belonging to it. That codec compiled and
+     round-tripped against itself perfectly. Every bit after the selector was wrong.
+   * An `xs:choice` decoder never read the element EE its encoder writes, so a real stream would
+     have desynchronised by one bit after every choice. Here encoder and decoder *disagreed*, so a
+     round trip would have caught it — had any vector exercised that construct. None does. The two
+     blind spots compound: vectors miss what both halves get wrong together, and equally miss what
+     no vector happens to cover.
+
+   The other two: a required complex child written with a value-start plus a child EE (AppProtocol
+   has no such child, so the vectors stayed green), and — on the gate's very first run — enums
+   decoded through a *generated* wrapper where C# and Kotlin read the index inline. The operation
+   sequences differed even though the bytes did not; the fix moved the fallible lookup into the
+   runtime (`ExiRuntime.exiEnum`) and left the read inline. The comparison was right that a wrapper
    there is a structural difference worth removing.
 3. **Structure**, in the .NET suite (`SwiftEmitterSplitTests`) — one file per type, nothing
    declared twice, every codec call resolving to a declaration, the runtime imported exactly where

@@ -3,7 +3,11 @@
 A Capacitor app that simulates an electric vehicle speaking ISO 15118-2 and -20 against a
 C# SECC counterpart (Raspberry Pi, WLAN instead of PLC).
 
-Status: **concept**. Written 2026-07-29.
+Status: **concept**, with Track A partly executed. Written 2026-07-29; revised 2026-07-30, when
+the Kotlin and Swift back ends went from *plan* to *code* and several of this document's
+projections became measurements. Where that happened, the original wording is kept and the finding
+is added next to it — the plan being wrong in a specific, dated way is more useful than a document
+that has quietly always been right.
 
 ---
 
@@ -15,7 +19,7 @@ The decisive finding is that the submodules under `libs/` are not partial buildi
 Together they are **a complete, externally-validated ISO 15118 stack, a security-research
 toolkit, and a standardised dynamic-QR mechanism**:
 
-- **`Vanaheimr.V2G.Exi`** — both protocols feature-complete at session level, 629 green tests,
+- **`Vanaheimr.V2G.Exi`** — both protocols feature-complete at session level, 689 green tests,
   byte-exact against libcbv2g, cross-checked against EXIficient, and live-interop-proven against
   Josev in both directions including Plug & Charge, contract provisioning, pause/resume,
   renegotiation and signed tariffs. ~122k lines of generated codec, ~2.7k lines of state
@@ -74,6 +78,25 @@ A third emitter target, **TypeScript**, is arguably higher value than Swift: it 
 in the same language as `ChargyCore.TS`, which is where the transparency-software endgame
 lives, and it can run the codec directly in the Capacitor WebView.
 
+#### Where the port actually stands (2026-07-30)
+
+Two of the three back ends exist. **Kotlin** (102,668 lines across 782 files) and **Swift**
+(89,670 lines across 669 files) both carry every message set the app needs, plus fragment codecs,
+the signing layer, V2GTP and the payload dispatcher. TypeScript has not been started.
+
+The two claims above that the work has since tested:
+
+- *"The port has a free byte-exact oracle"* — **held.** 148 Swift vectors are byte-exact against
+  libcbv2g, and no vector needed a Swift-specific allowance. But the oracle turned out to be
+  **necessary and not sufficient**: it pins the encoder, and the decoder is then checked by
+  round-tripping through that same encoder, so a bug mirrored in both directions passes. Four
+  bugs of that kind were caught by the *cross-emitter* gate instead (§5, Track A note) — a gate
+  this document counted as standing and which did not exist.
+- *"Swift last, because it carries the one hard crypto gap"* — **abandoned, deliberately.** Swift
+  ran second. The gap (§3.3) is real but sits in Ed448 alone, which turned out to be separable
+  from the entire codec and even from -20's primary P-521 signing path. Sequencing the whole
+  back end behind it would have been sequencing 89k lines behind a 114-byte signature.
+
 Both requested features are well-supported:
 
 - **Certificate management in the GUI** — the PKI model is already documented
@@ -98,9 +121,11 @@ mechanism is the right one.
 
 | Component | Location | LOC | State |
 |---|---|---|---|
-| EXI source generator | `Vanaheimr.V2G.Exi.SourceGenerator` | 4,093 | XSD → grammar plan → C#; fail-loud |
-| ↳ XSD reader + grammar builder (language-neutral) | `Xsd/`, `Grammar/` | ~1,220 | **reusable for any target language** |
-| ↳ C# emitter (language-specific) | `Emit/CodecEmitter.cs` | 2,184 | must be rewritten per target |
+| EXI source generator | `Vanaheimr.V2G.Exi.SourceGenerator` | 4,093 | XSD → grammar plan → C#/Kotlin/Swift; fail-loud |
+| ↳ XSD reader + grammar builder (language-neutral) | `Xsd/`, `Grammar/` | ~1,220 | reusable for any target language — *after* being neutralised, §5 Phase 1 |
+| ↳ C# emitter | `Emit/CodecEmitter.cs` | 2,335 | the reference back end |
+| ↳ Kotlin emitter | `Emit/KotlinCodecEmitter.cs` | 2,393 | added 2026-07-29 |
+| ↳ Swift emitter | `Emit/SwiftCodecEmitter.cs` | 1,855 | added 2026-07-30 |
 | EXI runtime | `Exi.Prototype/Exi/`, `V2GTP/` | 803 | BitReader/Writer, primitives, string tables, V2GTP |
 | Generated codecs | 9 assemblies | 122,558 | byte-exact vs libcbv2g |
 | ↳ needed for an EV app | -2, -20 CommonMessages/AC/DC, xmldsig | ~47,000 | WPT/ACDP/AC_DER not needed initially |
@@ -159,8 +184,10 @@ validated stack, minus its validation".
 
 ### 1.4 What is *not* there
 
-- **No `EVSimulatorApp` code yet** — the repo is currently only the two submodules plus this
-  document. Everything in §5 is greenfield.
+- **No `EVSimulatorApp` code yet** — ⚠️ *out of date as of 2026-07-30.* The repo now carries
+  `kotlin/` and `swift/` (Track A's first two back ends, §5). What is still greenfield is
+  everything **above** the codec: no Capacitor scaffold, no plugin bridge, no UI, no state
+  machines in either target language, and no Pi-side work (Track B in full).
 - **No DIN SPEC 70121** — `WWCP_DINSpec` is an empty placeholder. Parked by decision (§6.1).
 - **No ISO 15118-2 in WWCP** — irrelevant, Vanaheimr covers -2 fully; but it means the WWCP
   JSON model is **-20-only**, which matters for §4.4.
@@ -264,6 +291,23 @@ Ed448 is mature there, so it de-risks the crypto path), then **TypeScript** (Cha
 cross-check), then **Swift** (last, because it carries the one hard crypto gap, §3.3). Option B
 stays on file as the fallback should the Swift path prove worse than projected.
 
+**Revised order (2026-07-30): Kotlin → Swift → TypeScript.** Swift and TypeScript swapped places,
+for a reason and against a mild cost.
+
+The reason: this machine is the only one in the project with a Swift toolchain — the Windows box
+has none — so Swift work is gated on *where the developer is sitting*, in a way TypeScript is not.
+And the argument for putting Swift last (the crypto gap) does not survive contact: Ed448 blocks
+one of -20's two signature suites and nothing else. P-521 signing, every codec, every fragment and
+the whole dispatcher were reachable without it, so deferring the back end would have deferred
+89k lines behind an unresolved dependency decision that the back end does not need resolved.
+
+The cost, stated plainly: **TypeScript's cross-check value arrives later than planned.** §4.4
+wants three back ends emitting identical JSON-LD, and §2's Option C wants an in-WebView oracle
+during development. Two back ends now agree; the third-opinion property is deferred, not
+cancelled. In practice the *cross-emitter comparison* (§5, Track A note) turned out to supply the
+"independent second opinion" role earlier and more cheaply than a third language would have, which
+is why the swap was affordable at all.
+
 ---
 
 ## 3. Platform reality check — the risks that actually bite
@@ -333,6 +377,55 @@ session artefacts rather than buried in configuration.
 iOS), and add a bundled TLS lib for conformant mode as a defined follow-up. This keeps the one
 genuinely hard dependency off the critical path to a working app.
 
+#### Measured, 2026-07-30 — point 1 is done; point 2 is untouched
+
+The app-layer half of this section is no longer a projection. Both back ends sign and verify:
+
+| | Kotlin | Swift |
+|---|---|---|
+| -2, ECDSA P-256 / SHA-256, raw `r‖s`, 64 B | ✅ | ✅ CryptoKit `rawRepresentation` |
+| -20, ECDSA P-521 / SHA-512, raw `r‖s`, 132 B | ✅ | ✅ CryptoKit, natively |
+| -20, Ed448, 114 B | ✅ BouncyCastle | ❌ **the curve is absent from CryptoKit entirely** |
+
+That last cell is worth sharpening, because the plan understated it. This is **not** an
+unregistered-provider problem of the kind the JVM has, where BouncyCastle supplies what the JDK
+omits — the primitive does not exist in Apple's library, so there is nothing to register. It is a
+bundled-dependency decision or nothing.
+
+How the gap is carried in the meantime: `verify` **throws `ed448NotAvailable`** rather than
+returning `false` for an Ed448-shaped signature. A caller must be able to distinguish
+*unsupported algorithm* from *invalid signature* — the first is a reason to renegotiate, the
+second a reason to reject the peer — and collapsing both to `false` would quietly turn a missing
+feature into an accusation against the counterpart. A stub that *looked* implemented was the one
+option not on the table.
+
+**Point 2, transport TLS on iOS, has not been touched at all** and is still exactly as written
+above: relaxed mode for v1, bundled lib for conformant mode. Nothing in the port makes it easier
+or harder than projected.
+
+#### A related finding from the host side: .NET on macOS has no TLS 1.3 either
+
+Discovered while setting this machine up, and worth recording here because it is the same *shape*
+of problem one layer down. `SslStream` on macOS runs on Apple's deprecated SecureTransport, which
+has no TLS 1.3 — so a TLS-1.3-only `SslProtocols` throws `PlatformNotSupportedException`, and the
+C# -20 tests could not run on a Mac at all.
+
+Two things about the fix generalise to §3.3's iOS problem:
+
+- **The obvious repair was the wrong one.** Widening to `Tls12 | Tls13` makes the tests pass; it
+  was *measured* to negotiate TLS 1.2, which would silently drop -20 below its mandated version.
+  A green suite would then have been evidence of nothing. The protocol set is now `required` with
+  no default, because a single default cannot serve both -2 (TLS 1.2) and -20 (TLS 1.3).
+- **The working repair was a platform fallback**, routing TLS-1.3-only sessions through the
+  managed BouncyCastle stack on macOS only — which is structurally the same answer §3.3 proposes
+  for iOS conformant mode, now with one instance of it built and passing.
+
+Cipher-suite pinning came with the same lesson in reverse: `CipherSuitesPolicy` is unsupported on
+Windows/Schannel and throws in its *constructor*, so the pin cannot be enforced on either of this
+project's two machines — macOS pins via BouncyCastle, Windows cannot pin at all, and only Linux
+enforces per connection. The pin was kept anyway for its stated intent and its deviation log.
+Details in `Vanaheimr.V2G.Exi/docs/pki-model.md`.
+
 ### 3.4 🟠 Hardware-backed keys don't cover -20
 
 | Store | Curves | -2 contract cert (P-256) | -20 contract cert (P-521 / Ed448) |
@@ -389,6 +482,17 @@ in Swift, single files of that size are a well-known type-checker performance cl
 Kotlin and Swift emitters must split output per type**, unlike the C# emitter which happily
 emits one file per schema. Design the emitter around per-type files from the start (Phase 1),
 not afterwards.
+
+**Confirmed and handled (2026-07-30).** Both back ends split per type from their first commit, and
+the resulting shape is what the warning predicted: Swift's 89,670 lines land in **669 files**, the
+largest set (`AC_DER_SAE`, 25,788 lines) in 108 of them. `SwiftEmitterSplitTests` asserts the
+split structurally — one file per type, nothing declared twice — so a regression cannot arrive
+quietly as a slow build.
+
+Because the splitting was designed in rather than retrofitted, the type-checker cliff was never
+hit and there is **no measurement of where it would have been**. That is the good outcome, but it
+means the risk is avoided rather than quantified: if the emitter is ever tempted back toward
+larger files, this section is a prediction again, not a result.
 
 ---
 
@@ -851,12 +955,32 @@ list bounds read from the wrong plan object — surfaced as a loud failure rathe
 
 ### Track A — Native stack port
 
-**A1 — Kotlin codec, full (2–3 weeks).** All -2 + -20 (CommonMessages/AC/DC/xmldsig) message
-sets through the KotlinEmitter; **per-type file splitting** to dodge the DEX/method limits
-(§3.7); whole `Vectors/*.json` corpus green. Ed448/P-521 via BouncyCastle-Java.
+Status at 2026-07-30: **A1, A2 and A6 done; A3, A4, A5 not started.** The codec half of the port
+is finished in two languages; nothing above the codec exists in either.
 
-**A2 — XMLDSig-over-EXI, Kotlin (1–2 weeks).** The hard part: the dual-grammar signature story
-(cbV2G-combined + Josev-standalone). Port against the same fragment vectors the C# side uses.
+**A1 — Kotlin codec, full (2–3 weeks).** ✅ **done (2026-07-29).** All -2 + -20 (CommonMessages/
+AC/DC/ACDP/WPT/both DER sets/xmldsig) message sets through the KotlinEmitter; **per-type file
+splitting** to dodge the DEX/method limits (§3.7); whole `Vectors/*.json` corpus green.
+Ed448/P-521 via BouncyCastle-Java. 102,668 lines across 782 files.
+
+**A2 — XMLDSig-over-EXI, Kotlin (1–2 weeks).** ✅ **done (2026-07-29)**, and **cheaper than
+estimated** — for a reason worth recording, because the estimate was not wrong so much as aimed at
+the wrong thing.
+
+The plan feared "the dual-grammar signature story (cbV2G-combined + Josev-standalone)" and
+"~15 conformance bugs' worth of hard-won knowledge" (§1.3). What the port actually needed was the
+*fragment codec* — header, fragment-grammar event code, content, End Fragment, no document
+wrapper — which the generator emits from the same `SchemaPlan` as everything else, plus a small
+hand-written signing helper per message set. The dual-grammar knowledge lives in the C# session
+layer that chooses which form to send, not in the codec, so it did not have to be re-earned here.
+It will still have to be re-earned in **A4**, where it actually lives.
+
+The one genuinely non-obvious finding: **the signing helper cannot be shared across message
+sets.** Each -20 set embeds its own copy of the XMLDSig schema and sizes the fragment selector over
+the whole set, so the same `SignedInfo` lands on event code 230/9 bits under CommonMessages, 135/8
+under AC and 129/8 under DC. One shared helper would sign octets no peer asked for — a signature
+that verifies locally and nowhere else. Hence five near-identical copies in each back end, which
+looks like duplication and is not.
 
 **A3 — JSON-LD serializer, generated (1–1.5 weeks, §4.4).** Second emitter pass producing the
 JSON-LD (de)serializer from the same type graph, for **-2 and -20 alike**; naming rules +
@@ -865,16 +989,76 @@ JSON-LD (de)serializer from the same type graph, for **-2 and -20 alike**; namin
 second backend exists. *Shorter than the first draft's estimate: reusing the hand-written WWCP
 model — and hand-building a -2 one — is no longer in scope.*
 
-**A4 — EVCC state machines, Kotlin (2–3 weeks).** Port `Evcc2` + `Evcc20*` (~1,100 LOC). SDP is
-optional (§3.2); V2GTP framing per §8. TLS/crypto modes per §3.3 (relaxed-mode first).
+**A4 — EVCC state machines, Kotlin (2–3 weeks).** ⬜ **not started — now the critical path.** Port
+`Evcc2` + `Evcc20*` (~1,100 LOC). SDP is optional (§3.2); V2GTP framing per §8. TLS/crypto modes
+per §3.3 (relaxed-mode first).
 
-**A5 — TypeScriptEmitter (2–3 weeks).** For Chargy, the WebView inspector, and as a cross-check
-of the Kotlin/Swift codecs. WebCrypto covers P-256/P-521; Ed448 and keystore signing cross the
-bridge.
+Two corrections to this item's premises, both from A1/A2/A6:
 
-**A6 — SwiftEmitter (2–3 weeks).** Last. Same as Kotlin plus the §3.3 crypto split: CryptoKit
-P-521 natively, Ed448 via bundled BC-Swift/OpenSSL only in conformant mode. Watch the Swift
-type-checker cliff on large files (§3.7) — per-type splitting is mandatory here.
+- **It needs doing twice**, once per back end, and the plan only ever scheduled the Kotlin half.
+  A Swift A4 is unscheduled work that B1's iOS half depends on.
+- **This is where the ~15 live-interop conformance fixes actually live** (§1.3), not in the codec.
+  The codec port had a byte-exact oracle; A4 has none — there is no vector corpus for *behaviour*.
+  Realistically its check is B0's Pi: run the ported EVCC against the C# SECC and compare against
+  what the C# EVCC does. That argues for B0 landing before A4 rather than merely in parallel.
+
+**A5 — TypeScriptEmitter (2–3 weeks).** ⬜ **not started; now the last back end** (§2, revised
+order). For Chargy, the WebView inspector, and as a cross-check of the Kotlin/Swift codecs.
+WebCrypto covers P-256/P-521; Ed448 and keystore signing cross the bridge.
+
+**A6 — SwiftEmitter (2–3 weeks).** ✅ **done (2026-07-30)**, and out of order — it ran second, not
+last (§2). 89,670 lines across 669 files; 1,855 lines of emitter. Everything -2 uses is modelled
+(inheritance, abstract types, attributes, substitution groups, `xs:choice`, `xs:simpleContent`,
+`xs:any`, opaque XMLDSig placeholders, repeating children in every position), plus the -20 sets'
+inline choices and lists-followed-by-a-particle. Fragment codecs and the signing layer are in
+(§3.3's measured table). Per-type splitting was designed in from the start, so the type-checker
+cliff never materialised.
+
+Two things this step did *not* deliver, stated so they are not assumed:
+
+- **WPT is refused, not missing.** `WPT_LF_TransmitterDataType` is a self-loop list shape for
+  which cbexigen's own encoder cannot represent even the schema's required minimum, so no oracle
+  exists to check an implementation against. Emitting something plausible would produce bytes
+  nothing has ever validated. Kotlin *does* generate WPT, with that construct documented as
+  unvalidated — the two back ends deliberately differ here, and Swift's dispatcher reports WPT as
+  a *recognised* payload type with no codec rather than as an unknown one, so a WPT frame is never
+  mistaken for a framing error. Irrelevant to the app either way (§1.4).
+- **No state machines, no plugin bridge.** A6 delivered the codec, framing, dispatch and signing.
+  A4 for Swift is not even scheduled yet — the plan only ever scheduled A4 for Kotlin.
+
+#### Track A note: the gate that was documented but did not exist
+
+The most useful finding of the Swift port is about *checking*, not about Swift.
+
+`kotlin/README.md` describes three independent gates on generated code: (1) the libcbv2g vector
+corpus, (2) a **cross-emitter comparison** reducing each back end's output to its ordered wire
+operations and requiring the back ends to agree, (3) structural tests. Gate 2 was described as
+standing. It had **no implementation in the repository** — the Kotlin-era comparison had been an
+ad-hoc run whose tool was never checked in, so nothing would have caught a regression in it.
+
+It was built during the Swift port (`CrossEmitterComparisonTests`) and immediately earned its
+place. It now compares Swift against C# across **seven whole schema sets** (-2, CommonMessages,
+DC, AC, ACDP, AC_DER_IEC, AC_DER_SAE); Kotlin is still compared on AppProtocol only. It found
+**four real bugs that vectors, compilation and round-trips all missed**, of which two make the
+argument by themselves:
+
+- `SalesTariffEntryType` wrote a **1-bit run selector where cbV2G writes 2**, because an optional
+  *list* was treated as terminating an optional run rather than belonging to it. Every bit after
+  that selector was wrong. The codec compiled and round-tripped against itself perfectly.
+- An `xs:choice` **decoder never read the element End Element its encoder writes**, so a real
+  stream would have desynchronised by one bit after every choice. This one is the *other* blind
+  spot: encoder and decoder disagreed, and a round trip would have caught it — if any vector had
+  exercised that construct. None does. So the two gaps compound: vectors miss what both halves get
+  wrong together, and they equally miss what no vector happens to cover.
+
+The general lesson, and it applies well beyond this port: **a vector corpus pins the encoder, and
+the decoder is then checked by round-tripping through that same encoder.** A bug mirrored in both
+directions passes every gate that only compares a codec to itself. §0 calls the corpus "a free
+byte-exact oracle" — true, and it is not sufficient on its own.
+
+The second-order lesson matches the one Phase 1 already recorded about the "language-neutral"
+front end: **a documented check is not a running check.** Both times, something this document
+counted as an asset turned out to need building before it could be counted.
 
 ### Track B — App & Pi
 
@@ -1097,9 +1281,17 @@ isn't lost.
 
 **Still open:**
 
-10. **Swift crypto path (§3.3).** CryptoKit covers P-521 but not Ed448. Confirm early (during A6,
-    or a small spike sooner) whether conformant-mode Ed448 will use BC-Swift, a bundled OpenSSL, or
-    wolfSSL — it's the one dependency that could still push toward the Option-B fallback.
+10. **Swift crypto path (§3.3).** ~~Confirm early whether CryptoKit suffices.~~ **Confirmed by A6
+    (2026-07-30): it does not, and the gap is narrower and harder than written.** Narrower, because
+    P-521 signing works natively and the entire codec, fragment and dispatch layer never needed
+    Ed448 at all — so this no longer threatens the Option-B fallback, which was the original worry.
+    Harder, because CryptoKit lacks the *curve*, not a provider registration, so there is no
+    equivalent of the JVM's "add BouncyCastle" move.
+    **What is still open is only the choice of bundled library** — BC-Swift, OpenSSL or wolfSSL —
+    and it is a dependency/binary-size decision for the app, not for the codec layer. Until it is
+    made, `verify` throws `ed448NotAvailable` rather than returning `false`, so the gap is a stated
+    condition instead of a silent verification failure. Deferrable to conformant mode (§8 #7:
+    v1 ships relaxed).
 11. **JSON-LD naming rules (§4.4).** The concrete rule table the emitter applies (Req/Res
     handling, pluralisation, `@context` per namespace) and how -2's `V2G_Message`-wrapped,
     substitution-group structure is represented. Now a *design* question rather than a

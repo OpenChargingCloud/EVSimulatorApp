@@ -196,12 +196,18 @@ Three independent gates, and none is sufficient alone:
    output from the same `SchemaPlan`. That is what rules out the mirrored bug — and the C# side is
    itself pinned to these vectors.
 
-   **Scope, accurately:** this runs in `CrossEmitterComparisonTests` (added 2026-07-30, when the
-   Swift back end needed it) and currently covers **AppProtocol only**, for Kotlin *and* Swift
-   against C#. The wider statements below — including the WPT figure — come from an ad-hoc run
-   during the Kotlin port whose tool was never checked in, so they are historical observations
-   rather than something CI would catch again today. Extending the comparison to the -2 and -20
-   sets is the obvious next step.
+   **Scope, accurately (updated 2026-07-30):** this runs in `CrossEmitterComparisonTests`, added
+   when the Swift back end needed it. **Kotlin is still compared on AppProtocol only.** Swift has
+   since been extended to seven whole schema sets (-2, CommonMessages, DC, AC, ACDP, AC_DER_IEC,
+   AC_DER_SAE), so the two back ends are *not* equally covered by this gate — and the Swift
+   extension found four real bugs that vectors and round-trips had missed, which is a fair estimate
+   of what Kotlin is currently not being checked for.
+
+   The wider statements below — including the WPT figure — come from an ad-hoc run during the
+   Kotlin port whose tool was never checked in, so they are historical observations rather than
+   something CI would catch again today. Extending the Kotlin comparison to the -2 and -20 sets is
+   the obvious next step, and now a cheap one: the harness exists and only the `EmitKotlin` test
+   cases are missing.
 
    Values are deliberately not compared: `(uint)msg.SchemaID`, `UInt32(v)` and
    `msg.schemaID!!.toLong().toUInt()` are one operand written three ways. What must agree is every
