@@ -111,6 +111,13 @@ mechanism is the right one.
 
 ### 1.2 Inventory — `WWCP_ISO15118` (lower layers, PKI, security)
 
+> **Where it comes from.** `WWCP_ISO15118` is *not* a direct submodule of this repo. It arrives
+> as a submodule of `Vanaheimr.V2G.Exi` (`libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118`), which is
+> where the `Vanaheimr.V2G.Simulation*` projects reference it from. It was briefly pinned here a
+> second time as well; that copy was removed 2026-07-30 because nothing in this repo built
+> against it — the parent has no solution of its own — and two pins on one repository are two
+> things to keep in step, which had already drifted apart once.
+
 | Component | LOC | State & relevance |
 |---|---|---|
 | **`WWCP_ISO15118_20`** — -20 domain model + JSON | 52,435 (255 files) | Hand-written model per namespace (CommonMessages/CommonTypes/AC/DC/WPT/ACDP/XMLDSig/AppProtocol) with `ToJSON`/parse across 79 files and a self-defined, JSON-LD-flavoured schema (`@context`). **No EXI** — this is the *semantic* layer, complementary to Vanaheimr's *wire* layer. See §4.4. |
@@ -789,12 +796,14 @@ parallel — it gives Track A a live counterpart to test against beyond the offl
 
 ### Phase 0 — Wire up the repo (1–2 days) — mostly done
 
-- ✅ Submodules in place: `libs/Vanaheimr.V2G.Exi` and `libs/WWCP_ISO15118`. (The two EEBUS
-  submodules were removed 2026-07-29.)
+- ✅ Submodules in place: `libs/Vanaheimr.V2G.Exi` and `libs/DynamicQRCodes`. `WWCP_ISO15118`
+  comes in *through* Vanaheimr rather than as a direct submodule (§1.2). (The two EEBUS
+  submodules were removed 2026-07-29; the redundant direct `libs/WWCP_ISO15118` pin, 2026-07-30.)
 - ✅ `libs/DynamicQRCodes` added (§4.6) — the C# implementation for the Pi, the JS one as a
   reference for the TypeScript emitter target.
 - Capacitor scaffold; CI that builds both .NET solutions and runs `dotnet test -c Release`.
-- Confirm the two repos build side by side (Vanaheimr already references `WWCP_ISO15118_PKI`).
+- Confirm the stack builds as one tree — Vanaheimr references `WWCP_ISO15118_PKI` from its own
+  nested checkout, so `dotnet test` in `libs/Vanaheimr.V2G.Exi` covers both repos at once.
 - **Exit:** `dotnet test` green from within this repo.
 
 ### Phase 1 — Generator-seam spike ✅ **done (2026-07-29)** — go
