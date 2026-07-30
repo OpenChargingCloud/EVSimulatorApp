@@ -111,13 +111,37 @@ opaque XMLDSig placeholders, and repeating children in every position the gramma
 The -20 sets add inline choices and lists followed by a further particle; both are modelled, so
 CommonMessages, DC, AC and ACDP generate as well.
 
-**Two things still fail loudly.** Fragment codecs (`--fragments`) are not implemented — the
-XMLDSig signing layer needs them. And **WPT is refused on principle rather than for lack of work**:
+Fragment codecs (`--fragments`) are implemented: the EXI header, the element's fragment-grammar
+event code, its content, End Fragment, and no document or body wrapper — the bytes XMLDSig digests.
+The selector is sized by the whole schema set, so `SignedInfo` lands on 135/8 bits under AC and
+230/9 under CommonMessages. Different octets, therefore different signed bytes, which is why each
+set carries its own fragment codec and its own signing helper.
+
+**WPT is refused on principle rather than for lack of work**:
 `WPT_LF_TransmitterDataType` is the self-loop list shape for which cbexigen's own encoder cannot
 represent even the schema's required minimum, so there is no oracle to check an implementation
 against. Emitting something plausible there would produce bytes nothing has ever validated. That is deliberate: each construct lands with its own vectors
 rather than being guessed at, and a silent almost-right encoder is the one outcome this project
 cannot afford.
+
+## Signing
+
+`ExiIso2/V2GSignature.swift` is hand-written and sits *beside* the generated code, which the
+codegen driver leaves alone — it only removes files whose first line marks them as generated.
+
+The detail that decides interop: ISO 15118-2 puts the **raw `r‖s` pair** on the wire, 32 + 32
+bytes, not ASN.1/DER. CryptoKit exposes exactly that as `rawRepresentation`, so Swift needs no
+equivalent of the JCA's `SHA256withECDSAinP1363Format`. It is still the easiest thing to get wrong,
+and the failure is quiet — a DER signature verifies against itself and is rejected by every
+conforming peer. The tests pin the 64-byte length and require a DER blob to be refused.
+
+The digest is taken over the **fragment**, never over a document-wrapped encoding of the same
+content. That is the other silent way to produce a locally-consistent, universally-rejected
+signature, so it has its own test.
+
+**-20 signing is not implemented yet.** CryptoKit has P-521 natively, so the ECDSA half is
+straightforward; **Ed448 is not in CryptoKit at all** and needs a bundled library — the gap
+`docs/CONCEPT.md` §3.3 predicted, and the reason that document put the Swift port last.
 
 ## How these codecs are checked
 

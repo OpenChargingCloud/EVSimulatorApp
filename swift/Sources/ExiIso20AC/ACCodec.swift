@@ -76,4 +76,50 @@ public enum ACCodec {
         default: throw ExiError.unknownDocumentIndex(sel)
         }
     }
+
+    public static func encodeFragment_AC_ChargeParameterDiscoveryRes(_ content: AC_ChargeParameterDiscoveryResType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(5, 8)   // fragment SE(AC_ChargeParameterDiscoveryRes)
+        encodeAC_ChargeParameterDiscoveryResType(w, content)
+        w.writeBits(155, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_AC_ChargeParameterDiscoveryRes(_ src: [UInt8]) throws -> AC_ChargeParameterDiscoveryResType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 5 else {
+            throw ExiError.invalidEventCode("not a AC_ChargeParameterDiscoveryRes fragment")
+        }
+        let result = try decodeAC_ChargeParameterDiscoveryResType(r)
+        guard try r.readBits(8) == 155 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
+
+    public static func encodeFragment_SignedInfo(_ content: SignedInfoType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(135, 8)   // fragment SE(SignedInfo)
+        encodeSignedInfoType(w, content)
+        w.writeBits(155, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_SignedInfo(_ src: [UInt8]) throws -> SignedInfoType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 135 else {
+            throw ExiError.invalidEventCode("not a SignedInfo fragment")
+        }
+        let result = try decodeSignedInfoType(r)
+        guard try r.readBits(8) == 155 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
 }

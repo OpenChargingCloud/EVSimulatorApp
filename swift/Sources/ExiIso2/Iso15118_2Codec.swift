@@ -26,4 +26,96 @@ public enum Iso15118_2Codec {
         default: throw ExiError.unknownDocumentIndex(sel)
         }
     }
+
+    public static func encodeFragment_AuthorizationReq(_ content: AuthorizationReqType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(4, 8)   // fragment SE(AuthorizationReq)
+        encodeAuthorizationReqType(w, content)
+        w.writeBits(244, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_AuthorizationReq(_ src: [UInt8]) throws -> AuthorizationReqType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 4 else {
+            throw ExiError.invalidEventCode("not a AuthorizationReq fragment")
+        }
+        let result = try decodeAuthorizationReqType(r)
+        guard try r.readBits(8) == 244 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
+
+    public static func encodeFragment_MeteringReceiptReq(_ content: MeteringReceiptReqType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(121, 8)   // fragment SE(MeteringReceiptReq)
+        encodeMeteringReceiptReqType(w, content)
+        w.writeBits(244, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_MeteringReceiptReq(_ src: [UInt8]) throws -> MeteringReceiptReqType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 121 else {
+            throw ExiError.invalidEventCode("not a MeteringReceiptReq fragment")
+        }
+        let result = try decodeMeteringReceiptReqType(r)
+        guard try r.readBits(8) == 244 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
+
+    public static func encodeFragment_SalesTariff(_ content: SalesTariffType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(174, 8)   // fragment SE(SalesTariff)
+        encodeSalesTariffType(w, content)
+        w.writeBits(244, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_SalesTariff(_ src: [UInt8]) throws -> SalesTariffType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 174 else {
+            throw ExiError.invalidEventCode("not a SalesTariff fragment")
+        }
+        let result = try decodeSalesTariffType(r)
+        guard try r.readBits(8) == 244 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
+
+    public static func encodeFragment_SignedInfo(_ content: SignedInfoType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(208, 8)   // fragment SE(SignedInfo)
+        encodeSignedInfoType(w, content)
+        w.writeBits(244, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_SignedInfo(_ src: [UInt8]) throws -> SignedInfoType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 208 else {
+            throw ExiError.invalidEventCode("not a SignedInfo fragment")
+        }
+        let result = try decodeSignedInfoType(r)
+        guard try r.readBits(8) == 244 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
 }
