@@ -9,7 +9,13 @@ hand-written; every codec module is emitted from the XSDs and checked in.
 |---|---|
 | `ExiRuntime` | Hand-written `BitReader` / `BitWriter` / `ExiPrimitives` / `ExiStringTable` — a port of the C# runtime. |
 | `ExiAppProtocol` | Generated `SupportedAppProtocol` codec + vector test (encode vs `expectedHex`, and decode → re-encode). |
-| `ExiIso2` | Generated ISO 15118-2 codec — 111 files, 291k characters — + vector test (decode → re-encode → `expectedHex`). |
+| `ExiIso2` | Generated ISO 15118-2 codec — 111 files — + vector test (decode → re-encode → `expectedHex`). |
+| `ExiIso20Common` | Generated -20 CommonMessages codec, 160 files. |
+| `ExiIso20DC` / `ExiIso20AC` / `ExiIso20ACDP` | The -20 power-transfer sets, 72 / 59 / 58 files. |
+
+Each -20 set is its own target, as in `kotlin/`: they are independent grammars that happen to
+share `CommonTypes`, and each embeds its own copy of the XMLDSig schema — which is why the same
+element lands on a different event code in each.
 
 Every generated type is a **class**: bases and abstract types subclassable, everything else final.
 Not a preference — a struct that *contains* a class-typed field loses its synthesised `Equatable`
@@ -77,8 +83,14 @@ The back end models everything ISO 15118-2 uses: inheritance and abstract types,
 (required and optional), substitution groups, `xs:choice`, `xs:simpleContent`, `xs:any` wildcards,
 opaque XMLDSig placeholders, and repeating children in every position the grammar puts them.
 
-**Everything else still fails loudly** — inline choices (which -20 CommonMessages needs) and
-fragment codecs (`--fragments`). That is deliberate: each construct lands with its own vectors
+The -20 sets add inline choices and lists followed by a further particle; both are modelled, so
+CommonMessages, DC, AC and ACDP generate as well.
+
+**Two things still fail loudly.** Fragment codecs (`--fragments`) are not implemented — the
+XMLDSig signing layer needs them. And **WPT is refused on principle rather than for lack of work**:
+`WPT_LF_TransmitterDataType` is the self-loop list shape for which cbexigen's own encoder cannot
+represent even the schema's required minimum, so there is no oracle to check an implementation
+against. Emitting something plausible there would produce bytes nothing has ever validated. That is deliberate: each construct lands with its own vectors
 rather than being guessed at, and a silent almost-right encoder is the one outcome this project
 cannot afford.
 
@@ -90,15 +102,16 @@ needed it:
 
 1. **Vectors** — `expectedHex` from EVerest's libcbv2g at a pinned commit, read straight out of
    the submodule, the same corpus the C# and Kotlin suites use. AppProtocol encodes and compares
-   (17 vectors); ISO 15118-2 decodes and re-encodes (39). Both exercise the decoder, and neither
-   *can* catch a bug mirrored in both directions — see gate 2.
+   (17); the rest decode and re-encode — ISO 15118-2 (39), -20 CommonMessages (26), DC (16),
+   AC (10), ACDP (8). **116 vectors, all byte-exact.** Every one exercises the decoder too, and
+   none of them *can* catch a bug mirrored in both directions — see gate 2.
 2. **Cross-emitter comparison** — `CrossEmitterComparisonTests` in the .NET suite reduces each
    back end's output to the ordered wire operations every generated function performs, and
    requires Swift and C# to agree. This is what rules out the mirrored bug, which the vectors
    cannot: they pin the *encoder*, and the decoder is then checked by round-tripping through that
    same encoder.
 
-   It covers the whole -2 set: 171 functions, all agreeing. It has found three real bugs so far,
+   It covers every set the back end generates — -2 and all four -20 sets — and they all agree. It has found three real bugs so far,
    and the third makes the case better than any argument: `SalesTariffEntryType` wrote a 1-bit run
    selector where cbV2G writes 2, because an optional *list* was treated as terminating the run
    rather than belonging to it. That codec compiled, and round-tripped against itself perfectly.
