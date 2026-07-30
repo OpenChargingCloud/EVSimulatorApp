@@ -9,6 +9,14 @@ hand-written; every codec module is emitted from the XSDs and checked in.
 |---|---|
 | `ExiRuntime` | Hand-written `BitReader` / `BitWriter` / `ExiPrimitives` / `ExiStringTable` — a port of the C# runtime. |
 | `ExiAppProtocol` | Generated `SupportedAppProtocol` codec + vector test (encode vs `expectedHex`, and decode → re-encode). |
+| `ExiIso2` | Generated ISO 15118-2 codec — 111 files, 291k characters — + vector test (decode → re-encode → `expectedHex`). |
+
+Every generated type is a **class**: bases and abstract types subclassable, everything else final.
+Not a preference — a struct that *contains* a class-typed field loses its synthesised `Equatable`
+and `Sendable`, and containment crosses that boundary throughout -2, so the mixed model does not
+hold. Neither conformance is generated: a static `==` would compare a derived value by its base's
+fields, and `@unchecked Sendable` on a type with `var` properties is a promise the type does not
+keep. Kotlin's hierarchy members have only identity equality for the same reason.
 
 ```bash
 swift test
@@ -29,6 +37,15 @@ dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release
   --xsd libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Prototype/Schemas/V2G_CI_AppProtocol.xsd \
   --out swift/Sources/ExiAppProtocol \
   --lang swift --namespace cloud.charging.v2g.appprotocol --codec SupportedAppProtocolCodec
+```
+
+ISO 15118-2 — note the schema order, which decides declaration order in the output:
+
+```bash
+dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release -- \
+  --xsd "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDef.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgBody.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDataTypes.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgHeader.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/xmldsig-core-schema.xsd" \
+  --out swift/Sources/ExiIso2 \
+  --lang swift --namespace cloud.charging.v2g.iso2 --codec Iso15118_2Codec
 ```
 
 **The order of `--xsd` matters** once a set has more than one schema: it decides declaration
@@ -55,27 +72,36 @@ caller would not observe the mutation.
 
 ## Coverage
 
-The back end currently models the AppProtocol slice: enums, structs of required singles, an
-optional run, and a bounded repeating child. **Everything else fails loudly** — attributes,
-`xs:choice`, substitution groups, simple content, wildcards, fragment codecs. That is deliberate:
-each construct lands with its own vectors rather than being guessed at, and a silent
-almost-right encoder is the one outcome this project cannot afford.
+The back end models everything ISO 15118-2 uses: inheritance and abstract types, attributes
+(required and optional), substitution groups, `xs:choice`, `xs:simpleContent`, `xs:any` wildcards,
+opaque XMLDSig placeholders, and repeating children in every position the grammar puts them.
+
+**Everything else still fails loudly** — inline choices (which -20 CommonMessages needs) and
+fragment codecs (`--fragments`). That is deliberate: each construct lands with its own vectors
+rather than being guessed at, and a silent almost-right encoder is the one outcome this project
+cannot afford.
 
 ## How these codecs are checked
 
 `kotlin/README.md` describes three independent gates. Swift currently has the first:
 
 1. **Vectors** — `expectedHex` from EVerest's libcbv2g at a pinned commit, read straight out of
-   the submodule, the same corpus the C# and Kotlin suites use. AppProtocol encodes and compares;
-   each vector is also decoded and re-encoded, which exercises the decoder but *cannot* catch a
-   bug mirrored in both directions.
+   the submodule, the same corpus the C# and Kotlin suites use. AppProtocol encodes and compares
+   (17 vectors); ISO 15118-2 decodes and re-encodes (39). Both exercise the decoder, and neither
+   *can* catch a bug mirrored in both directions — see gate 2.
 2. **Cross-emitter comparison** — `CrossEmitterComparisonTests` in the .NET suite reduces each
    back end's output to the ordered wire operations every generated function performs, and
    requires Swift and C# to agree. This is what rules out the mirrored bug, which the vectors
    cannot: they pin the *encoder*, and the decoder is then checked by round-tripping through that
    same encoder.
 
-   It found a real divergence on its first run. Swift decoded enumerations through a *generated*
+   It covers the whole -2 set: 171 functions, all agreeing. It has found three real bugs so far,
+   and the third makes the case better than any argument: `SalesTariffEntryType` wrote a 1-bit run
+   selector where cbV2G writes 2, because an optional *list* was treated as terminating the run
+   rather than belonging to it. That codec compiled, and round-tripped against itself perfectly.
+   Every bit after the selector was wrong.
+
+   It also found a divergence on its first run. Swift decoded enumerations through a *generated*
    wrapper where C# and Kotlin read the index inline, so the operation sequences differed even
    though the bytes did not. The fix was to move the fallible lookup into the runtime
    (`ExiRuntime.exiEnum`) and leave the read inline — the comparison was right that a wrapper

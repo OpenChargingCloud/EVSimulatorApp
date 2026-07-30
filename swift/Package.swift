@@ -18,13 +18,17 @@ let package = Package(
     products: [
         .library(name: "ExiRuntime", targets: ["ExiRuntime"]),
         .library(name: "ExiAppProtocol", targets: ["ExiAppProtocol"]),
+        .library(name: "ExiIso2", targets: ["ExiIso2"]),
     ],
     targets: [
         .target(name: "ExiRuntime"),
         .testTarget(name: "ExiRuntimeTests", dependencies: ["ExiRuntime"]),
 
-        // Generated — see swift/README.md for the regeneration command.
+        // Generated — see swift/README.md for the regeneration commands.
         .target(name: "ExiAppProtocol", dependencies: ["ExiRuntime"]),
         .testTarget(name: "ExiAppProtocolTests", dependencies: ["ExiAppProtocol"]),
+
+        .target(name: "ExiIso2", dependencies: ["ExiRuntime"]),
+        .testTarget(name: "ExiIso2Tests", dependencies: ["ExiIso2"]),
     ]
 )
