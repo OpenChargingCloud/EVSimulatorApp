@@ -104,17 +104,29 @@ deliberately:
   catches it crosses over to BouncyCastle's JCA `Ed448` entry, the spec-named algorithm, and
   requires signatures to verify in both directions.
 
-`exi-iso20-ac` and `exi-iso20-dc` carry the same helper again, over their own signable element
-(`AC_/DC_ChargeParameterDiscoveryRes`). The repetition is not laziness: each -20 message set embeds
-its own copy of the XMLDSig schema, and the fragment grammar's element selector is sized by the
-whole set — SignedInfo is event code 135 at 8 bits in AC, 129 at 8 bits in DC, 230 at 9 bits in
-CommonMessages. The same logical SignedInfo signs *different octets* in each set, so one shared
-helper would sign the wrong bytes: a signature that verifies locally and nowhere else. The C# side
-duplicates them for the same reason.
+`exi-iso20-ac`, `exi-iso20-dc`, `exi-iso20-acderiec` and `exi-iso20-acdersae` carry the same helper
+again, over their own signable element (`AC_`/`DC_ChargeParameterDiscoveryRes`; the DER schemas keep
+AC's message roots and only add substitution members).
 
-Signing for the DER / WPT / ACDP sets is still not implemented, and there it has no C# counterpart
-either. WPT and ACDP have no fragment elements at all; the DER sets would need their own copy of the
-AC helper.
+The repetition is not laziness. Each -20 message set embeds its own copy of the XMLDSig schema, and
+the fragment grammar's element selector is sized by the whole set, so the *same* `SignedInfo` lands
+on a different event code in each:
+
+| Set | SignedInfo fragment |
+|---|---|
+| AC | 135, 8 bits |
+| DC | 129, 8 bits |
+| CommonMessages | 230, 9 bits |
+| AC_DER_IEC | 217, 9 bits |
+| AC_DER_SAE | 324, 9 bits |
+
+Different octets, therefore different signed bytes. One shared helper would sign the wrong ones and
+produce a signature that verifies locally and nowhere else — note that the DER sets move even though
+their *messages* are AC's, so borrowing AC's helper there would be wrong too.
+
+Still not implemented: **WPT and ACDP**, which have no fragment elements at all — what they would
+sign is an open question, not a port. And the four -20 helpers above have C# counterparts only for
+AC, DC and CommonMessages; the two DER ones exist on the Kotlin side alone.
 
 **The order of `--xsd` matters.** It decides the order of declarations in the output, so passing
 the same files in a different order regenerates a file that differs everywhere while encoding the
