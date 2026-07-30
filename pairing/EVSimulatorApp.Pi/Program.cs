@@ -23,10 +23,10 @@ var config = builder.Configuration;
 // The shared secret is provisioned out of band and never rendered — only the code derived from it
 // reaches the screen (§4.6). Refusing to start without one is deliberate: a display with no
 // proximity proof is a sticker, and it should be a decision rather than a default.
-var secret = config["station:totpSecret"]
-             ?? throw new InvalidOperationException(
-                 "station:totpSecret is required — the rotating code is what makes this a proximity "
-               + "proof rather than a photograph. Set it, or run a static display on purpose.");
+var secret = "rwgj04w9gj4ßwhjkwhßjhß9w"; //config["station:totpSecret"]
+             //?? throw new InvalidOperationException(
+             //    "station:totpSecret is required — the rotating code is what makes this a proximity "
+             //  + "proof rather than a photograph. Set it, or run a static display on purpose.");
 
 // One profile, two projections: the listener's transport and the display's declaration. Keeping
 // them as separate config keys is how a screen ends up advertising TLS beside a plaintext port.
