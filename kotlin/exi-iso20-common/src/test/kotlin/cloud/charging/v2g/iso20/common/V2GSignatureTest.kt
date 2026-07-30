@@ -23,8 +23,14 @@ import kotlin.test.assertTrue
  * ECDSA over P-521 and Ed448.
  *
  * As on the -2 side, these exercise the crypto on top of the fragment codecs; the fragment octets
- * are what carries the interop claim, and they are pinned separately. A signature test can only
- * show that this implementation agrees with itself.
+ * are what carries the interop claim, and they are pinned separately. The tests in *this* file can
+ * only show that the implementation agrees with itself — P-521 signatures are randomised, so there
+ * is nothing to compare against but a verification of what we just produced.
+ *
+ * Ed448 is no longer in that position: it is deterministic, and [Ed448RfcVectorTest] holds it to
+ * RFC 8032 §7.4's published signatures byte for byte. That is the stronger claim, and it is the one
+ * that would catch a signer using a non-empty context or the prehashed variant — neither of which
+ * anything here can see.
  */
 class V2GSignatureTest {
 

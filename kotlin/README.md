@@ -101,10 +101,18 @@ Two parameters there decide interop and neither is visible in a round trip, so b
 deliberately:
 
 * the ECDSA **format** — `SHA512withECDSAinP1363Format`, asserted by the 132-byte length;
-* the Ed448 **context string**, which RFC 8032 fixes to empty for plain `Ed448`. Sign and verify
-  share it, so every other test passes with a wrong one — checked, and it does. The test that
-  catches it crosses over to BouncyCastle's JCA `Ed448` entry, the spec-named algorithm, and
-  requires signatures to verify in both directions.
+* the Ed448 **context string**, which we set empty. Sign and verify share it, so every other test
+  passes with a wrong one — checked, and it does.
+
+  This README used to say RFC 8032 "fixes" the context to empty for plain Ed448. **It does not.**
+  RFC 8032 §5.2 gives Ed448 a context parameter of up to 255 octets, and §7.4's own corpus contains
+  a `"foo"`-context vector sharing its key and message with the empty-context one directly above —
+  same inputs, entirely different signature. RFC 9231 §2.3.12, which is where ISO 15118-20's
+  `#eddsa-ed448` identifier comes from, is silent on the matter. So empty is a **choice this
+  implementation makes**, conventional and near-certainly right, but resting on the ISO 15118-20
+  text rather than on either RFC. `Ed448RfcVectorTest` now pins both halves: that the signer
+  reproduces §7.4 byte for byte, and that `signEd448` is that signer with an empty context and
+  nothing else in between.
 
 `exi-iso20-ac`, `exi-iso20-dc`, `exi-iso20-acderiec` and `exi-iso20-acdersae` carry the same helper
 again, over their own signable element (`AC_`/`DC_ChargeParameterDiscoveryRes`; the DER schemas keep
@@ -181,6 +189,14 @@ Three independent gates, and none is sufficient alone:
    the C# suite uses, read straight out of the submodule rather than copied. AppProtocol encodes
    and compares; -2 decodes and re-encodes, which also exercises the decoder but *cannot* catch a
    bug mirrored in both directions.
+
+   **One corpus outranks all of these: RFC 8032 §7.4.** Every other vector file in the repository
+   is some implementation's output — cbV2G's, or ours. Those nine Ed448 vectors are the standard's
+   own published numbers, so agreeing with them is agreeing with the specification rather than with
+   a peer, and no reference encoder has to be trusted. They are also *equality* checks rather than
+   round trips, because Ed448 is deterministic. `Ed448RfcVectorTest` runs them against
+   `bcprov-jdk18on`; the C# suite runs the same file against BouncyCastle's .NET port, which is a
+   different codebase, so the two runs are worth having separately.
 
    **The two AC DER corpora are the exception, and say so per vector.** cbexigen does not generate
    the ISO 15118-20 Amendment 1 DER schemas, so no reference encoder exists for a message that uses

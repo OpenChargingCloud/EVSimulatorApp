@@ -1305,6 +1305,32 @@ isn't lost.
     made, `verify` throws `ed448NotAvailable` rather than returning `false`, so the gap is a stated
     condition instead of a silent verification failure. Deferrable to conformant mode (§8 #7:
     v1 ships relaxed).
+
+    **The algorithm parameters are now settled (2026-07-30), and the acceptance test exists.**
+    ISO 15118-20 uses `http://www.w3.org/2021/04/xmldsig-more#eddsa-ed448`, which RFC 9231 §2.3.12
+    lists separately from `#eddsa-ed448ph` — so **pure Ed448, not prehashed**, signing the SignedInfo
+    fragment octets directly with no external digest (SHAKE256 inside the algorithm does that job),
+    114-byte raw signature, **empty context**.
+
+    Two caveats worth carrying, because they bound how much that sentence is worth:
+
+    - **The empty context is the one part no RFC states.** RFC 8032 §5.2 gives Ed448 a context of up
+      to 255 octets and §7.4 includes a `"foo"`-context vector that shares its key and message with
+      the empty-context one and produces a completely different signature. RFC 9231 is silent. Empty
+      is conventional and near-certainly right, but it rests on the ISO text, which is paid and not
+      in the repository. If a peer ever rejects our Ed448, this is the first thing to re-read.
+    - **Until 2026-07-30 the Ed448 path had no oracle at all** — three self-referential tests, and
+      no live-interop evidence, because the -20 secp521r1/Ed448 profile is one Josev cannot
+      exercise. Cross-checking Swift against C#, as originally planned, would have inherited that
+      assumption rather than tested it.
+
+    So RFC 8032 §7.4's nine published vectors are now checked in
+    (`Vanaheimr.V2G.Exi.Tests/Vectors/Ed448.rfc8032.vectors.json`, extracted mechanically by
+    `tools/rfc8032-ref/`) and run against both back ends. **That corpus is the acceptance test for
+    whichever library is chosen**: a candidate reproduces the standard's own signatures byte for
+    byte, or it is not a candidate. It also settles the API question that prompted the search — a
+    library with no context parameter expresses empty-context pure Ed448 exactly, which is what we
+    need, and cannot express `#eddsa-ed448ph`, which we do not.
 11. **JSON-LD naming rules (§4.4).** The concrete rule table the emitter applies (Req/Res
     handling, pluralisation, `@context` per namespace) and how -2's `V2G_Message`-wrapped,
     substitution-group structure is represented. Now a *design* question rather than a

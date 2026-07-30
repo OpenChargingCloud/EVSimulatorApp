@@ -159,6 +159,19 @@ Rather than a stub that would look implemented, `verify` **throws `ed448NotAvail
 Ed448-shaped signature. A caller has to be able to tell "unsupported algorithm" from "invalid
 signature": the first is a reason to renegotiate, the second a reason to reject the peer.
 
+**What a candidate library has to satisfy is now written down and runnable.** ISO 15118-20 uses
+pure Ed448 — RFC 9231 §2.3.12 lists `#eddsa-ed448ph` under its own identifier — with an empty
+context, signing the SignedInfo fragment octets directly, 114 bytes raw. RFC 8032 §7.4's nine
+published vectors are checked into `libs/Vanaheimr.V2G.Exi/.../Vectors/Ed448.rfc8032.vectors.json`
+and are the acceptance test: reproduce the standard's own signatures byte for byte, or the library
+is not a candidate. An API with no context parameter is fine — that *is* empty-context pure Ed448 —
+and simply cannot express the prehashed variant, which is not needed.
+
+One thing this back end should fix when Ed448 lands: `verify` currently decides on the **signature
+length** (114 → unsupported), where the SignedInfo carries the declared algorithm URI. Reading the
+declaration and failing loudly on an unrecognised one is the fail-loud shape the rest of the
+project uses; a length is a guess at something we were told.
+
 ## How these codecs are checked
 
 `kotlin/README.md` describes three independent gates. Swift has all three — the first back end in
