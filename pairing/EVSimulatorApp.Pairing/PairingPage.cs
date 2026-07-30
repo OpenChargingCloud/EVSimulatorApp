@@ -118,7 +118,14 @@ public static class PairingPage
             <script src="@SCRIPT@"></script>
             <script>
               // The URI is written as a JSON string literal, so nothing in it can end the script.
-              new QRCode(document.getElementById('qr'), { text: @URI@, useSVG: true });
+              //
+              // datalog/qrcode-svg takes ONE argument — an options object keyed `msg` — and RETURNS
+              // the <svg> for the caller to insert. It is not the davidshimjs/qrcodejs API of
+              // `new QRCode(element, { text })`: passing an element there lands as the options
+              // object, `msg` comes out undefined, and the library dutifully builds an empty QR that
+              // nobody appends. No exception, no console error, no QR. Defaults are already right
+              // for a display — dim 256, ecl M, and pad 4, the quiet zone the spec asks for.
+              document.getElementById('qr').replaceChildren(QRCode({ msg: @URI@ }));
             </script>
             """.Replace("@SCRIPT@", QrScriptPath)
                .Replace("@URI@", JsonString(uri)));
@@ -134,10 +141,9 @@ public static class PairingPage
                   const status = document.getElementById('status');
                   const log    = document.getElementById('log');
                   const left   = document.getElementById('left');
-                  let code = null;
-
-                  const draw = (uri) => { qr.replaceChildren();
-                                          code = new QRCode(qr, { text: uri, useSVG: true }); };
+                  // One insertion rather than clear-then-draw: replaceChildren swaps the old QR for
+                  // the new one, so the display never blanks between slots.
+                  const draw = (uri) => qr.replaceChildren(QRCode({ msg: uri }));
 
                   // textContent, never innerHTML: these lines carry peer-controlled text — an EVCC
                   // id, a TLS error — onto the operator's own screen.

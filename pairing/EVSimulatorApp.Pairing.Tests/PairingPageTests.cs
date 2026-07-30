@@ -58,8 +58,8 @@ public class PairingPageTests
 
         // Take the URI out of the page itself rather than rebuilding it, so this cannot pass by
         // agreeing with the renderer about a value neither of them got from the configuration.
-        var at = page.IndexOf("text: \"", StringComparison.Ordinal) + "text: ".Length;
-        var literal = page[at..(page.IndexOf(", useSVG", at, StringComparison.Ordinal))];
+        var at = page.IndexOf("msg: \"", StringComparison.Ordinal) + "msg: ".Length;
+        var literal = page[at..(page.IndexOf(" }", at, StringComparison.Ordinal))];
         var reparsed = PairingUri.Parse(JsonSerializer.Deserialize<string>(literal)!)!;
 
         Assert.Multiple(() =>
