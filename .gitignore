@@ -6,3 +6,9 @@ build/
 # IDE
 .idea/
 .vs/
+
+# Swift / SwiftPM
+swift/.build/
+.swiftpm/
+*.xcuserstate
+DerivedData/
