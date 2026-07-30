@@ -1,7 +1,6 @@
 import XCTest
 
-import Goldilocks
-@testable import ExiIso20Common
+import V2GEd448
 
 /// Does `swift-goldilocks` reproduce RFC 8032 §7.4 byte for byte?
 ///
@@ -26,7 +25,7 @@ import Goldilocks
 ///
 /// Passing this does not make the library safe to depend on — it says nothing about side channels,
 /// maintenance or the wrapper's memory handling. It is the necessary half that can be measured.
-final class Ed448GoldilocksRfcVectorTests: XCTestCase {
+final class Ed448VectorTests: XCTestCase {
 
     struct Vector {
         let label: String
@@ -82,7 +81,7 @@ final class Ed448GoldilocksRfcVectorTests: XCTestCase {
 
     func testEveryPublicKeyDerivesFromItsSecretKey() throws {
         for v in try Self.vectors() where v.context.isEmpty {
-            XCTAssertEqual(try Goldilocks.Ed448.derivePublicKey(privateKey: v.secretKey),
+            XCTAssertEqual(try Ed448.derivePublicKey(fromSeed: v.secretKey),
                            v.publicKey, v.label)
         }
     }
@@ -94,18 +93,14 @@ final class Ed448GoldilocksRfcVectorTests: XCTestCase {
     /// ``testTheContextVectorIsOutOfScopeRatherThanFailing``.
     func testSigningReproducesTheRfcSignatures() throws {
         for v in try Self.vectors() where v.context.isEmpty {
-            let signature = try Goldilocks.Ed448.sign(message: v.message,
-                                                      privateKey: v.secretKey,
-                                                      publicKey: v.publicKey)
+            let signature = try Ed448.sign(v.message, seed: v.secretKey, publicKey: v.publicKey)
             XCTAssertEqual(signature, v.signature, v.label)
         }
     }
 
     func testVerifyingAcceptsTheRfcSignatures() throws {
         for v in try Self.vectors() where v.context.isEmpty {
-            XCTAssertTrue(try Goldilocks.Ed448.verify(signature: v.signature,
-                                                      message: v.message,
-                                                      publicKey: v.publicKey), v.label)
+            XCTAssertTrue(try Ed448.verify(v.signature, of: v.message, publicKey: v.publicKey), v.label)
         }
     }
 
@@ -118,9 +113,7 @@ final class Ed448GoldilocksRfcVectorTests: XCTestCase {
     func testTheEmptyMessageVectorIsHandled() throws {
         let blank = try XCTUnwrap(try Self.vectors().first { $0.message.isEmpty })
 
-        XCTAssertEqual(try Goldilocks.Ed448.sign(message: blank.message,
-                                                 privateKey: blank.secretKey,
-                                                 publicKey: blank.publicKey),
+        XCTAssertEqual(try Ed448.sign(blank.message, seed: blank.secretKey, publicKey: blank.publicKey),
                        blank.signature)
     }
 
@@ -131,8 +124,7 @@ final class Ed448GoldilocksRfcVectorTests: XCTestCase {
         var bad = v.signature
         bad[0] ^= 0xFF
 
-        XCTAssertFalse(try Goldilocks.Ed448.verify(signature: bad, message: v.message,
-                                                   publicKey: v.publicKey))
+        XCTAssertFalse(try Ed448.verify(bad, of: v.message, publicKey: v.publicKey))
     }
 
     /// The `"foo"`-context vector is unreachable through this API, and that is the right outcome.
@@ -144,9 +136,7 @@ final class Ed448GoldilocksRfcVectorTests: XCTestCase {
     func testTheContextVectorIsOutOfScopeRatherThanFailing() throws {
         let withFoo = try XCTUnwrap(try Self.vectors().first { !$0.context.isEmpty })
 
-        XCTAssertFalse(try Goldilocks.Ed448.verify(signature: withFoo.signature,
-                                                   message: withFoo.message,
-                                                   publicKey: withFoo.publicKey),
+        XCTAssertFalse(try Ed448.verify(withFoo.signature, of: withFoo.message, publicKey: withFoo.publicKey),
                        "a context signature verified without one — the API would be hiding a "
                      + "parameter rather than fixing it")
     }
@@ -155,54 +145,8 @@ final class Ed448GoldilocksRfcVectorTests: XCTestCase {
     func testMalformedInputsAreRejected() throws {
         let v = try XCTUnwrap(try Self.vectors().first)
 
-        XCTAssertThrowsError(try Goldilocks.Ed448.derivePublicKey(privateKey: [UInt8](repeating: 0, count: 56)))
-        XCTAssertThrowsError(try Goldilocks.Ed448.verify(signature: Array(v.signature.dropLast()),
-                                                         message: v.message,
-                                                         publicKey: v.publicKey))
+        XCTAssertThrowsError(try Ed448.derivePublicKey(fromSeed: [UInt8](repeating: 0, count: 56)))
+        XCTAssertThrowsError(try Ed448.verify(Array(v.signature.dropLast()), of: v.message, publicKey: v.publicKey))
     }
 
-    // ── What it would look like in place ────────────────────────────────────────────────────────
-
-    /// `V2GSignature.sign` is the vector-checked primitive over the fragment, and nothing else.
-    ///
-    /// This is the join between the two halves, and the only place that can make it: the vectors
-    /// above validate Goldilocks, `Iso20CommonV2GSignatureTests` validates our dispatch and wire
-    /// formats, and neither can see whether the bytes actually handed to the primitive are the
-    /// `SignedInfo` fragment. Here both dependencies are in scope, so the check is an equality
-    /// against a hand-rolled call rather than another round trip.
-    ///
-    /// Pure EdDSA signs the fragment octets **directly** — SHAKE256 inside Ed448 replaces the
-    /// external pre-hash, unlike the P-521 path where SHA-512 is a separate step. If
-    /// `V2GSignature` ever grows one, or a context, or a different notion of which octets are
-    /// signed, this fails while every test either side of it keeps passing.
-    func testOurSigningPathIsTheVectorCheckedPrimitiveOverTheFragment() throws {
-        let v   = try XCTUnwrap(try Self.vectors().first)
-        let key = try Ed448PrivateKey(rawRepresentation: v.secretKey)
-
-        let signedInfo = SignedInfoType(
-            canonicalizationMethod: .init(algorithm: "http://www.w3.org/TR/canonical-exi/"),
-            signatureMethod: .init(algorithm: V2GSignature.Algorithm.eddsaEd448.rawValue),
-            reference: [.init(uRI: "#id1",
-                              transforms: .init(transform: [.init(algorithm: "http://www.w3.org/TR/canonical-exi/")]),
-                              digestMethod: .init(algorithm: "http://www.w3.org/2001/04/xmlenc#sha512"),
-                              digestValue: [UInt8](repeating: 0xAB, count: 64))])
-
-        let ours     = try V2GSignature.sign(signedInfo, with: key)
-        let fragment = CommonMessagesCodec.encodeFragment_SignedInfo(signedInfo)
-        let expected = try Goldilocks.Ed448.sign(message: fragment,
-                                                 privateKey: v.secretKey,
-                                                 publicKey: v.publicKey)
-
-        XCTAssertEqual(ours, expected)
-        XCTAssertEqual(ours.count, 114)
-
-        // The key wrapper derives the same public key the RFC pairs with this seed, so signing
-        // through it cannot silently use a different one.
-        XCTAssertEqual(key.publicKey.rawRepresentation, v.publicKey)
-
-        // And the fragment really is this set's — 230 over 9 bits after the header, as
-        // ExiIso20CommonTests pins independently.
-        XCTAssertEqual(fragment[0], 0x80)
-        XCTAssertEqual(fragment[1], 0b01110011)
-    }
 }

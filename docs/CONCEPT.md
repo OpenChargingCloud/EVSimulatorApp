@@ -385,14 +385,14 @@ The app-layer half of this section is no longer a projection. Both back ends sig
 |---|---|---|
 | -2, ECDSA P-256 / SHA-256, raw `r‖s`, 64 B | ✅ | ✅ CryptoKit `rawRepresentation` |
 | -20, ECDSA P-521 / SHA-512, raw `r‖s`, 132 B | ✅ | ✅ CryptoKit, natively |
-| -20, Ed448, 114 B | ✅ BouncyCastle | ✅ `swift-goldilocks` (vendored libgoldilocks), vector-checked against RFC 8032 §7.4 |
+| -20, Ed448, 114 B | ✅ BouncyCastle | ✅ `V2GEd448` over vendored libgoldilocks, vector-checked against RFC 8032 §7.4 |
 
 That last cell was the hard one, and the plan understated it: this is **not** an
 unregistered-provider problem of the kind the JVM has, where BouncyCastle supplies what the JDK
 omits — the primitive does not exist in Apple's library, so there is nothing to register. It was a
 bundled-dependency decision or nothing.
 
-**Closed 2026-07-30** by bundling `swift-goldilocks` (§8 #10 for what decided it), so the app-layer
+**Closed 2026-07-30** by bundling libgoldilocks (§8 #10 for what decided it), so the app-layer
 half of this section is now complete on both platforms. Pure Ed448, empty context, 114 bytes,
 matching `#eddsa-ed448`; the prehashed `#eddsa-ed448ph` is a different algorithm and is refused by
 name rather than silently signed as if it were the pure one.
@@ -1304,23 +1304,36 @@ isn't lost.
     Ed448 at all — so this no longer threatens the Option-B fallback, which was the original worry.
     Harder, because CryptoKit lacks the *curve*, not a provider registration, so there is no
     equivalent of the JVM's "add BouncyCastle" move.
-    **The library is chosen (2026-07-30): [`swift-goldilocks`](https://github.com/Kingpin-Apps/swift-goldilocks),
-    pinned at 0.1.1**, merged to master after a spike measured it rather than read its README
-    (`swift/SPIKE-ed448.md`). What decided it:
+    **The implementation is chosen and now vendored (2026-07-30): libgoldilocks, in
+    `swift/Sources/CGoldilocks`, under our own `V2GEd448` surface.** It arrived through the
+    `swift-goldilocks` package, which a spike measured rather than read the README of
+    (`swift/SPIKE-ed448.md`); the package dependency was then dropped in favour of checking the
+    code in. What decided it:
 
     | | |
     |---|---|
     | RFC 8032 §7.4 | reproduced **byte for byte**, all eight empty-context vectors |
     | Machine code | **~81 KB** (63 KB C + 18 KB Swift) — against megabytes for OpenSSL |
-    | Licence | MIT throughout |
-    | Build | SwiftPM only; no external toolchain, no script phase |
+    | Licence | MIT throughout, notices carried in-tree |
+    | Build | no network, no external toolchain, no script phase |
 
-    It is **not** pure Swift, as advertised — it vendors Mike Hamburg's libgoldilocks C sources and
-    wraps them in four Swift files. That is the better outcome: the field arithmetic is the
-    reference implementation for this curve rather than fresh crypto, and the risk concentrates in
-    a binding layer small enough to read. It costs this document's §2 claim of "no runtime to
-    bundle" a footnote — C sources in a SwiftPM build are a far smaller thing than a bundled
-    runtime, but they are not nothing.
+    Two provenance corrections, both found by looking rather than by reading:
+
+    - It is **not pure Swift**, as Swift Package Index bills it — it is C with a thin wrapper.
+      That is the better outcome (established field arithmetic rather than fresh crypto), but it
+      costs this document's §2 claim of "no runtime to bundle" a footnote: C sources in a SwiftPM
+      build are far smaller than a bundled runtime, and not nothing.
+    - It is **not Mike Hamburg's library**, which is what this section said for a day. The chain is
+      Hamburg's libdecaf (2014–2016) → forked 2018 by the OTRv4 project as `otrv4/libgoldilocks` →
+      a Swift-facing C shim → the package. A community fork with years of drift is a weaker pedigree
+      than "the reference implementation", which was the argument for not writing our own. It does
+      not reverse the decision — the vectors pass, and no alternative has a better pedigree — but
+      the claim needed correcting, and it only surfaced when the code was read as *ours*.
+
+    **Vendored rather than depended upon**, which was the hedge this section listed as optional and
+    is now done: nobody's release cadence sits between us and the code that makes our signatures,
+    the licence notices travel with the source, and RFC 8032 §7.4 is the acceptance test any future
+    replacement has to pass.
 
     **Wired into all five -20 sets the same day.** `V2GSignature` in CommonMessages, AC, DC and both
     DER sets now signs and verifies Ed448, each over its own fragment — ACDP is the exception, as it

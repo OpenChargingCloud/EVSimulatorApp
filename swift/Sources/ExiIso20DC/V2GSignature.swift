@@ -1,7 +1,7 @@
 #if canImport(CryptoKit)
 import CryptoKit
 import Foundation
-import Goldilocks
+import V2GEd448
 
 /// The ISO 15118-20 DC half of the -20 signature suite: SHA-512 over a signed element's EXI
 /// **fragment** goes into a `SignedInfo` Reference, and the `SignedInfo` fragment is itself signed.
@@ -19,10 +19,11 @@ import Goldilocks
 ///
 /// * **ECDSA over secp521r1 with SHA-512** — CryptoKit has P-521 natively and exposes the raw
 ///   `r‖s` pair the wire wants as `rawRepresentation`. 66 + 66 bytes.
-/// * **Ed448** (RFC 8032, 114 bytes) — via `swift-goldilocks`, which vendors Mike Hamburg's
-///   libgoldilocks. CryptoKit does not have the curve at all: not an unregistered provider as it
-///   would be on the JVM, the primitive is absent. The library reproduces RFC 8032 §7.4 byte for
-///   byte (`Ed448GoldilocksSpikeTests`), which is why it was chosen — see `swift/SPIKE-ed448.md`.
+/// * **Ed448** (RFC 8032, 114 bytes) — via `V2GEd448`, our own surface over a vendored
+///   libgoldilocks (`Sources/CGoldilocks`). CryptoKit does not have the curve at all: not an
+///   unregistered provider as it would be on the JVM, the primitive is absent. Held to RFC 8032
+///   §7.4 byte for byte by `Ed448VectorTests` — see `swift/SPIKE-ed448.md` for why this
+///   implementation.
 ///
 /// Ed448 here is **pure** EdDSA with an **empty context**, matching ISO 15118-20's
 /// `#eddsa-ed448` identifier — RFC 9231 §2.3.12 lists the prehashed `#eddsa-ed448ph` separately,
@@ -137,9 +138,9 @@ public enum V2GSignature {
                             with key: Ed448PrivateKey) throws -> [UInt8] {
         try require(signedInfo, is: .eddsaEd448)
         let fragment = DCCodec.encodeFragment_SignedInfo(signedInfo)
-        return try Goldilocks.Ed448.sign(message: fragment,
-                                         privateKey: key.rawRepresentation,
-                                         publicKey: key.publicKey.rawRepresentation)
+        return try Ed448.sign(fragment,
+                              seed: key.rawRepresentation,
+                              publicKey: key.publicKey.rawRepresentation)
     }
 
     /// Verifies a raw Ed448 signature over a `SignedInfo`'s own EXI fragment.
@@ -150,9 +151,7 @@ public enum V2GSignature {
         guard signature.count == ed448SignatureLength else { return false }
 
         let fragment = DCCodec.encodeFragment_SignedInfo(signedInfo)
-        return try Goldilocks.Ed448.verify(signature: signature,
-                                           message: fragment,
-                                           publicKey: key.rawRepresentation)
+        return try Ed448.verify(signature, of: fragment, publicKey: key.rawRepresentation)
     }
 }
 
@@ -200,7 +199,7 @@ public struct Ed448PrivateKey: Sendable {
         }
         self.rawRepresentation = rawRepresentation
         self.publicKey = try Ed448PublicKey(
-            rawRepresentation: try Goldilocks.Ed448.derivePublicKey(privateKey: rawRepresentation))
+            rawRepresentation: try Ed448.derivePublicKey(fromSeed: rawRepresentation))
     }
 
     /// A fresh key from the system CSPRNG.

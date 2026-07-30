@@ -6,7 +6,8 @@ import XCTest
 /// ISO 15118-20 signing, on the CommonMessages set.
 ///
 /// The -20 suite allows ECDSA-P521 or Ed448, and **both are now implemented** — Ed448 through
-/// `swift-goldilocks`, whose primitive is held to RFC 8032 §7.4 by `Ed448GoldilocksSpikeTests`.
+/// `V2GEd448`, our own surface over a vendored libgoldilocks, whose primitive is held to
+/// RFC 8032 §7.4 by `Ed448VectorTests`.
 /// What the tests below pin is the layer above that: which algorithm is used, decided by the
 /// message rather than guessed, and the wire format of each.
 final class Iso20CommonV2GSignatureTests: XCTestCase {

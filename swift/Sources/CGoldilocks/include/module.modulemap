@@ -1,0 +1,5 @@
+module CGoldilocks {
+    header "ce_ed448.h"
+    header "cgoldilocks_shake.h"
+    export *
+}

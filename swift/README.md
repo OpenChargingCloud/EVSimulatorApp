@@ -149,11 +149,16 @@ there instead of on a charger.
 
 -20 uses SHA-512 and the raw `r‖s` pair over secp521r1: 66 + 66 = 132 bytes, pinned the same way.
 
-**Ed448 is implemented**, via `swift-goldilocks` — the -20 suite's second algorithm (RFC 8032,
-114 bytes). CryptoKit does not have the curve at all: not an unregistered provider as on the JVM
-where BouncyCastle supplies it, but a missing primitive, so it needs a bundled library. That one
-vendors Mike Hamburg's libgoldilocks and costs ~81 KB; it was chosen after being measured against
-RFC 8032 §7.4 rather than from its README. See `docs/CONCEPT.md` §3.3 and [`SPIKE-ed448.md`](SPIKE-ed448.md).
+**Ed448 is implemented**, via `V2GEd448` — the -20 suite's second algorithm (RFC 8032, 114 bytes).
+CryptoKit does not have the curve at all: not an unregistered provider as on the JVM where
+BouncyCastle supplies it, but a missing primitive, so it needs a bundled implementation.
+
+**Vendored, not depended upon.** `Sources/CGoldilocks` holds libgoldilocks checked in verbatim —
+see [`PROVENANCE.md`](Sources/CGoldilocks/PROVENANCE.md) there for the chain it came down and the
+licence notices that must travel with it — and `Sources/V2GEd448` is our own 115-line surface over
+it. `swift build` needs no network, and no third party's release cadence sits between us and the
+code that makes our signatures. ~81 KB of machine code, against megabytes for OpenSSL. See
+`docs/CONCEPT.md` §3.3 and [`SPIKE-ed448.md`](SPIKE-ed448.md) for how it was chosen.
 
 Pure Ed448 with an **empty context**, matching `#eddsa-ed448`. RFC 9231 §2.3.12 lists the prehashed
 `#eddsa-ed448ph` under its own identifier; it is a different algorithm and is refused by name.
@@ -184,12 +189,12 @@ before choosing a key.
 
 ### How the two halves are checked
 
-`Ed448GoldilocksSpikeTests` holds the *library* to RFC 8032 §7.4 — nine published vectors, byte for
-byte, and Ed448 is deterministic so that is an equality check rather than a round trip. It runs with
-every `swift test`, so a version bump that broke the primitive fails here rather than on a charger.
+`V2GEd448Tests` holds the *primitive* to RFC 8032 §7.4 — nine published vectors, byte for byte, and
+Ed448 is deterministic so that is an equality check rather than a round trip. It needs no codec, and
+it is the acceptance test any replacement of the vendored C has to pass.
 
-The same target is the only one that sees both Goldilocks and `ExiIso20Common`, so it also joins the
-halves: `V2GSignature.sign` must equal a hand-rolled `Goldilocks.Ed448.sign` over the *fragment*.
+`Ed448IntegrationTests` joins the halves, being the only target that imports both `V2GEd448` and
+`ExiIso20Common`: `V2GSignature.sign` must equal a hand-rolled `Ed448.sign` over the *fragment*.
 Neither side can check that alone — the vectors do not know what octets we feed the primitive, and
 `Iso20CommonV2GSignatureTests` cannot see inside it.
 

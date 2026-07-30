@@ -25,29 +25,28 @@ let package = Package(
         .library(name: "ExiIso20ACDP", targets: ["ExiIso20ACDP"]),
         .library(name: "ExiIso20AcDerIec", targets: ["ExiIso20AcDerIec"]),
         .library(name: "ExiIso20AcDerSae", targets: ["ExiIso20AcDerSae"]),
+        .library(name: "V2GEd448", targets: ["V2GEd448"]),
         .library(name: "V2GTP", targets: ["V2GTP"]),
         .library(name: "V2GDispatch", targets: ["V2GDispatch"]),
-    ],
-    // The Ed448 half of -20's signature suite, which CryptoKit cannot provide at all — it lacks the
-    // curve, not merely a registered provider (docs/CONCEPT.md §3.3, §8 #10).
-    //
-    // Chosen after measurement rather than from the README: it reproduces RFC 8032 §7.4 byte for
-    // byte and costs ~81 KB of machine code, against megabytes for OpenSSL. Despite the "pure
-    // Swift" billing it vendors Mike Hamburg's libgoldilocks C sources and wraps them, which is the
-    // better news — the field arithmetic is the reference implementation rather than fresh code.
-    // Findings, including the arguments against, in swift/SPIKE-ed448.md.
-    //
-    // Pinned `exact:` deliberately: a v0.1.x package with one author behind the wrapper, and a
-    // version range would let a crypto dependency move under us between builds.
-    //
-    // All five -20 sets link it — each carries its own `V2GSignature`, for the fragment-selector
-    // reason documented there. ACDP does not: it has no signable element.
-    dependencies: [
-        .package(url: "https://github.com/Kingpin-Apps/swift-goldilocks.git", exact: "0.1.1"),
     ],
     targets: [
         .target(name: "ExiRuntime"),
         .testTarget(name: "ExiRuntimeTests", dependencies: ["ExiRuntime"]),
+
+        // Ed448 for -20's second signature suite, which CryptoKit cannot provide at all: it lacks
+        // the curve, not merely a registered provider (docs/CONCEPT.md §3.3).
+        //
+        // Vendored rather than depended upon. The C is libgoldilocks, checked in verbatim and never
+        // edited — see Sources/CGoldilocks/PROVENANCE.md for the chain it came down and the licence
+        // notices that must travel with it. V2GEd448 is our own ~100-line surface over it, so no
+        // third party's release cadence sits between us and the code that makes our signatures.
+        //
+        // Correctness is not taken on trust: Ed448VectorTests holds it to RFC 8032 §7.4's published
+        // vectors, byte for byte.
+        .target(name: "CGoldilocks", exclude: ["LICENSE.libgoldilocks.txt", "PROVENANCE.md"],
+                publicHeadersPath: "include", cSettings: [.headerSearchPath("private")]),
+        .target(name: "V2GEd448", dependencies: ["CGoldilocks"]),
+        .testTarget(name: "V2GEd448Tests", dependencies: ["V2GEd448"]),
 
         // Generated — see swift/README.md for the regeneration commands.
         .target(name: "ExiAppProtocol", dependencies: ["ExiRuntime"]),
@@ -58,19 +57,19 @@ let package = Package(
 
         // One target per -20 message set, as in kotlin/: they are independent grammars that happen
         // to embed the same CommonTypes, and each carries its own copy of the XMLDSig schema.
-        .target(name: "ExiIso20Common", dependencies: ["ExiRuntime", .product(name: "Goldilocks", package: "swift-goldilocks")]),
+        .target(name: "ExiIso20Common", dependencies: ["ExiRuntime", "V2GEd448"]),
         .testTarget(name: "ExiIso20CommonTests", dependencies: ["ExiIso20Common"]),
-        .target(name: "ExiIso20DC", dependencies: ["ExiRuntime", .product(name: "Goldilocks", package: "swift-goldilocks")]),
+        .target(name: "ExiIso20DC", dependencies: ["ExiRuntime", "V2GEd448"]),
         .testTarget(name: "ExiIso20DCTests", dependencies: ["ExiIso20DC"]),
-        .target(name: "ExiIso20AC", dependencies: ["ExiRuntime", .product(name: "Goldilocks", package: "swift-goldilocks")]),
+        .target(name: "ExiIso20AC", dependencies: ["ExiRuntime", "V2GEd448"]),
         .testTarget(name: "ExiIso20ACTests", dependencies: ["ExiIso20AC"]),
         .target(name: "ExiIso20ACDP", dependencies: ["ExiRuntime"]),
         .testTarget(name: "ExiIso20ACDPTests", dependencies: ["ExiIso20ACDP"]),
 
         // The Amendment 1 DER sets. Their corpora are of mixed provenance — see the tests.
-        .target(name: "ExiIso20AcDerIec", dependencies: ["ExiRuntime", .product(name: "Goldilocks", package: "swift-goldilocks")]),
+        .target(name: "ExiIso20AcDerIec", dependencies: ["ExiRuntime", "V2GEd448"]),
         .testTarget(name: "ExiIso20AcDerIecTests", dependencies: ["ExiIso20AcDerIec"]),
-        .target(name: "ExiIso20AcDerSae", dependencies: ["ExiRuntime", .product(name: "Goldilocks", package: "swift-goldilocks")]),
+        .target(name: "ExiIso20AcDerSae", dependencies: ["ExiRuntime", "V2GEd448"]),
         .testTarget(name: "ExiIso20AcDerSaeTests", dependencies: ["ExiIso20AcDerSae"]),
 
         // Hand-written, and split for the reason kotlin/ splits them: reading a frame's type and
@@ -88,9 +87,6 @@ let package = Package(
         // a version bump needs re-checking. It is also the only target that sees both Goldilocks
         // and ExiIso20Common, so it is where the two halves are joined — see the test named for
         // it.
-        .testTarget(name: "Ed448GoldilocksSpikeTests", dependencies: [
-            .product(name: "Goldilocks", package: "swift-goldilocks"),
-            "ExiIso20Common",
-        ]),
+        .testTarget(name: "Ed448IntegrationTests", dependencies: ["V2GEd448", "ExiIso20Common"]),
     ]
 )
