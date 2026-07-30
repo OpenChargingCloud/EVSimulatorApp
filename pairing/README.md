@@ -92,6 +92,35 @@ The shared secret is provisioned **out of band** — a one-time static setup cod
 bootstrap. It is never in the rotating code; only the derived TOTP is. That is the one genuinely
 unsolved part of the dynamic-QR story (§8 #14).
 
+## The display page
+
+`PairingPage.Render(payload, totp, remaining)` is the Pi's screen: the QR, what the code declares,
+and a countdown to the next slot. **Pure rendering** — no HTTP server, no timer, no sockets. That
+is deliberate rather than partial: the risk this page carries is that *what it shows drifts from
+what the station is actually doing*, and that risk is a function of its inputs, not of how it is
+served. A display advertising TLS beside a station listening in plaintext is worse than no display,
+because it is believed.
+
+The QR is drawn in the browser by **QRCodeSVG**, already vendored under
+`libs/DynamicQRCodes/TOTP/JavaScript-Web/QRCodeSVG/` — served locally, never from a CDN. A display
+whose code is fetched from the internet is a display someone else can change.
+
+Three things the tests are really for:
+
+- **The shared secret never reaches the page.** Only the derived code does. A screen that leaked the
+  secret would turn the proximity proof into a permanent credential for anyone who ever saw it,
+  which would silently undo the whole §4.6 mechanism.
+- **Configuration text is escaped, and the URI is a JSON literal.** The non-conformance reason is
+  written by whoever set the station up; rendering it as markup would be an injection hole on the
+  one screen an operator is meant to trust.
+- **The reload lands just *after* the slot ends.** Early would show the next code before the station
+  honours it; late would show one it has stopped accepting. Both edges fail, in opposite directions.
+
+The station also shows **its own warnings about itself**. The operator standing in front of the Pi
+is the person who can fix a weakened profile, so it should not only be the phone that says so.
+
+Serving it is a few lines of `HttpListener` somewhere else, and nothing depends on them.
+
 ## Not done here
 
 `docs/CONCEPT.md` §5 B0 also wants the Pi itself: hosting the SECC over WLAN, interface binding,
