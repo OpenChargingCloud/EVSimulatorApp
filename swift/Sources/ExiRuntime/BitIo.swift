@@ -24,6 +24,9 @@ public enum ExiError: Error, Equatable {
     case invalidEventCode(String)
     /// An enumeration index is outside the type's member list.
     case unknownEnumValue(type: String, index: UInt32)
+    /// The stream contains a construct the generated codec models as absent-only — the XMLDSig
+    /// elements the generator leaves opaque. Reading one is not a malformed stream, it is a gap.
+    case unsupportedConstruct(String)
 }
 
 /// Bit-level writer, MSB-first within each byte to match EXI bit-packed alignment: the first bit
