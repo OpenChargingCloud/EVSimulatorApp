@@ -46,7 +46,7 @@ internal func encodeSupportedAppProtocolRes(_ w: BitWriter, _ msg: SupportedAppP
 internal func decodeSupportedAppProtocolRes(_ r: BitReader) throws -> SupportedAppProtocolRes {
     _ = try r.readBits(1)   // SE
     _ = try r.readBits(1)   // value-start
-    let _responseCode = try decodeResponseCode(r, 2)
+    let _responseCode = try exiEnum(ResponseCode.self, try r.readBits(2))
     _ = try r.readBits(1)   // child EE
     var _schemaID: UInt8? = nil
     var st1 = 0

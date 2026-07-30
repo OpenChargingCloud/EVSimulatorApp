@@ -103,3 +103,20 @@ public enum ExiPrimitives {
         try r.readBits(1) != 0
     }
 }
+
+/// Resolves an EXI enumeration index, throwing rather than trapping on a value the type does not
+/// have.
+///
+/// It exists because Swift's `init?(rawValue:)` is failing where C#'s enum cast and Kotlin's
+/// `entries[i]` are not, and a generated decoder must not force-unwrap network input. Keeping it a
+/// *runtime* helper rather than a generated one matters: the index read then stays inline in the
+/// decoder, so the cross-emitter comparison sees the same `readBits` in the same position as the
+/// other two back ends instead of a wrapper call.
+public func exiEnum<T: RawRepresentable>(_ type: T.Type, _ raw: UInt32) throws -> T
+    where T.RawValue == Int
+{
+    guard let value = T(rawValue: Int(raw)) else {
+        throw ExiError.unknownEnumValue(type: String(describing: T.self), index: raw)
+    }
+    return value
+}

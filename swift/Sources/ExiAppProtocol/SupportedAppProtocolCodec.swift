@@ -37,11 +37,3 @@ public enum SupportedAppProtocolCodec {
         }
     }
 }
-
-internal func decodeResponseCode(_ r: BitReader, _ bits: Int) throws -> ResponseCode {
-    let raw = try r.readBits(bits)
-    guard let v = ResponseCode(rawValue: Int(raw)) else {
-        throw ExiError.unknownEnumValue(type: "ResponseCode", index: raw)
-    }
-    return v
-}

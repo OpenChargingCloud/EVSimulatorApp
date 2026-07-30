@@ -69,10 +69,20 @@ almost-right encoder is the one outcome this project cannot afford.
    the submodule, the same corpus the C# and Kotlin suites use. AppProtocol encodes and compares;
    each vector is also decoded and re-encoded, which exercises the decoder but *cannot* catch a
    bug mirrored in both directions.
-2. **Cross-emitter comparison** — not yet wired up for Swift. This is what rules out the mirrored
-   bug, so it is the next gate to add, not an optional extra.
-3. **Structure**, in the .NET suite — not yet wired up either (the Kotlin counterparts are
-   `KotlinEmitterSplitTests` / `CodegenDriverTests`).
+2. **Cross-emitter comparison** — `CrossEmitterComparisonTests` in the .NET suite reduces each
+   back end's output to the ordered wire operations every generated function performs, and
+   requires Swift and C# to agree. This is what rules out the mirrored bug, which the vectors
+   cannot: they pin the *encoder*, and the decoder is then checked by round-tripping through that
+   same encoder.
+
+   It found a real divergence on its first run. Swift decoded enumerations through a *generated*
+   wrapper where C# and Kotlin read the index inline, so the operation sequences differed even
+   though the bytes did not. The fix was to move the fallible lookup into the runtime
+   (`ExiRuntime.exiEnum`) and leave the read inline — the comparison was right that a wrapper
+   there is a structural difference worth removing.
+3. **Structure**, in the .NET suite (`SwiftEmitterSplitTests`) — one file per type, nothing
+   declared twice, every codec call resolving to a declaration, the runtime imported exactly where
+   it is used, and unmodelled constructs failing loudly.
 
 Bit-exactness and well-formedness are separate concerns: a byte-level diff says nothing about
 whether the emitted Swift *compiles*. That check runs nowhere but `swift test`.
