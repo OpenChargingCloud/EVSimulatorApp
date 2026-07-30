@@ -17,9 +17,14 @@ let package = Package(
     ],
     products: [
         .library(name: "ExiRuntime", targets: ["ExiRuntime"]),
+        .library(name: "ExiAppProtocol", targets: ["ExiAppProtocol"]),
     ],
     targets: [
         .target(name: "ExiRuntime"),
         .testTarget(name: "ExiRuntimeTests", dependencies: ["ExiRuntime"]),
+
+        // Generated — see swift/README.md for the regeneration command.
+        .target(name: "ExiAppProtocol", dependencies: ["ExiRuntime"]),
+        .testTarget(name: "ExiAppProtocolTests", dependencies: ["ExiAppProtocol"]),
     ]
 )

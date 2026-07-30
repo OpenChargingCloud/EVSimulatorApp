@@ -16,6 +16,14 @@ public enum ExiError: Error, Equatable {
     case valueTableHitOutOfRange(id: Int, partitionSize: Int)
     /// A code point in a string value is not a valid Unicode scalar.
     case invalidCodePoint(UInt64)
+    /// The stream does not start with the expected EXI header byte.
+    case invalidHeader
+    /// The document element selector named a production the schema set does not have.
+    case unknownDocumentIndex(UInt32)
+    /// A grammar event code is not one this position allows — named by the construct that read it.
+    case invalidEventCode(String)
+    /// An enumeration index is outside the type's member list.
+    case unknownEnumValue(type: String, index: UInt32)
 }
 
 /// Bit-level writer, MSB-first within each byte to match EXI bit-packed alignment: the first bit
