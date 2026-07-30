@@ -27,7 +27,7 @@ internal fun decodeSessionSetupReq(r: BitReader): SessionSetupReq {
     val _header = decodeMessageHeaderType(r)
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _eVCCID = ExiPrimitives.readStringValue(r)
+    val _eVCCID = ExiPrimitives.readStringValue(r, "EVCCID")
     r.readBits(1)   // child EE
     r.readBits(1)   // element EE
     return SessionSetupReq(_header, _eVCCID)

@@ -78,7 +78,7 @@ internal fun decodeMeteringReceiptReqType(r: BitReader): MeteringReceiptReqType 
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
-                        _id = ExiPrimitives.readStringValue(r)
+                        _id = ExiPrimitives.readStringValue(r, "Id")
                         st20 = 1
                     }
                     1u -> {   // SE(SessionID)

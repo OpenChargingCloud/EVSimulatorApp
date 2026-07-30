@@ -202,7 +202,7 @@ internal fun decodeCurrentDemandResType(r: BitReader): CurrentDemandResType {
                     }
                     3u -> {   // SE(EVSEID)
                         r.readBits(1)   // value-start
-                        _eVSEID = ExiPrimitives.readStringValue(r)
+                        _eVSEID = ExiPrimitives.readStringValue(r, "EVSEID")
                         r.readBits(1)   // child EE
                         done32 = true
                     }
@@ -221,7 +221,7 @@ internal fun decodeCurrentDemandResType(r: BitReader): CurrentDemandResType {
                     }
                     2u -> {   // SE(EVSEID)
                         r.readBits(1)   // value-start
-                        _eVSEID = ExiPrimitives.readStringValue(r)
+                        _eVSEID = ExiPrimitives.readStringValue(r, "EVSEID")
                         r.readBits(1)   // child EE
                         done32 = true
                     }
@@ -236,7 +236,7 @@ internal fun decodeCurrentDemandResType(r: BitReader): CurrentDemandResType {
                     }
                     1u -> {   // SE(EVSEID)
                         r.readBits(1)   // value-start
-                        _eVSEID = ExiPrimitives.readStringValue(r)
+                        _eVSEID = ExiPrimitives.readStringValue(r, "EVSEID")
                         r.readBits(1)   // child EE
                         done32 = true
                     }
@@ -247,7 +247,7 @@ internal fun decodeCurrentDemandResType(r: BitReader): CurrentDemandResType {
                 when (r.readBits(1)) {
                     0u -> {   // SE(EVSEID)
                         r.readBits(1)   // value-start
-                        _eVSEID = ExiPrimitives.readStringValue(r)
+                        _eVSEID = ExiPrimitives.readStringValue(r, "EVSEID")
                         r.readBits(1)   // child EE
                         done32 = true
                     }

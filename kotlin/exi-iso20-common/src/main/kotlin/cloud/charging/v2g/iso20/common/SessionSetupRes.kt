@@ -36,7 +36,7 @@ internal fun decodeSessionSetupRes(r: BitReader): SessionSetupRes {
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _eVSEID = ExiPrimitives.readStringValue(r)
+    val _eVSEID = ExiPrimitives.readStringValue(r, "EVSEID")
     r.readBits(1)   // child EE
     r.readBits(1)   // element EE
     return SessionSetupRes(_header, _responseCode, _eVSEID)

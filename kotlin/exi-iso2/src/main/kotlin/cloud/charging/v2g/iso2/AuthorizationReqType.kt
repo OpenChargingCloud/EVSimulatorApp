@@ -63,7 +63,7 @@ internal fun decodeAuthorizationReqType(r: BitReader): AuthorizationReqType {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
-                        _id = ExiPrimitives.readStringValue(r)
+                        _id = ExiPrimitives.readStringValue(r, "Id")
                         st11 = 1
                     }
                     1u -> {

@@ -204,7 +204,7 @@ internal fun encodeMeterInfoType(w: BitWriter, msg: MeterInfoType) {
 internal fun decodeMeterInfoType(r: BitReader): MeterInfoType {
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _meterID = ExiPrimitives.readStringValue(r)
+    val _meterID = ExiPrimitives.readStringValue(r, "MeterID")
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start

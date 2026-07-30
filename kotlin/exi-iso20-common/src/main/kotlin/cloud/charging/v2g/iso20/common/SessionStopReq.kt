@@ -80,13 +80,13 @@ internal fun decodeSessionStopReq(r: BitReader): SessionStopReq {
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _eVTerminationCode = ExiPrimitives.readStringValue(r)
+                        _eVTerminationCode = ExiPrimitives.readStringValue(r, "EVTerminationCode")
                         r.readBits(1)   // child EE
                         st107 = 1
                     }
                     1u -> {
                         r.readBits(1)   // value-start
-                        _eVTerminationExplanation = ExiPrimitives.readStringValue(r)
+                        _eVTerminationExplanation = ExiPrimitives.readStringValue(r, "EVTerminationExplanation")
                         r.readBits(1)   // child EE
                         st107 = 2
                     }
@@ -98,7 +98,7 @@ internal fun decodeSessionStopReq(r: BitReader): SessionStopReq {
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _eVTerminationExplanation = ExiPrimitives.readStringValue(r)
+                        _eVTerminationExplanation = ExiPrimitives.readStringValue(r, "EVTerminationExplanation")
                         r.readBits(1)   // child EE
                         st107 = 2
                     }

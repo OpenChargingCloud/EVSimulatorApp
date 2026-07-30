@@ -97,7 +97,7 @@ internal fun decodeChargeServiceType(r: BitReader): ChargeServiceType {
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _serviceName = ExiPrimitives.readStringValue(r)
+                        _serviceName = ExiPrimitives.readStringValue(r, "ServiceName")
                         r.readBits(1)   // child EE
                         st42 = 1
                     }
@@ -133,7 +133,7 @@ internal fun decodeChargeServiceType(r: BitReader): ChargeServiceType {
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _serviceScope = ExiPrimitives.readStringValue(r)
+                        _serviceScope = ExiPrimitives.readStringValue(r, "ServiceScope")
                         r.readBits(1)   // child EE
                         st43 = 1
                     }

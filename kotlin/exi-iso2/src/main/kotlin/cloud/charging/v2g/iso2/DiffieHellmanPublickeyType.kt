@@ -22,7 +22,7 @@ internal fun encodeDiffieHellmanPublickeyType(w: BitWriter, msg: DiffieHellmanPu
 
 internal fun decodeDiffieHellmanPublickeyType(r: BitReader): DiffieHellmanPublickeyType {
     r.readBits(1)   // AT(required attribute)
-    val _id = ExiPrimitives.readStringValue(r)
+    val _id = ExiPrimitives.readStringValue(r, "Id")
     r.readBits(1)   // CONTENT event
     val _value = ExiPrimitives.readBinary(r)
     r.readBits(1)   // element EE

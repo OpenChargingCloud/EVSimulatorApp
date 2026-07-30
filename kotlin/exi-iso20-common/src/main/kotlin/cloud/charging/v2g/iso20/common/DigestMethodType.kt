@@ -41,7 +41,7 @@ internal fun encodeDigestMethodType(w: BitWriter, msg: DigestMethodType) {
 
 internal fun decodeDigestMethodType(r: BitReader): DigestMethodType {
     r.readBits(1)   // AT(required attribute)
-    val _algorithm = ExiPrimitives.readStringValue(r)
+    val _algorithm = ExiPrimitives.readStringValue(r, "Algorithm")
     var _aNY: ByteArray? = null
     var st93 = 0
     var done93 = false

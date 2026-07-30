@@ -39,11 +39,11 @@ internal fun decodeEVAbsolutePriceScheduleType(r: BitReader): EVAbsolutePriceSch
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _currency = ExiPrimitives.readStringValue(r)
+    val _currency = ExiPrimitives.readStringValue(r, "Currency")
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _priceAlgorithm = ExiPrimitives.readStringValue(r)
+    val _priceAlgorithm = ExiPrimitives.readStringValue(r, "PriceAlgorithm")
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     val _eVPriceRuleStacks = decodeEVPriceRuleStackListType(r)

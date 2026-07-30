@@ -63,7 +63,7 @@ internal fun decodeOverstayRuleType(r: BitReader): OverstayRuleType {
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _overstayRuleDescription = ExiPrimitives.readStringValue(r)
+                        _overstayRuleDescription = ExiPrimitives.readStringValue(r, "OverstayRuleDescription")
                         r.readBits(1)   // child EE
                         st61 = 1
                     }

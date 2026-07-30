@@ -66,7 +66,7 @@ internal fun decodeServiceDiscoveryReqType(r: BitReader): ServiceDiscoveryReqTyp
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _serviceScope = ExiPrimitives.readStringValue(r)
+                        _serviceScope = ExiPrimitives.readStringValue(r, "ServiceScope")
                         r.readBits(1)   // child EE
                         st5 = 1
                     }

@@ -86,7 +86,7 @@ internal fun decodeSignatureType(r: BitReader): SignatureType {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
-                        _id = ExiPrimitives.readStringValue(r)
+                        _id = ExiPrimitives.readStringValue(r, "Id")
                         st86 = 1
                     }
                     1u -> {   // SE(SignedInfo)

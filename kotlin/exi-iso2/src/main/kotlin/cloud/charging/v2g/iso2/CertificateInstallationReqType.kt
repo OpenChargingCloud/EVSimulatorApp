@@ -27,7 +27,7 @@ internal fun encodeCertificateInstallationReqType(w: BitWriter, msg: Certificate
 
 internal fun decodeCertificateInstallationReqType(r: BitReader): CertificateInstallationReqType {
     r.readBits(1)   // AT(required attribute)
-    val _id = ExiPrimitives.readStringValue(r)
+    val _id = ExiPrimitives.readStringValue(r, "Id")
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
     val _oEMProvisioningCert = ExiPrimitives.readBinary(r)

@@ -22,9 +22,9 @@ internal fun encodeEMAIDType(w: BitWriter, msg: EMAIDType) {
 
 internal fun decodeEMAIDType(r: BitReader): EMAIDType {
     r.readBits(1)   // AT(required attribute)
-    val _id = ExiPrimitives.readStringValue(r)
+    val _id = ExiPrimitives.readStringValue(r, "Id")
     r.readBits(1)   // CONTENT event
-    val _value = ExiPrimitives.readStringValue(r)
+    val _value = ExiPrimitives.readStringValue(r, "Value")
     r.readBits(1)   // element EE
     return EMAIDType(_id, _value)
 }

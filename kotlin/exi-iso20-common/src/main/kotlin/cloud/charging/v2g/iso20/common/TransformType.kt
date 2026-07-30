@@ -60,7 +60,7 @@ internal fun encodeTransformType(w: BitWriter, msg: TransformType) {
 
 internal fun decodeTransformType(r: BitReader): TransformType {
     r.readBits(1)   // AT(required attribute)
-    val _algorithm = ExiPrimitives.readStringValue(r)
+    val _algorithm = ExiPrimitives.readStringValue(r, "Algorithm")
     var _xPath: String? = null
     var _aNY: ByteArray? = null
     var st91 = 0
@@ -71,7 +71,7 @@ internal fun decodeTransformType(r: BitReader): TransformType {
                 when (r.readBits(3)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _xPath = ExiPrimitives.readStringValue(r)
+                        _xPath = ExiPrimitives.readStringValue(r, "XPath")
                         r.readBits(1)   // child EE
                         st91 = 1
                     }

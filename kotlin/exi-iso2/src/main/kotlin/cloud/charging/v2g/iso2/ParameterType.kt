@@ -56,7 +56,7 @@ internal fun encodeParameterType(w: BitWriter, msg: ParameterType) {
 
 internal fun decodeParameterType(r: BitReader): ParameterType {
     r.readBits(1)   // AT(required attribute)
-    val _name = ExiPrimitives.readStringValue(r)
+    val _name = ExiPrimitives.readStringValue(r, "Name")
     var _boolValue: Boolean? = null
     var _byteValue: Byte? = null
     var _shortValue: Short? = null
@@ -89,7 +89,7 @@ internal fun decodeParameterType(r: BitReader): ParameterType {
         }
         5u -> {   // StringValue
             r.readBits(1)   // value-start
-            _stringValue = ExiPrimitives.readStringValue(r)
+            _stringValue = ExiPrimitives.readStringValue(r, "StringValue")
             r.readBits(1)   // child EE
         }
         else -> throw IllegalArgumentException("unknown choice event code")

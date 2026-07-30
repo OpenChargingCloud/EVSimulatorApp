@@ -53,7 +53,7 @@ internal fun encodeSignedInstallationData(w: BitWriter, msg: SignedInstallationD
 
 internal fun decodeSignedInstallationData(r: BitReader): SignedInstallationData {
     r.readBits(1)   // AT(required attribute)
-    val _id = ExiPrimitives.readStringValue(r)
+    val _id = ExiPrimitives.readStringValue(r, "Id")
     r.readBits(1)   // SE
     val _contractCertificateChain = decodeContractCertificateChainType(r)
     r.readBits(1)   // SE

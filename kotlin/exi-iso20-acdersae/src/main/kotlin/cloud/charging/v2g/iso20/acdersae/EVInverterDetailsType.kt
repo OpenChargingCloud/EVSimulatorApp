@@ -62,7 +62,7 @@ internal fun encodeEVInverterDetailsType(w: BitWriter, msg: EVInverterDetailsTyp
 internal fun decodeEVInverterDetailsType(r: BitReader): EVInverterDetailsType {
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _eVInverterSwVersion = ExiPrimitives.readStringValue(r)
+    val _eVInverterSwVersion = ExiPrimitives.readStringValue(r, "EVInverterSwVersion")
     r.readBits(1)   // child EE
     var _eVInverterHwVersion: String? = null
     var _eVInverterManufacturer: String? = null
@@ -74,13 +74,13 @@ internal fun decodeEVInverterDetailsType(r: BitReader): EVInverterDetailsType {
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _eVInverterHwVersion = ExiPrimitives.readStringValue(r)
+                        _eVInverterHwVersion = ExiPrimitives.readStringValue(r, "EVInverterHwVersion")
                         r.readBits(1)   // child EE
                         st141 = 1
                     }
                     1u -> {   // SE(EVInverterManufacturer)
                         r.readBits(1)   // value-start
-                        _eVInverterManufacturer = ExiPrimitives.readStringValue(r)
+                        _eVInverterManufacturer = ExiPrimitives.readStringValue(r, "EVInverterManufacturer")
                         r.readBits(1)   // child EE
                         done141 = true
                     }
@@ -91,7 +91,7 @@ internal fun decodeEVInverterDetailsType(r: BitReader): EVInverterDetailsType {
                 when (r.readBits(1)) {
                     0u -> {   // SE(EVInverterManufacturer)
                         r.readBits(1)   // value-start
-                        _eVInverterManufacturer = ExiPrimitives.readStringValue(r)
+                        _eVInverterManufacturer = ExiPrimitives.readStringValue(r, "EVInverterManufacturer")
                         r.readBits(1)   // child EE
                         done141 = true
                     }
@@ -102,11 +102,11 @@ internal fun decodeEVInverterDetailsType(r: BitReader): EVInverterDetailsType {
     }
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _eVInverterModel = ExiPrimitives.readStringValue(r)
+    val _eVInverterModel = ExiPrimitives.readStringValue(r, "EVInverterModel")
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _eVInverterSerialNumber = ExiPrimitives.readStringValue(r)
+    val _eVInverterSerialNumber = ExiPrimitives.readStringValue(r, "EVInverterSerialNumber")
     r.readBits(1)   // child EE
     r.readBits(1)   // element EE
     return EVInverterDetailsType(_eVInverterSwVersion, _eVInverterHwVersion, _eVInverterManufacturer!!, _eVInverterModel, _eVInverterSerialNumber)

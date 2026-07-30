@@ -60,7 +60,7 @@ internal fun encodeSignatureMethodType(w: BitWriter, msg: SignatureMethodType) {
 
 internal fun decodeSignatureMethodType(r: BitReader): SignatureMethodType {
     r.readBits(1)   // AT(required attribute)
-    val _algorithm = ExiPrimitives.readStringValue(r)
+    val _algorithm = ExiPrimitives.readStringValue(r, "Algorithm")
     var _hMACOutputLength: Long? = null
     var _aNY: ByteArray? = null
     var st21 = 0

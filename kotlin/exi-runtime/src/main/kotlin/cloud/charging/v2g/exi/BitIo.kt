@@ -51,6 +51,16 @@ class BitReader(private val buffer: ByteArray, private val offset: Int = 0) {
 
     private var bitPos = 0
 
+    /**
+     * The EXI string value-table partitions for this stream, created on first use.
+     *
+     * It hangs off the reader so the generated decoders need no extra parameter threaded through
+     * every call — a value read only has to name its own slot. There is deliberately no counterpart
+     * on [BitWriter]: cbV2G is miss-only, every checked-in vector is its output, and an encoder that
+     * started emitting hits would invalidate all of them.
+     */
+    val stringTable: ExiStringTable by lazy { ExiStringTable() }
+
     val bitsRead: Int get() = bitPos
     val bytesConsumed: Int get() = (bitPos + 7) shr 3
 

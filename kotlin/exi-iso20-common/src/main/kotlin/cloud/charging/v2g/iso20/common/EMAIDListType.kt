@@ -27,7 +27,7 @@ internal fun decodeEMAIDListType(r: BitReader): EMAIDListType {
     val list = ArrayList<String>()
     r.readBits(1)   // SE(item) first
     r.readBits(1)   // value-start
-    val listFirst = ExiPrimitives.readStringValue(r)
+    val listFirst = ExiPrimitives.readStringValue(r, "EMAID")
     r.readBits(1)   // child EE
     list.add(listFirst)
     while (true) {
@@ -35,7 +35,7 @@ internal fun decodeEMAIDListType(r: BitReader): EMAIDListType {
         if (ec == 1u) break   // element EE
         require(ec == 0u && list.size < 8) { "invalid repeating-element event code" }
         r.readBits(1)   // value-start
-        val listNext = ExiPrimitives.readStringValue(r)
+        val listNext = ExiPrimitives.readStringValue(r, "EMAID")
         r.readBits(1)   // child EE
         list.add(listNext)
     }

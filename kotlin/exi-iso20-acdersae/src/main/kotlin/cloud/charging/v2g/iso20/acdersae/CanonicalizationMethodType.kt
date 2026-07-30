@@ -41,7 +41,7 @@ internal fun encodeCanonicalizationMethodType(w: BitWriter, msg: Canonicalizatio
 
 internal fun decodeCanonicalizationMethodType(r: BitReader): CanonicalizationMethodType {
     r.readBits(1)   // AT(required attribute)
-    val _algorithm = ExiPrimitives.readStringValue(r)
+    val _algorithm = ExiPrimitives.readStringValue(r, "Algorithm")
     var _aNY: ByteArray? = null
     var st267 = 0
     var done267 = false

@@ -72,7 +72,7 @@ internal fun decodeCertificateChainType(r: BitReader): CertificateChainType {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
-                        _id = ExiPrimitives.readStringValue(r)
+                        _id = ExiPrimitives.readStringValue(r, "Id")
                         st46 = 1
                     }
                     1u -> {   // SE(Certificate)

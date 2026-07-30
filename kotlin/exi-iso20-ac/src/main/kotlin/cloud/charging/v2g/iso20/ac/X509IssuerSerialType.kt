@@ -27,7 +27,7 @@ internal fun encodeX509IssuerSerialType(w: BitWriter, msg: X509IssuerSerialType)
 internal fun decodeX509IssuerSerialType(r: BitReader): X509IssuerSerialType {
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _x509IssuerName = ExiPrimitives.readStringValue(r)
+    val _x509IssuerName = ExiPrimitives.readStringValue(r, "X509IssuerName")
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start

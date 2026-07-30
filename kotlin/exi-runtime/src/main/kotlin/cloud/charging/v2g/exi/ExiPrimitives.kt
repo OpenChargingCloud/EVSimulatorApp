@@ -73,17 +73,20 @@ object ExiPrimitives {
         for (cp in cps) writeUnsignedInteger(w, cp.toULong())
     }
 
-    fun readStringValue(r: BitReader): String {
-        val lenPlus2 = readUnsignedInteger(r)
-        if (lenPlus2 < 2uL)
-            throw IllegalArgumentException(
-                "String value-table hit encountered, but this codec is miss-only (cbV2G-conformant)."
-            )
-        val len = (lenPlus2 - 2uL).toInt()
-        val sb = StringBuilder(len)
-        repeat(len) { sb.appendCodePoint(readUnsignedInteger(r).toInt()) }
-        return sb.toString()
-    }
+    /**
+     * Reads a string value at the given slot, resolving value-table hits against the reader's own
+     * [BitReader.stringTable].
+     *
+     * The slot is the QName local part of the element or attribute whose value this is; EXI keeps
+     * one local value partition per slot, plus one global partition per stream.
+     *
+     * There is deliberately no encoding counterpart. cbV2G never emits hits, every checked-in
+     * vector is its output, and an encoder that started emitting them would invalidate all of them —
+     * so [writeStringValue] stays miss-only while the decoder accepts what a conforming peer may
+     * legitimately send.
+     */
+    fun readStringValue(r: BitReader, slot: String): String =
+        r.stringTable.readStringValue(r, slot)
 
     /**
      * EXI Binary: the byte count as an Unsigned Integer, then the raw octets. hexBinary and

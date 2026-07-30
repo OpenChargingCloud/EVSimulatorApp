@@ -66,7 +66,7 @@ internal fun encodeSignedMeteringData(w: BitWriter, msg: SignedMeteringData) {
 
 internal fun decodeSignedMeteringData(r: BitReader): SignedMeteringData {
     r.readBits(1)   // AT(required attribute)
-    val _id = ExiPrimitives.readStringValue(r)
+    val _id = ExiPrimitives.readStringValue(r, "Id")
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
     val _sessionID = ExiPrimitives.readBinary(r)

@@ -124,19 +124,19 @@ internal fun decodeAlternativeSECCType(r: BitReader): AlternativeSECCType {
                 when (r.readBits(3)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _sSID = ExiPrimitives.readStringValue(r)
+                        _sSID = ExiPrimitives.readStringValue(r, "SSID")
                         r.readBits(1)   // child EE
                         st37 = 1
                     }
                     1u -> {
                         r.readBits(1)   // value-start
-                        _bSSID = ExiPrimitives.readStringValue(r)
+                        _bSSID = ExiPrimitives.readStringValue(r, "BSSID")
                         r.readBits(1)   // child EE
                         st37 = 2
                     }
                     2u -> {
                         r.readBits(1)   // value-start
-                        _iPAddress = ExiPrimitives.readStringValue(r)
+                        _iPAddress = ExiPrimitives.readStringValue(r, "IPAddress")
                         r.readBits(1)   // child EE
                         st37 = 3
                     }
@@ -154,13 +154,13 @@ internal fun decodeAlternativeSECCType(r: BitReader): AlternativeSECCType {
                 when (r.readBits(3)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _bSSID = ExiPrimitives.readStringValue(r)
+                        _bSSID = ExiPrimitives.readStringValue(r, "BSSID")
                         r.readBits(1)   // child EE
                         st37 = 2
                     }
                     1u -> {
                         r.readBits(1)   // value-start
-                        _iPAddress = ExiPrimitives.readStringValue(r)
+                        _iPAddress = ExiPrimitives.readStringValue(r, "IPAddress")
                         r.readBits(1)   // child EE
                         st37 = 3
                     }
@@ -178,7 +178,7 @@ internal fun decodeAlternativeSECCType(r: BitReader): AlternativeSECCType {
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _iPAddress = ExiPrimitives.readStringValue(r)
+                        _iPAddress = ExiPrimitives.readStringValue(r, "IPAddress")
                         r.readBits(1)   // child EE
                         st37 = 3
                     }

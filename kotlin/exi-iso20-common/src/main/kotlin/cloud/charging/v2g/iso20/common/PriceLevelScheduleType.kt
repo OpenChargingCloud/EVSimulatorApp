@@ -90,7 +90,7 @@ internal fun decodePriceLevelScheduleType(r: BitReader): PriceLevelScheduleType 
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
-                        _id = ExiPrimitives.readStringValue(r)
+                        _id = ExiPrimitives.readStringValue(r, "Id")
                         st42 = 1
                     }
                     1u -> {   // SE(TimeAnchor)
@@ -129,7 +129,7 @@ internal fun decodePriceLevelScheduleType(r: BitReader): PriceLevelScheduleType 
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _priceScheduleDescription = ExiPrimitives.readStringValue(r)
+                        _priceScheduleDescription = ExiPrimitives.readStringValue(r, "PriceScheduleDescription")
                         r.readBits(1)   // child EE
                         st43 = 1
                     }

@@ -48,7 +48,7 @@ internal fun decodeSignatureValueType(r: BitReader): SignatureValueType {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {   // AT(Id)
-                        _id = ExiPrimitives.readStringValue(r)
+                        _id = ExiPrimitives.readStringValue(r, "Id")
                         st15 = 1
                     }
                     1u -> {   // CONTENT

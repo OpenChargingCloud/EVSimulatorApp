@@ -116,15 +116,15 @@ internal fun decodeReferenceType(r: BitReader): ReferenceType {
             0 -> {
                 when (r.readBits(3)) {
                     0u -> {
-                        _id = ExiPrimitives.readStringValue(r)
+                        _id = ExiPrimitives.readStringValue(r, "Id")
                         st59 = 1
                     }
                     1u -> {
-                        _type = ExiPrimitives.readStringValue(r)
+                        _type = ExiPrimitives.readStringValue(r, "Type")
                         st59 = 2
                     }
                     2u -> {
-                        _uRI = ExiPrimitives.readStringValue(r)
+                        _uRI = ExiPrimitives.readStringValue(r, "URI")
                         st59 = 3
                     }
                     3u -> {
@@ -141,11 +141,11 @@ internal fun decodeReferenceType(r: BitReader): ReferenceType {
             1 -> {
                 when (r.readBits(3)) {
                     0u -> {
-                        _type = ExiPrimitives.readStringValue(r)
+                        _type = ExiPrimitives.readStringValue(r, "Type")
                         st59 = 2
                     }
                     1u -> {
-                        _uRI = ExiPrimitives.readStringValue(r)
+                        _uRI = ExiPrimitives.readStringValue(r, "URI")
                         st59 = 3
                     }
                     2u -> {
@@ -162,7 +162,7 @@ internal fun decodeReferenceType(r: BitReader): ReferenceType {
             2 -> {
                 when (r.readBits(2)) {
                     0u -> {
-                        _uRI = ExiPrimitives.readStringValue(r)
+                        _uRI = ExiPrimitives.readStringValue(r, "URI")
                         st59 = 3
                     }
                     1u -> {

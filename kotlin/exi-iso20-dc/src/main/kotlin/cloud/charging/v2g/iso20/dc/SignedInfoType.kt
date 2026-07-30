@@ -58,7 +58,7 @@ internal fun decodeSignedInfoType(r: BitReader): SignedInfoType {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
-                        _id = ExiPrimitives.readStringValue(r)
+                        _id = ExiPrimitives.readStringValue(r, "Id")
                         st49 = 1
                     }
                     1u -> {   // SE(CanonicalizationMethod)

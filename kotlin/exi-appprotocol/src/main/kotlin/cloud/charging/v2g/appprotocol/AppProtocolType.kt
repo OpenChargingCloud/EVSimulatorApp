@@ -42,7 +42,7 @@ internal fun encodeAppProtocolType(w: BitWriter, msg: AppProtocolType) {
 internal fun decodeAppProtocolType(r: BitReader): AppProtocolType {
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _protocolNamespace = ExiPrimitives.readStringValue(r)
+    val _protocolNamespace = ExiPrimitives.readStringValue(r, "ProtocolNamespace")
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start

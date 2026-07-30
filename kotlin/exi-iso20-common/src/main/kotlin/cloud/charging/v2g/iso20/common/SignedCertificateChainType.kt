@@ -44,7 +44,7 @@ internal fun encodeSignedCertificateChainType(w: BitWriter, msg: SignedCertifica
 
 internal fun decodeSignedCertificateChainType(r: BitReader): SignedCertificateChainType {
     r.readBits(1)   // AT(required attribute)
-    val _id = ExiPrimitives.readStringValue(r)
+    val _id = ExiPrimitives.readStringValue(r, "Id")
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
     val _certificate = ExiPrimitives.readBinary(r)

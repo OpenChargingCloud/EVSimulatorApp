@@ -105,7 +105,7 @@ internal fun decodeTaxRuleType(r: BitReader): TaxRuleType {
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _taxRuleName = ExiPrimitives.readStringValue(r)
+                        _taxRuleName = ExiPrimitives.readStringValue(r, "TaxRuleName")
                         r.readBits(1)   // child EE
                         st54 = 1
                     }

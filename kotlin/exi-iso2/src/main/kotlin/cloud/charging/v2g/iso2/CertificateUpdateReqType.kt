@@ -30,12 +30,12 @@ internal fun encodeCertificateUpdateReqType(w: BitWriter, msg: CertificateUpdate
 
 internal fun decodeCertificateUpdateReqType(r: BitReader): CertificateUpdateReqType {
     r.readBits(1)   // AT(required attribute)
-    val _id = ExiPrimitives.readStringValue(r)
+    val _id = ExiPrimitives.readStringValue(r, "Id")
     r.readBits(1)   // SE
     val _contractSignatureCertChain = decodeCertificateChainType(r)
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _eMAID = ExiPrimitives.readStringValue(r)
+    val _eMAID = ExiPrimitives.readStringValue(r, "EMAID")
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     val _listOfRootCertificateIDs = decodeListOfRootCertificateIDsType(r)

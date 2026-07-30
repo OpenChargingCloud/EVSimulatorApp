@@ -25,7 +25,7 @@ internal fun encodePaymentDetailsReqType(w: BitWriter, msg: PaymentDetailsReqTyp
 internal fun decodePaymentDetailsReqType(r: BitReader): PaymentDetailsReqType {
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _eMAID = ExiPrimitives.readStringValue(r)
+    val _eMAID = ExiPrimitives.readStringValue(r, "EMAID")
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     val _contractSignatureCertChain = decodeCertificateChainType(r)

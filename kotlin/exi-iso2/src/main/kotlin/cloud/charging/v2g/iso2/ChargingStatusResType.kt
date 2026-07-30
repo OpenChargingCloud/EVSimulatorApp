@@ -102,7 +102,7 @@ internal fun decodeChargingStatusResType(r: BitReader): ChargingStatusResType {
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _eVSEID = ExiPrimitives.readStringValue(r)
+    val _eVSEID = ExiPrimitives.readStringValue(r, "EVSEID")
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start

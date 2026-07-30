@@ -55,7 +55,7 @@ internal fun decodeNotificationType(r: BitReader): NotificationType {
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _faultMsg = ExiPrimitives.readStringValue(r)
+                        _faultMsg = ExiPrimitives.readStringValue(r, "FaultMsg")
                         r.readBits(1)   // child EE
                         st51 = 1
                     }

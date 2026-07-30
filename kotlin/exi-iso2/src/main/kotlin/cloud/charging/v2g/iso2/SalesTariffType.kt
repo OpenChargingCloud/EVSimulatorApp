@@ -115,7 +115,7 @@ internal fun decodeSalesTariffType(r: BitReader): SalesTariffType {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
-                        _id = ExiPrimitives.readStringValue(r)
+                        _id = ExiPrimitives.readStringValue(r, "Id")
                         st56 = 1
                     }
                     1u -> {   // SE(SalesTariffID)
@@ -151,7 +151,7 @@ internal fun decodeSalesTariffType(r: BitReader): SalesTariffType {
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
-                        _salesTariffDescription = ExiPrimitives.readStringValue(r)
+                        _salesTariffDescription = ExiPrimitives.readStringValue(r, "SalesTariffDescription")
                         r.readBits(1)   // child EE
                         st57 = 1
                     }

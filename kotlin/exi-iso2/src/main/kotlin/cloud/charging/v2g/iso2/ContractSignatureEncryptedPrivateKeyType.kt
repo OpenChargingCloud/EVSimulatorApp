@@ -22,7 +22,7 @@ internal fun encodeContractSignatureEncryptedPrivateKeyType(w: BitWriter, msg: C
 
 internal fun decodeContractSignatureEncryptedPrivateKeyType(r: BitReader): ContractSignatureEncryptedPrivateKeyType {
     r.readBits(1)   // AT(required attribute)
-    val _id = ExiPrimitives.readStringValue(r)
+    val _id = ExiPrimitives.readStringValue(r, "Id")
     r.readBits(1)   // CONTENT event
     val _value = ExiPrimitives.readBinary(r)
     r.readBits(1)   // element EE

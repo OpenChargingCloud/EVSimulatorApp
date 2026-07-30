@@ -25,7 +25,7 @@ internal fun encodeAdditionalServiceType(w: BitWriter, msg: AdditionalServiceTyp
 internal fun decodeAdditionalServiceType(r: BitReader): AdditionalServiceType {
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    val _serviceName = ExiPrimitives.readStringValue(r)
+    val _serviceName = ExiPrimitives.readStringValue(r, "ServiceName")
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     val _serviceFee = decodeRationalNumberType(r)
