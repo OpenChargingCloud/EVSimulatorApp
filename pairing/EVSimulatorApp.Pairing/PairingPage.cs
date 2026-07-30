@@ -104,7 +104,10 @@ public static class PairingPage
             html.Append("</ul>\n");
         }
 
-        html.Append($"<p class=\"uri\">{Escape(uri)}</p>\n");
+        // Carries an id because live mode rewrites it: the QR and this line are two projections of
+        // the same string, and a page where only one of them rotates shows a URI that no longer
+        // matches the code beside it — readable, copyable, and rejected by the station.
+        html.Append($"<p class=\"uri\" id=\"uri\">{Escape(uri)}</p>\n");
 
         if (totp is not null)
             html.Append($"<p>This code changes in <span id=\"left\">{(int) remaining.TotalSeconds}</span> s.</p>\n");
@@ -137,13 +140,19 @@ public static class PairingPage
                   // Live mode: the station pushes each new slot, so the page never reloads and never
                   // guesses. A reload-driven page and a station whose clock has drifted disagree
                   // silently; here the code on screen is the one the station just minted.
-                  const qr     = document.getElementById('qr');
-                  const status = document.getElementById('status');
-                  const log    = document.getElementById('log');
-                  const left   = document.getElementById('left');
+                  const qr      = document.getElementById('qr');
+                  const uriText = document.getElementById('uri');
+                  const status  = document.getElementById('status');
+                  const log     = document.getElementById('log');
+                  const left    = document.getElementById('left');
+
+                  // Both projections of the slot's URI are written here, in one place: the QR and the
+                  // line under it are the same string, and updating them from two callers is how they
+                  // drift. textContent, not innerHTML — the URI is a value, never markup.
                   // One insertion rather than clear-then-draw: replaceChildren swaps the old QR for
                   // the new one, so the display never blanks between slots.
-                  const draw = (uri) => qr.replaceChildren(QRCode({ msg: uri }));
+                  const draw = (uri) => { qr.replaceChildren(QRCode({ msg: uri }));
+                                          uriText.textContent = uri; };
 
                   // textContent, never innerHTML: these lines carry peer-controlled text — an EVCC
                   // id, a TLS error — onto the operator's own screen.

@@ -30,6 +30,44 @@ public class PairingPageTests
     private static string Page(PairingPayload? p = null, string? totp = "abc123XYZ789") =>
         PairingPage.Render(p ?? Payload(), totp, TimeSpan.FromSeconds(23));
 
+    private static string LivePage(PairingPayload? p = null, string? totp = "abc123XYZ789") =>
+        PairingPage.Render(p ?? Payload(), totp, TimeSpan.FromSeconds(23), liveEndpoint: "/ws");
+
+    /// <summary>
+    /// Every part of the page that carries the slot's URI has to be rewritten when the slot turns
+    /// over. The QR was; the line under it was not, so a display rotating every ten seconds showed a
+    /// code the station had already stopped accepting — readable, copyable, and rejected. It went
+    /// unnoticed because the QR *did* change, which is the part that looks alive.
+    /// </summary>
+    /// <remarks>
+    /// This asserts the page's shape, not the browser's behaviour: there is no JS engine here, so
+    /// "the text really changes" is checked by running it (see the commit) rather than by this test.
+    /// What this does catch is the actual defect — a paragraph the script cannot address at all.
+    /// </remarks>
+    [Test]
+    public void TheUriLineIsRewrittenOnEverySlot()
+    {
+        var live = LivePage();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(live, Does.Contain("id=\"uri\""),
+                        "the URI paragraph needs an id, or live mode cannot reach it");
+            Assert.That(live, Does.Contain("uriText.textContent = uri"),
+                        "the slot's URI must be written to that paragraph, not only to the QR");
+            Assert.That(live, Does.Contain("draw(e.uri)"),
+                        "and that write has to happen on the pairing event");
+        });
+    }
+
+    /// <summary>
+    /// The static page has no socket to be updated over, so it reloads instead — but it must still
+    /// show the URI once, in a form a person can read.
+    /// </summary>
+    [Test]
+    public void TheStaticPageStillShowsTheUri()
+        => Assert.That(Page(), Does.Contain("class=\"uri\""));
+
     /// <summary>
     /// The whole point of generating the page on the Pi: the code it shows is the code the station's
     /// own configuration produces, not one written next to it by hand.
