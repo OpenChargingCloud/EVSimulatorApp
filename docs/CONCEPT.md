@@ -1093,6 +1093,13 @@ back ends. Nothing was broken; the point is that nothing would have said so.
 > ISO 15118 defines the field and not its content — so it is written down rather than merely
 > implemented, and the app must reproduce it byte for byte to verify anything.
 >
+> **The app's verifying half is done as well**, in Swift (`V2GMetering`) and Kotlin
+> (`v2g-metering`). Both are held to a corpus the C# side generates rather than to their own
+> output — three ports of one layout, each tested against itself, agree perfectly and can be wrong
+> together. Each vector carries the payload as well as the signature, so a divergence says *which
+> byte* instead of just "no". That closes §4.3's first leg: a phone can now verify a station's
+> signed reading, which is the part that has to work before the three-way comparison means anything.
+>
 > **Everything needing the Pi is not.** Hosting the SECC over WLAN, interface binding, the display
 > page, AP mode and the exit criterion below all need hardware to verify, and claiming them from a
 > laptop would be claiming an untested deployment. The pieces that were done first are the ones

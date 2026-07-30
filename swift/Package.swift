@@ -26,6 +26,7 @@ let package = Package(
         .library(name: "ExiIso20AcDerIec", targets: ["ExiIso20AcDerIec"]),
         .library(name: "ExiIso20AcDerSae", targets: ["ExiIso20AcDerSae"]),
         .library(name: "V2GEd448", targets: ["V2GEd448"]),
+        .library(name: "V2GMetering", targets: ["V2GMetering"]),
         .library(name: "V2GTP", targets: ["V2GTP"]),
         .library(name: "V2GDispatch", targets: ["V2GDispatch"]),
     ],
@@ -71,6 +72,11 @@ let package = Package(
         .testTarget(name: "ExiIso20AcDerIecTests", dependencies: ["ExiIso20AcDerIec"]),
         .target(name: "ExiIso20AcDerSae", dependencies: ["ExiRuntime", "V2GEd448"]),
         .testTarget(name: "ExiIso20AcDerSaeTests", dependencies: ["ExiIso20AcDerSae"]),
+
+        // Verifying a station's meter-signed reading (docs/CONCEPT.md §4.3). Depends on nothing but
+        // CryptoKit: the payload is a byte layout, and the field is protocol-agnostic.
+        .target(name: "V2GMetering"),
+        .testTarget(name: "V2GMeteringTests", dependencies: ["V2GMetering"]),
 
         // Hand-written, and split for the reason kotlin/ splits them: reading a frame's type and
         // length pulls in nothing, while resolving that type to a decoder needs every message set.
