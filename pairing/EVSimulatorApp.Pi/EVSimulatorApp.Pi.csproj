@@ -7,6 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- The Pi is arm64 Linux; nothing here is platform-specific, which is the point. -->
     <InvariantGlobalization>true</InvariantGlobalization>
+    <UserSecretsId>71088dbb-74c7-4b8c-ac8f-65116350bf84</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
