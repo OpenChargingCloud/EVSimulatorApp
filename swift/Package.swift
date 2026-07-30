@@ -15,15 +15,6 @@ let package = Package(
         .iOS(.v16),
         .macOS(.v13),
     ],
-    // SPIKE (branch spike/ed448-goldilocks, 2026-07-30) — not for master as it stands.
-    //
-    // Evaluating swift-goldilocks as the Ed448 answer for -20's second signature suite, which
-    // CryptoKit cannot provide at all (docs/CONCEPT.md §3.3, §8 #10). Despite the "pure Swift"
-    // billing it vendors Mike Hamburg's libgoldilocks C sources and wraps them — which is the
-    // better news: the field arithmetic is the reference implementation rather than fresh code.
-    //
-    // The whole point of the spike is the acceptance test, not the integration: RFC 8032 §7.4's
-    // published vectors, the same file the C# and Kotlin suites read.
     products: [
         .library(name: "ExiRuntime", targets: ["ExiRuntime"]),
         .library(name: "ExiAppProtocol", targets: ["ExiAppProtocol"]),
@@ -37,6 +28,20 @@ let package = Package(
         .library(name: "V2GTP", targets: ["V2GTP"]),
         .library(name: "V2GDispatch", targets: ["V2GDispatch"]),
     ],
+    // The Ed448 half of -20's signature suite, which CryptoKit cannot provide at all — it lacks the
+    // curve, not merely a registered provider (docs/CONCEPT.md §3.3, §8 #10).
+    //
+    // Chosen after measurement rather than from the README: it reproduces RFC 8032 §7.4 byte for
+    // byte and costs ~81 KB of machine code, against megabytes for OpenSSL. Despite the "pure
+    // Swift" billing it vendors Mike Hamburg's libgoldilocks C sources and wraps them, which is the
+    // better news — the field arithmetic is the reference implementation rather than fresh code.
+    // Findings, including the arguments against, in swift/SPIKE-ed448.md.
+    //
+    // Pinned `exact:` deliberately: a v0.1.x package with one author behind the wrapper, and a
+    // version range would let a crypto dependency move under us between builds.
+    //
+    // **Nothing outside the test target uses it yet.** The -20 sets still throw
+    // `ed448NotAvailable`; integrating it is its own change.
     dependencies: [
         .package(url: "https://github.com/Kingpin-Apps/swift-goldilocks.git", exact: "0.1.1"),
     ],
@@ -77,8 +82,10 @@ let package = Package(
         ]),
         .testTarget(name: "V2GDispatchTests", dependencies: ["V2GDispatch"]),
 
-        // SPIKE — see the note above. Isolated in its own target so it can be deleted in one
-        // commit if the library does not earn its place.
+        // The library's acceptance test, kept in its own target rather than folded into
+        // ExiIso20CommonTests: it checks *the dependency* against RFC 8032, which is a different
+        // question from whether our codecs are right, and it should stay runnable — and removable —
+        // on its own. It moves into the -20 test targets when Ed448 is actually wired in.
         .testTarget(name: "Ed448GoldilocksSpikeTests", dependencies: [
             .product(name: "Goldilocks", package: "swift-goldilocks"),
             "ExiIso20Common",

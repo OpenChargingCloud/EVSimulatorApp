@@ -385,7 +385,7 @@ The app-layer half of this section is no longer a projection. Both back ends sig
 |---|---|---|
 | -2, ECDSA P-256 / SHA-256, raw `r‖s`, 64 B | ✅ | ✅ CryptoKit `rawRepresentation` |
 | -20, ECDSA P-521 / SHA-512, raw `r‖s`, 132 B | ✅ | ✅ CryptoKit, natively |
-| -20, Ed448, 114 B | ✅ BouncyCastle | ❌ **the curve is absent from CryptoKit entirely** |
+| -20, Ed448, 114 B | ✅ BouncyCastle | ⚠️ library chosen and vector-checked (`swift-goldilocks`), **not yet wired in** — §8 #10 |
 
 That last cell is worth sharpening, because the plan understated it. This is **not** an
 unregistered-provider problem of the kind the JVM has, where BouncyCastle supplies what the JDK
@@ -1300,11 +1300,33 @@ isn't lost.
     Ed448 at all — so this no longer threatens the Option-B fallback, which was the original worry.
     Harder, because CryptoKit lacks the *curve*, not a provider registration, so there is no
     equivalent of the JVM's "add BouncyCastle" move.
-    **What is still open is only the choice of bundled library** — BC-Swift, OpenSSL or wolfSSL —
-    and it is a dependency/binary-size decision for the app, not for the codec layer. Until it is
-    made, `verify` throws `ed448NotAvailable` rather than returning `false`, so the gap is a stated
-    condition instead of a silent verification failure. Deferrable to conformant mode (§8 #7:
-    v1 ships relaxed).
+    **The library is chosen (2026-07-30): [`swift-goldilocks`](https://github.com/Kingpin-Apps/swift-goldilocks),
+    pinned at 0.1.1**, merged to master after a spike measured it rather than read its README
+    (`swift/SPIKE-ed448.md`). What decided it:
+
+    | | |
+    |---|---|
+    | RFC 8032 §7.4 | reproduced **byte for byte**, all eight empty-context vectors |
+    | Machine code | **~81 KB** (63 KB C + 18 KB Swift) — against megabytes for OpenSSL |
+    | Licence | MIT throughout |
+    | Build | SwiftPM only; no external toolchain, no script phase |
+
+    It is **not** pure Swift, as advertised — it vendors Mike Hamburg's libgoldilocks C sources and
+    wraps them in four Swift files. That is the better outcome: the field arithmetic is the
+    reference implementation for this curve rather than fresh crypto, and the risk concentrates in
+    a binding layer small enough to read. It costs this document's §2 claim of "no runtime to
+    bundle" a footnote — C sources in a SwiftPM build are a far smaller thing than a bundled
+    runtime, but they are not nothing.
+
+    **Ed448 is still not implemented.** The dependency and its acceptance test are on master;
+    nothing outside that test target calls it, and all five -20 sets still throw
+    `ed448NotAvailable` — deliberately, rather than returning `false`, so the gap stays a stated
+    condition instead of a silent verification failure. Wiring it into `V2GSignature` is its own
+    change, and it should carry the fix noted in `swift/README.md`: `verify` decides on the
+    signature *length* where the SignedInfo carries the declared algorithm URI.
+
+    Deferrable regardless (§8 #7: v1 ships relaxed), and orthogonal to the transport-TLS half of
+    §3.3, which this does not touch.
 
     **The algorithm parameters are now settled (2026-07-30), and the acceptance test exists.**
     ISO 15118-20 uses `http://www.w3.org/2021/04/xmldsig-more#eddsa-ed448`, which RFC 9231 §2.3.12

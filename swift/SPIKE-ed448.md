@@ -1,8 +1,20 @@
 # Spike: `swift-goldilocks` as the Ed448 answer
 
-Branch `spike/ed448-goldilocks`, 2026-07-30. **Not merged.** The library decision is a dependency
-and binary-size call for the app (`docs/CONCEPT.md` §8 #10); this only replaces an opinion with
-measurements.
+Run on branch `spike/ed448-goldilocks`, 2026-07-30; **merged to master on the strength of the
+measurements below.**
+
+What the merge settled and what it did not:
+
+- **Settled** — the library is the chosen Ed448 candidate. The dependency, the vector test and
+  these findings are on master, so the acceptance test runs with every `swift test` rather than
+  living in a branch nobody re-runs.
+- **Not settled** — Ed448 is *not implemented*. All five -20 sets still throw
+  `V2GSignatureError.ed448NotAvailable`; nothing calls Goldilocks outside the test target. Wiring it
+  into `V2GSignature` is a separate change (see [If it is adopted](#if-it-is-adopted)), and until it
+  lands the §3.3 table's Ed448 row is still ❌ for Swift.
+
+The report below is kept as it was written, because the reasoning is what makes the decision
+reviewable — including the parts that argue against.
 
 ## Result
 

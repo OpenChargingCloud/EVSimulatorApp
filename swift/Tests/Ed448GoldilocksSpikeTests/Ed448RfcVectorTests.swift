@@ -3,11 +3,16 @@ import XCTest
 import Goldilocks
 @testable import ExiIso20Common
 
-/// SPIKE: does `swift-goldilocks` reproduce RFC 8032 §7.4 byte for byte?
+/// Does `swift-goldilocks` reproduce RFC 8032 §7.4 byte for byte?
 ///
-/// This is the acceptance test for the Ed448 gap, not an integration. CryptoKit lacks the curve
-/// entirely — not an unregistered provider as on the JVM, the primitive is absent — so -20's second
-/// signature suite needs a bundled library, and the question is which (`docs/CONCEPT.md` §8 #10).
+/// The acceptance test for the Ed448 dependency, and **not** an integration: nothing outside this
+/// target calls Goldilocks, and the five -20 sets still throw `ed448NotAvailable`. CryptoKit lacks
+/// the curve entirely — the primitive is absent, not merely an unregistered provider as on the JVM
+/// — so -20's second signature suite needs a bundled library (`docs/CONCEPT.md` §3.3, §8 #10).
+///
+/// It ran as a spike and was merged on its results; `swift/SPIKE-ed448.md` holds the measurements
+/// and the arguments against. Keeping it running on master is the point — a library evaluation that
+/// lives in a branch is one nobody re-runs when the dependency moves.
 ///
 /// The corpus is the same file the C# and Kotlin suites read, out of the submodule rather than
 /// copied. It is the strongest oracle in the repository: every other vector file is some

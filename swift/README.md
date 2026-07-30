@@ -159,13 +159,20 @@ Rather than a stub that would look implemented, `verify` **throws `ed448NotAvail
 Ed448-shaped signature. A caller has to be able to tell "unsupported algorithm" from "invalid
 signature": the first is a reason to renegotiate, the second a reason to reject the peer.
 
-**What a candidate library has to satisfy is now written down and runnable.** ISO 15118-20 uses
-pure Ed448 — RFC 9231 §2.3.12 lists `#eddsa-ed448ph` under its own identifier — with an empty
-context, signing the SignedInfo fragment octets directly, 114 bytes raw. RFC 8032 §7.4's nine
-published vectors are checked into `libs/Vanaheimr.V2G.Exi/.../Vectors/Ed448.rfc8032.vectors.json`
-and are the acceptance test: reproduce the standard's own signatures byte for byte, or the library
-is not a candidate. An API with no context parameter is fine — that *is* empty-context pure Ed448 —
-and simply cannot express the prehashed variant, which is not needed.
+**The library is chosen and its acceptance test runs here: `swift-goldilocks`, pinned at 0.1.1.**
+It reproduces RFC 8032 §7.4 byte for byte and costs ~81 KB of machine code; see
+[`SPIKE-ed448.md`](SPIKE-ed448.md) for the measurements and the arguments against. The dependency is
+on master and `Ed448GoldilocksSpikeTests` runs with every `swift test`, so a version bump that broke
+the primitive would fail here rather than on a charger.
+
+**It is not wired in.** `verify` still throws `ed448NotAvailable`, and nothing outside that test
+target calls Goldilocks.
+
+The parameters it has to satisfy, for whenever that changes: ISO 15118-20 uses pure Ed448 — RFC 9231
+§2.3.12 lists `#eddsa-ed448ph` under its own identifier — with an empty context, signing the
+SignedInfo fragment octets directly, 114 bytes raw. An API with no context parameter is *correct*
+here rather than limited: that is exactly empty-context pure Ed448, and the test pins that a
+context-carrying signature is rejected rather than silently accepted as one without.
 
 One thing this back end should fix when Ed448 lands: `verify` currently decides on the **signature
 length** (114 → unsupported), where the SignedInfo carries the declared algorithm URI. Reading the
