@@ -12,6 +12,7 @@ hand-written; every codec module is emitted from the XSDs and checked in.
 | `ExiIso2` | Generated ISO 15118-2 codec — 111 files — + vector test (decode → re-encode → `expectedHex`). |
 | `ExiIso20Common` | Generated -20 CommonMessages codec, 160 files. |
 | `ExiIso20DC` / `ExiIso20AC` / `ExiIso20ACDP` | The -20 power-transfer sets, 72 / 59 / 58 files. |
+| `ExiIso20AcDerIec` / `ExiIso20AcDerSae` | The Amendment 1 DER sets, 86 / 107 files. Their corpora are of **mixed provenance** — see below. |
 
 Each -20 set is its own target, as in `kotlin/`: they are independent grammars that happen to
 share `CommonTypes`, and each embeds its own copy of the XMLDSig schema — which is why the same
@@ -103,8 +104,17 @@ needed it:
 1. **Vectors** — `expectedHex` from EVerest's libcbv2g at a pinned commit, read straight out of
    the submodule, the same corpus the C# and Kotlin suites use. AppProtocol encodes and compares
    (17); the rest decode and re-encode — ISO 15118-2 (39), -20 CommonMessages (26), DC (16),
-   AC (10), ACDP (8). **116 vectors, all byte-exact.** Every one exercises the decoder too, and
-   none of them *can* catch a bug mirrored in both directions — see gate 2.
+   AC (10), ACDP (8), AC_DER_IEC (16), AC_DER_SAE (16). **148 vectors, all byte-exact.** Every one
+   exercises the decoder too, and none of them *can* catch a bug mirrored in both directions — see
+   gate 2. WPT's 12 are not covered, because that set is refused.
+
+   **The two AC DER corpora do not mean what the others do.** cbexigen does not generate the
+   Amendment 1 DER schemas, so for any message using a DER member no reference encoder exists. Six
+   of the sixteen carry cbV2G's own bytes — plain-AC messages that encode identically under the DER
+   grammar, measured rather than assumed — and those are real conformance evidence. The other ten
+   are the C# back end's output: passing them shows the Swift and C# emitters read one schema the
+   same way, and says nothing about what a conforming peer would accept. The tests keep the halves
+   apart and assert the split, so the anchored six cannot quietly become self-generated.
 2. **Cross-emitter comparison** — `CrossEmitterComparisonTests` in the .NET suite reduces each
    back end's output to the ordered wire operations every generated function performs, and
    requires Swift and C# to agree. This is what rules out the mirrored bug, which the vectors

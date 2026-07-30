@@ -23,6 +23,8 @@ let package = Package(
         .library(name: "ExiIso20DC", targets: ["ExiIso20DC"]),
         .library(name: "ExiIso20AC", targets: ["ExiIso20AC"]),
         .library(name: "ExiIso20ACDP", targets: ["ExiIso20ACDP"]),
+        .library(name: "ExiIso20AcDerIec", targets: ["ExiIso20AcDerIec"]),
+        .library(name: "ExiIso20AcDerSae", targets: ["ExiIso20AcDerSae"]),
     ],
     targets: [
         .target(name: "ExiRuntime"),
@@ -45,5 +47,11 @@ let package = Package(
         .testTarget(name: "ExiIso20ACTests", dependencies: ["ExiIso20AC"]),
         .target(name: "ExiIso20ACDP", dependencies: ["ExiRuntime"]),
         .testTarget(name: "ExiIso20ACDPTests", dependencies: ["ExiIso20ACDP"]),
+
+        // The Amendment 1 DER sets. Their corpora are of mixed provenance — see the tests.
+        .target(name: "ExiIso20AcDerIec", dependencies: ["ExiRuntime"]),
+        .testTarget(name: "ExiIso20AcDerIecTests", dependencies: ["ExiIso20AcDerIec"]),
+        .target(name: "ExiIso20AcDerSae", dependencies: ["ExiRuntime"]),
+        .testTarget(name: "ExiIso20AcDerSaeTests", dependencies: ["ExiIso20AcDerSae"]),
     ]
 )
