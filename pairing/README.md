@@ -123,8 +123,13 @@ Serving it is a few lines of `HttpListener` somewhere else, and nothing depends 
 
 ## Not done here
 
-`docs/CONCEPT.md` §5 B0 also wants the Pi itself: hosting the SECC over WLAN, interface binding,
-the display page, AP mode, and a signing meter. Those need hardware to verify and are tracked
-there, not here. What this project owns is the format and the check — the two pieces that are pure
-logic, that both sides depend on, and that would otherwise be settled by whichever end was written
-first.
+`docs/CONCEPT.md` §5 B0 also wants the Pi itself: **hosting** the SECC over WLAN, interface
+binding, AP mode, and serving this page over HTTP. Those need hardware to verify and are tracked
+there, not here.
+
+The signing meter is done and lives in the submodule (`Vanaheimr.V2G.Simulation/Metering/`), with
+the app's verifying half in `swift/Sources/V2GMetering` and `kotlin/v2g-metering`.
+
+What this project owns is the format, the check and the page — the pieces that are pure logic,
+that both ends depend on, and that would otherwise be settled by whichever end happened to be
+written first.
