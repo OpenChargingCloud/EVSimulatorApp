@@ -15,6 +15,15 @@ let package = Package(
         .iOS(.v16),
         .macOS(.v13),
     ],
+    // SPIKE (branch spike/ed448-goldilocks, 2026-07-30) — not for master as it stands.
+    //
+    // Evaluating swift-goldilocks as the Ed448 answer for -20's second signature suite, which
+    // CryptoKit cannot provide at all (docs/CONCEPT.md §3.3, §8 #10). Despite the "pure Swift"
+    // billing it vendors Mike Hamburg's libgoldilocks C sources and wraps them — which is the
+    // better news: the field arithmetic is the reference implementation rather than fresh code.
+    //
+    // The whole point of the spike is the acceptance test, not the integration: RFC 8032 §7.4's
+    // published vectors, the same file the C# and Kotlin suites read.
     products: [
         .library(name: "ExiRuntime", targets: ["ExiRuntime"]),
         .library(name: "ExiAppProtocol", targets: ["ExiAppProtocol"]),
@@ -27,6 +36,9 @@ let package = Package(
         .library(name: "ExiIso20AcDerSae", targets: ["ExiIso20AcDerSae"]),
         .library(name: "V2GTP", targets: ["V2GTP"]),
         .library(name: "V2GDispatch", targets: ["V2GDispatch"]),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/Kingpin-Apps/swift-goldilocks.git", exact: "0.1.1"),
     ],
     targets: [
         .target(name: "ExiRuntime"),
@@ -64,5 +76,12 @@ let package = Package(
             "V2GTP", "ExiIso2", "ExiIso20Common", "ExiIso20AC", "ExiIso20DC", "ExiIso20ACDP",
         ]),
         .testTarget(name: "V2GDispatchTests", dependencies: ["V2GDispatch"]),
+
+        // SPIKE — see the note above. Isolated in its own target so it can be deleted in one
+        // commit if the library does not earn its place.
+        .testTarget(name: "Ed448GoldilocksSpikeTests", dependencies: [
+            .product(name: "Goldilocks", package: "swift-goldilocks"),
+            "ExiIso20Common",
+        ]),
     ]
 )
