@@ -6,9 +6,17 @@ build/
 # IDE
 .idea/
 .vs/
+*.user
 
 # Swift / SwiftPM
 swift/.build/
 .swiftpm/
 *.xcuserstate
 DerivedData/
+
+# .NET
+bin/
+obj/
+
+# macOS
+.DS_Store

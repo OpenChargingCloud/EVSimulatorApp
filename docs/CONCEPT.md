@@ -1079,7 +1079,21 @@ back ends. Nothing was broken; the point is that nothing would have said so.
 
 ### Track B — App & Pi
 
-**B0 — RPi SECC + dynamic pairing QR (5–7 days, start immediately, no Track-A dependency).** Host
+**B0 — RPi SECC + dynamic pairing QR (5–7 days, start immediately, no Track-A dependency).**
+
+> **Started 2026-07-30. The two hardware-independent halves are done** and live in `pairing/`
+> (which also gives the parent repository its first solution): the **v1 payload format** with its
+> parser, warning classification and round-trip tests, and the **Tier-1 TOTP check** with the
+> one-shot nonce cache. 61 tests. §6.3's negative catalogue for pairing is covered — expired slot,
+> replay, wrong secret, ±1 and ±2 skew, and a two-minute-old screenshot.
+>
+> **Everything needing the Pi is not.** Hosting the SECC over WLAN, interface binding, the display
+> page, AP mode, the signing meter, and the exit criterion below all need hardware to verify, and
+> claiming them from a laptop would be claiming an untested deployment. The format and the check
+> were done first deliberately: they are what both ends depend on, and they would otherwise be
+> settled by whichever end happened to be written first.
+
+Host
 `Vanaheimr.V2G.Simulation`'s SECC on the Pi over WLAN; bind `TcpV2GListener` to the WLAN
 interface; TLS server cert from the test PKI; both TLS modes (§3.3) selectable. Optional
 `SeccSdpAdvertiser`. A simulated meter that actually **signs** readings into `SigMeterReading` /
@@ -1382,11 +1396,24 @@ isn't lost.
     handling, pluralisation, `@context` per namespace) and how -2's `V2G_Message`-wrapped,
     substitution-group structure is represented. Now a *design* question rather than a
     reconciliation one — but still the least-oracled part of the plan.
-12. **QR payload schema freeze (§4.5/§4.6).** Largely settled by adopting the OCPP v2.1
-    `ProcessURLTemplate` vocabulary; what remains is the naming/encoding of the **V2G-specific
-    additions** (`host`, `tp`, `crypto`, `nc`, `root`, `meter`, `wifi`) and whether `sig` lands in
-    v1. Worth pinning early since the Pi and the app must agree — and worth checking whether the
-    V2G additions are of interest to OCPP v2.1 itself.
+12. ~~**QR payload schema freeze (§4.5/§4.6).**~~ **Frozen as v1 (2026-07-30)** — implemented,
+    tested and documented in `pairing/` (see its README for the field table). The V2G additions are
+    `host`, `port`, `tp`, `proto`, `crypto`, `nc`, `ncwhy`, `root`, `meter`, `wifi`; the OCPP v2.1
+    names are reused verbatim. `sig` did **not** land in v1: it only pays off once the app already
+    trusts a root, and `root` covers the bootstrap case it was wanted for.
+
+    Three decisions the implementation forced, each now pinned by a test:
+
+    - **Unknown parameters are carried, never dropped or rejected.** A newer Pi must talk to an
+      older app, and a reader that discards what it cannot understand also cannot warn that it was
+      there. Nothing interprets them, which is what makes carrying them safe.
+    - **A repeated parameter is refused rather than resolved.** "First wins" and "last wins" are
+      both defensible, and a hostile code only needs the confirmation sheet and the connector to
+      disagree about which.
+    - **Absent `crypto` warns exactly like a weakened one.** Silence is not conformance, and it is
+      the cheapest thing for a hostile code to offer.
+
+    Still worth doing: checking whether the V2G additions interest OCPP v2.1 itself.
 13. **Tier-2 in-band TOTP — do it or not (§4.6).** Echoing the TOTP into -20
     `SessionSetupReq.EVCCID` is a deliberate deviation for demo value, and it has no -2
     counterpart. Worth deciding explicitly rather than drifting into it.

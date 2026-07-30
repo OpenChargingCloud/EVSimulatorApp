@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/libs/" />
+  <Folder Name="/libs/DynamicQRCodes/" />
+  <Folder Name="/libs/DynamicQRCodes/TOTP/" />
+  <Folder Name="/libs/DynamicQRCodes/TOTP/CSharp/">
+    <Project Path="libs/DynamicQRCodes/TOTP/CSharp/TOTPSharp/TOTPSharp.csproj" />
+  </Folder>
+  <Folder Name="/pairing/">
+    <Project Path="pairing/EVSimulatorApp.Pairing.Tests/EVSimulatorApp.Pairing.Tests.csproj" />
+    <Project Path="pairing/EVSimulatorApp.Pairing/EVSimulatorApp.Pairing.csproj" />
+  </Folder>
+</Solution>
