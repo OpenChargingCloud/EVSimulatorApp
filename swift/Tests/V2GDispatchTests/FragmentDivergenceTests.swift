@@ -17,27 +17,27 @@ import ExiIso20DC
 final class FragmentDivergenceTests: XCTestCase {
 
     /// The same content, expressed in each set's own generated types.
-    private func commonSignedInfo() -> ExiIso20Common.SignedInfoType {
+    private func commonSignedInfo(algorithm: String = "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512") -> ExiIso20Common.SignedInfoType {
         .init(canonicalizationMethod: .init(algorithm: "http://www.w3.org/TR/canonical-exi/"),
-              signatureMethod: .init(algorithm: "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512"),
+              signatureMethod: .init(algorithm: algorithm),
               reference: [.init(uRI: "#id1",
                                 transforms: .init(transform: [.init(algorithm: "http://www.w3.org/TR/canonical-exi/")]),
                                 digestMethod: .init(algorithm: "http://www.w3.org/2001/04/xmlenc#sha512"),
                                 digestValue: [UInt8](repeating: 0xAB, count: 64))])
     }
 
-    private func acSignedInfo() -> ExiIso20AC.SignedInfoType {
+    private func acSignedInfo(algorithm: String = "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512") -> ExiIso20AC.SignedInfoType {
         .init(canonicalizationMethod: .init(algorithm: "http://www.w3.org/TR/canonical-exi/"),
-              signatureMethod: .init(algorithm: "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512"),
+              signatureMethod: .init(algorithm: algorithm),
               reference: [.init(uRI: "#id1",
                                 transforms: .init(transform: [.init(algorithm: "http://www.w3.org/TR/canonical-exi/")]),
                                 digestMethod: .init(algorithm: "http://www.w3.org/2001/04/xmlenc#sha512"),
                                 digestValue: [UInt8](repeating: 0xAB, count: 64))])
     }
 
-    private func dcSignedInfo() -> ExiIso20DC.SignedInfoType {
+    private func dcSignedInfo(algorithm: String = "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512") -> ExiIso20DC.SignedInfoType {
         .init(canonicalizationMethod: .init(algorithm: "http://www.w3.org/TR/canonical-exi/"),
-              signatureMethod: .init(algorithm: "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512"),
+              signatureMethod: .init(algorithm: algorithm),
               reference: [.init(uRI: "#id1",
                                 transforms: .init(transform: [.init(algorithm: "http://www.w3.org/TR/canonical-exi/")]),
                                 digestMethod: .init(algorithm: "http://www.w3.org/2001/04/xmlenc#sha512"),
@@ -52,6 +52,51 @@ final class FragmentDivergenceTests: XCTestCase {
         XCTAssertNotEqual(common, ac, "CommonMessages and AC would sign the same octets")
         XCTAssertNotEqual(common, dc, "CommonMessages and DC would sign the same octets")
         XCTAssertNotEqual(ac, dc, "AC and DC would sign the same octets")
+    }
+
+    /// The consequence, stated in the currency that actually matters: signatures.
+    ///
+    /// Different fragment octets are an argument; a signature made under one set's helper being
+    /// *rejected* by another's is the thing a charger would do. One Ed448 seed, the same logical
+    /// `SignedInfo`, three sets — three different signatures, and each verifies only at home.
+    ///
+    /// This is Ed448 rather than P-521 because Ed448 is deterministic: with ECDSA two signatures
+    /// over identical octets differ anyway, so inequality would prove nothing. Here inequality can
+    /// only come from the octets.
+    func testASignatureFromOneSetIsRejectedByAnother() throws {
+        let seed = [UInt8](repeating: 0x42, count: 57)
+
+        let commonKey = try ExiIso20Common.Ed448PrivateKey(rawRepresentation: seed)
+        let acKey     = try ExiIso20AC.Ed448PrivateKey(rawRepresentation: seed)
+        let dcKey     = try ExiIso20DC.Ed448PrivateKey(rawRepresentation: seed)
+
+        let ed448 = "http://www.w3.org/2021/04/xmldsig-more#eddsa-ed448"
+        let common = commonSignedInfo(algorithm: ed448)
+        let ac     = acSignedInfo(algorithm: ed448)
+        let dc     = dcSignedInfo(algorithm: ed448)
+
+        let commonSig = try ExiIso20Common.V2GSignature.sign(common, with: commonKey)
+        let acSig     = try ExiIso20AC.V2GSignature.sign(ac, with: acKey)
+        let dcSig     = try ExiIso20DC.V2GSignature.sign(dc, with: dcKey)
+
+        // Same key, same content, deterministic algorithm — so these can only differ because the
+        // signed octets do.
+        XCTAssertNotEqual(commonSig, acSig)
+        XCTAssertNotEqual(commonSig, dcSig)
+        XCTAssertNotEqual(acSig, dcSig)
+
+        // Each verifies at home...
+        XCTAssertTrue(try ExiIso20Common.V2GSignature.verify(common, signature: commonSig,
+                                                             with: commonKey.publicKey))
+        XCTAssertTrue(try ExiIso20AC.V2GSignature.verify(ac, signature: acSig, with: acKey.publicKey))
+
+        // ...and nowhere else. This is what a peer would see if the helpers were shared.
+        XCTAssertFalse(try ExiIso20Common.V2GSignature.verify(common, signature: acSig,
+                                                              with: commonKey.publicKey),
+                       "AC's signature verified under CommonMessages — the helpers are interchangeable, "
+                     + "which means one of them is signing octets its peers do not expect")
+        XCTAssertFalse(try ExiIso20AC.V2GSignature.verify(ac, signature: dcSig, with: acKey.publicKey))
+        XCTAssertFalse(try ExiIso20DC.V2GSignature.verify(dc, signature: commonSig, with: dcKey.publicKey))
     }
 
     /// And they diverge in the very first bits after the EXI header — the fragment selector itself,

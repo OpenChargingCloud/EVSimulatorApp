@@ -5,13 +5,13 @@ measurements below.**
 
 What the merge settled and what it did not:
 
-- **Settled** — the library is the chosen Ed448 candidate. The dependency, the vector test and
+- **Settled** — the library is the chosen Ed448 primitive. The dependency, the vector test and
   these findings are on master, so the acceptance test runs with every `swift test` rather than
   living in a branch nobody re-runs.
-- **Not settled** — Ed448 is *not implemented*. All five -20 sets still throw
-  `V2GSignatureError.ed448NotAvailable`; nothing calls Goldilocks outside the test target. Wiring it
-  into `V2GSignature` is a separate change (see [If it is adopted](#if-it-is-adopted)), and until it
-  lands the §3.3 table's Ed448 row is still ❌ for Swift.
+- **Since done (same day)** — Ed448 is *implemented*, in all five -20 sets. See
+  [If it is adopted](#if-it-is-adopted) for the checklist this became, every item of which is now
+  either done or deliberately not: `ed448NotAvailable` is gone, the dispatch reads the declared
+  algorithm URI, and the vector test stayed in its own target rather than moving.
 
 The report below is kept as it was written, because the reasoning is what makes the decision
 reviewable — including the parts that argue against.
@@ -87,17 +87,32 @@ break under a future libgoldilocks bump.
 - **Nothing about ISO 15118-20's actual text.** The empty context rests on the standard, which is
   paid and not in this repository. Every implementation here agrees on it; none of them read it.
 
-## If it is adopted
+## If it is adopted — and what happened when it was
 
-1. Move the vector test out of the spike target into `ExiIso20CommonTests`, and give the other four
-   -20 sets the same treatment as the P-521 helper (per-set, for the fragment-selector reason).
-2. Replace `V2GSignatureError.ed448NotAvailable` with a real implementation — the error case stays,
-   for peers offering something we still do not implement.
-3. **Fix the dispatch while doing it.** `verify` currently decides on the signature *length*
-   (114 → unsupported) where the SignedInfo carries the declared algorithm URI. Read the
-   declaration and fail loudly on an unrecognised one.
-4. Vendor or fork rather than depend, if the bus factor is judged too thin. The C library is the
-   part worth having; the wrapper is ~100 lines we could own.
+The checklist as written, with the outcome against each. Kept in this shape because item 1 was not
+followed, and the reason is worth more than a tidy list.
+
+1. ~~Move the vector test out of the spike target into `ExiIso20CommonTests`~~ — **not done, on
+   purpose.** It checks *the library* against RFC 8032, which is a different question from whether
+   our codecs are right, and it wants to stay separately runnable when a version bump needs
+   re-checking. It also turned out to be the only target that sees both Goldilocks and
+   `ExiIso20Common`, which makes it the one place that can join the two halves —
+   `testOurSigningPathIsTheVectorCheckedPrimitiveOverTheFragment` lives there for that reason.
+   The per-set treatment *was* applied: all five sets carry their own helper, as with P-521.
+2. ✅ **`ed448NotAvailable` is gone**, replaced by `unsupportedAlgorithm(String)` and
+   `algorithmMismatch(declared:attempted:)` — errors that say something a caller can act on rather
+   than "this build is incomplete".
+3. ✅ **The dispatch reads the declared algorithm URI.** Every entry point refuses to act against
+   what the `SignedInfo` names, which is what turns `#eddsa-ed448ph` into a refusal by name instead
+   of a message signed under the wrong variant.
+4. ⬜ **Vendor or fork rather than depend** — still open, and still the right hedge if the bus factor
+   is judged too thin. The C library is the part worth having; the wrapper is ~100 lines we could
+   own. Nothing about the integration makes this harder later: the seam is four functions.
+
+One thing the integration surfaced that the spike did not predict: **Ed448 key types are per-set**,
+because the message sets are separate modules. A wallet holding one key converts between them —
+cheap and lossless, since the seed is the whole key, but real friction, and it follows from the same
+independence that forces five `V2GSignature` copies rather than from anything about this library.
 
 ## To reproduce
 

@@ -5,14 +5,19 @@ import Goldilocks
 
 /// Does `swift-goldilocks` reproduce RFC 8032 §7.4 byte for byte?
 ///
-/// The acceptance test for the Ed448 dependency, and **not** an integration: nothing outside this
-/// target calls Goldilocks, and the five -20 sets still throw `ed448NotAvailable`. CryptoKit lacks
-/// the curve entirely — the primitive is absent, not merely an unregistered provider as on the JVM
-/// — so -20's second signature suite needs a bundled library (`docs/CONCEPT.md` §3.3, §8 #10).
+/// The acceptance test for the Ed448 dependency, held deliberately apart from the tests of our own
+/// signing layer: this one asks whether *the library* is correct, which is a different question
+/// from whether we call it correctly. CryptoKit lacks the curve entirely — the primitive is absent,
+/// not merely an unregistered provider as on the JVM — so -20's second signature suite needs a
+/// bundled one (`docs/CONCEPT.md` §3.3, §8 #10).
 ///
 /// It ran as a spike and was merged on its results; `swift/SPIKE-ed448.md` holds the measurements
 /// and the arguments against. Keeping it running on master is the point — a library evaluation that
 /// lives in a branch is one nobody re-runs when the dependency moves.
+///
+/// This target is also the only one importing both `Goldilocks` and `ExiIso20Common`, which makes
+/// it the one place that can check what our signing path actually hands the primitive — see
+/// ``testOurSigningPathIsTheVectorCheckedPrimitiveOverTheFragment``.
 ///
 /// The corpus is the same file the C# and Kotlin suites read, out of the submodule rather than
 /// copied. It is the strongest oracle in the repository: every other vector file is some
@@ -158,31 +163,42 @@ final class Ed448GoldilocksRfcVectorTests: XCTestCase {
 
     // ── What it would look like in place ────────────────────────────────────────────────────────
 
-    /// Signing a real `SignedInfo` fragment, which is the only thing -20 ever Ed448-signs.
+    /// `V2GSignature.sign` is the vector-checked primitive over the fragment, and nothing else.
     ///
-    /// This is the shape `V2GSignature.signEd448` would take: the fragment octets go in directly,
-    /// with no external pre-hash — SHAKE256 inside Ed448 does that job, unlike the P-521 path where
-    /// SHA-512 is a separate step. Deliberately *not* wired into `ExiIso20Common` yet: the library
-    /// decision is the owner's, and a spike that quietly ships is not a spike.
-    func testItSignsARealSignedInfoFragment() throws {
-        let v = try XCTUnwrap(try Self.vectors().first)
+    /// This is the join between the two halves, and the only place that can make it: the vectors
+    /// above validate Goldilocks, `Iso20CommonV2GSignatureTests` validates our dispatch and wire
+    /// formats, and neither can see whether the bytes actually handed to the primitive are the
+    /// `SignedInfo` fragment. Here both dependencies are in scope, so the check is an equality
+    /// against a hand-rolled call rather than another round trip.
+    ///
+    /// Pure EdDSA signs the fragment octets **directly** — SHAKE256 inside Ed448 replaces the
+    /// external pre-hash, unlike the P-521 path where SHA-512 is a separate step. If
+    /// `V2GSignature` ever grows one, or a context, or a different notion of which octets are
+    /// signed, this fails while every test either side of it keeps passing.
+    func testOurSigningPathIsTheVectorCheckedPrimitiveOverTheFragment() throws {
+        let v   = try XCTUnwrap(try Self.vectors().first)
+        let key = try Ed448PrivateKey(rawRepresentation: v.secretKey)
 
         let signedInfo = SignedInfoType(
             canonicalizationMethod: .init(algorithm: "http://www.w3.org/TR/canonical-exi/"),
-            signatureMethod: .init(algorithm: "http://www.w3.org/2021/04/xmldsig-more#eddsa-ed448"),
+            signatureMethod: .init(algorithm: V2GSignature.Algorithm.eddsaEd448.rawValue),
             reference: [.init(uRI: "#id1",
                               transforms: .init(transform: [.init(algorithm: "http://www.w3.org/TR/canonical-exi/")]),
                               digestMethod: .init(algorithm: "http://www.w3.org/2001/04/xmlenc#sha512"),
                               digestValue: [UInt8](repeating: 0xAB, count: 64))])
 
-        let fragment  = CommonMessagesCodec.encodeFragment_SignedInfo(signedInfo)
-        let signature = try Goldilocks.Ed448.sign(message: fragment,
-                                                  privateKey: v.secretKey,
-                                                  publicKey: v.publicKey)
+        let ours     = try V2GSignature.sign(signedInfo, with: key)
+        let fragment = CommonMessagesCodec.encodeFragment_SignedInfo(signedInfo)
+        let expected = try Goldilocks.Ed448.sign(message: fragment,
+                                                 privateKey: v.secretKey,
+                                                 publicKey: v.publicKey)
 
-        XCTAssertEqual(signature.count, 114)
-        XCTAssertTrue(try Goldilocks.Ed448.verify(signature: signature, message: fragment,
-                                                  publicKey: v.publicKey))
+        XCTAssertEqual(ours, expected)
+        XCTAssertEqual(ours.count, 114)
+
+        // The key wrapper derives the same public key the RFC pairs with this seed, so signing
+        // through it cannot silently use a different one.
+        XCTAssertEqual(key.publicKey.rawRepresentation, v.publicKey)
 
         // And the fragment really is this set's — 230 over 9 bits after the header, as
         // ExiIso20CommonTests pins independently.

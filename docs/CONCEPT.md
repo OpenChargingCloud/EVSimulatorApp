@@ -385,19 +385,23 @@ The app-layer half of this section is no longer a projection. Both back ends sig
 |---|---|---|
 | -2, ECDSA P-256 / SHA-256, raw `r‖s`, 64 B | ✅ | ✅ CryptoKit `rawRepresentation` |
 | -20, ECDSA P-521 / SHA-512, raw `r‖s`, 132 B | ✅ | ✅ CryptoKit, natively |
-| -20, Ed448, 114 B | ✅ BouncyCastle | ⚠️ library chosen and vector-checked (`swift-goldilocks`), **not yet wired in** — §8 #10 |
+| -20, Ed448, 114 B | ✅ BouncyCastle | ✅ `swift-goldilocks` (vendored libgoldilocks), vector-checked against RFC 8032 §7.4 |
 
-That last cell is worth sharpening, because the plan understated it. This is **not** an
+That last cell was the hard one, and the plan understated it: this is **not** an
 unregistered-provider problem of the kind the JVM has, where BouncyCastle supplies what the JDK
-omits — the primitive does not exist in Apple's library, so there is nothing to register. It is a
+omits — the primitive does not exist in Apple's library, so there is nothing to register. It was a
 bundled-dependency decision or nothing.
 
-How the gap is carried in the meantime: `verify` **throws `ed448NotAvailable`** rather than
-returning `false` for an Ed448-shaped signature. A caller must be able to distinguish
-*unsupported algorithm* from *invalid signature* — the first is a reason to renegotiate, the
-second a reason to reject the peer — and collapsing both to `false` would quietly turn a missing
-feature into an accusation against the counterpart. A stub that *looked* implemented was the one
-option not on the table.
+**Closed 2026-07-30** by bundling `swift-goldilocks` (§8 #10 for what decided it), so the app-layer
+half of this section is now complete on both platforms. Pure Ed448, empty context, 114 bytes,
+matching `#eddsa-ed448`; the prehashed `#eddsa-ed448ph` is a different algorithm and is refused by
+name rather than silently signed as if it were the pure one.
+
+Worth keeping from the interim state, because it outlived the gap that prompted it: every entry
+point now dispatches on the algorithm the `SignedInfo` **declares**, not on the signature's length.
+A caller must be able to distinguish *unsupported algorithm* from *invalid signature* — the first
+is a reason to renegotiate, the second a reason to reject the peer — and a length was a guess at
+something the message had already told us.
 
 **Point 2, transport TLS on iOS, has not been touched at all** and is still exactly as written
 above: relaxed mode for v1, bundled lib for conformant mode. Nothing in the port makes it easier
@@ -1318,15 +1322,23 @@ isn't lost.
     bundle" a footnote — C sources in a SwiftPM build are a far smaller thing than a bundled
     runtime, but they are not nothing.
 
-    **Ed448 is still not implemented.** The dependency and its acceptance test are on master;
-    nothing outside that test target calls it, and all five -20 sets still throw
-    `ed448NotAvailable` — deliberately, rather than returning `false`, so the gap stays a stated
-    condition instead of a silent verification failure. Wiring it into `V2GSignature` is its own
-    change, and it should carry the fix noted in `swift/README.md`: `verify` decides on the
-    signature *length* where the SignedInfo carries the declared algorithm URI.
+    **Wired into all five -20 sets the same day.** `V2GSignature` in CommonMessages, AC, DC and both
+    DER sets now signs and verifies Ed448, each over its own fragment — ACDP is the exception, as it
+    has no signable element. `ed448NotAvailable` is gone; the errors that replaced it say something
+    a caller can act on: `unsupportedAlgorithm(String)` and
+    `algorithmMismatch(declared:attempted:)`.
 
-    Deferrable regardless (§8 #7: v1 ships relaxed), and orthogonal to the transport-TLS half of
-    §3.3, which this does not touch.
+    Two things fell out of the integration that are worth recording:
+
+    - **The dispatch fix came with it.** Every entry point reads `SignatureMethod/@Algorithm` and
+      refuses to act against it, replacing a guess from the signature length. That guard is what
+      makes `#eddsa-ed448ph` a named refusal rather than a message signed under the wrong variant.
+    - **Ed448 keys are per-set types**, because the sets are separate modules — a wallet holding one
+      key converts between them. Cheap and lossless (the seed is the whole key), but real friction,
+      and it follows from the same independence that forces five `V2GSignature` copies.
+
+    Still orthogonal to the transport-TLS half of §3.3, which this does not touch, and deferrable
+    regardless (§8 #7: v1 ships relaxed).
 
     **The algorithm parameters are now settled (2026-07-30), and the acceptance test exists.**
     ISO 15118-20 uses `http://www.w3.org/2021/04/xmldsig-more#eddsa-ed448`, which RFC 9231 §2.3.12

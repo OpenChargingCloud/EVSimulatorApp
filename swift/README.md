@@ -149,30 +149,54 @@ there instead of on a charger.
 
 -20 uses SHA-512 and the raw `r‖s` pair over secp521r1: 66 + 66 = 132 bytes, pinned the same way.
 
-**Ed448 is not implemented, and cannot be here.** It is the -20 suite's second algorithm (RFC 8032,
-114 bytes) and CryptoKit does not have the curve at all — not an unregistered provider as on the
-JVM, where BouncyCastle supplies it, but a missing primitive. It needs a bundled crypto library
-(BC-Swift, OpenSSL, wolfSSL), which is a dependency and binary-size decision for the app rather
-than something this layer can settle. See `docs/CONCEPT.md` §3.3.
+**Ed448 is implemented**, via `swift-goldilocks` — the -20 suite's second algorithm (RFC 8032,
+114 bytes). CryptoKit does not have the curve at all: not an unregistered provider as on the JVM
+where BouncyCastle supplies it, but a missing primitive, so it needs a bundled library. That one
+vendors Mike Hamburg's libgoldilocks and costs ~81 KB; it was chosen after being measured against
+RFC 8032 §7.4 rather than from its README. See `docs/CONCEPT.md` §3.3 and [`SPIKE-ed448.md`](SPIKE-ed448.md).
 
-Rather than a stub that would look implemented, `verify` **throws `ed448NotAvailable`** for an
-Ed448-shaped signature. A caller has to be able to tell "unsupported algorithm" from "invalid
-signature": the first is a reason to renegotiate, the second a reason to reject the peer.
+Pure Ed448 with an **empty context**, matching `#eddsa-ed448`. RFC 9231 §2.3.12 lists the prehashed
+`#eddsa-ed448ph` under its own identifier; it is a different algorithm and is refused by name.
+Pure EdDSA signs the fragment octets directly — SHAKE256 inside the algorithm replaces the external
+pre-hash, so there is no separate SHA-512 step as on the P-521 path.
 
-**The library is chosen and its acceptance test runs here: `swift-goldilocks`, pinned at 0.1.1.**
-It reproduces RFC 8032 §7.4 byte for byte and costs ~81 KB of machine code; see
-[`SPIKE-ed448.md`](SPIKE-ed448.md) for the measurements and the arguments against. The dependency is
-on master and `Ed448GoldilocksSpikeTests` runs with every `swift test`, so a version bump that broke
-the primitive would fail here rather than on a charger.
+An Ed448 key cannot live in the Secure Enclave, which holds P-256 only. `Ed448PrivateKey` is a
+software key wherever it is stored, and `docs/CONCEPT.md` §3.4 says the UI has to be honest about
+that rather than implying hardware protection.
 
-**It is not wired in.** `verify` still throws `ed448NotAvailable`, and nothing outside that test
-target calls Goldilocks.
+### Which algorithm, decided by the message
 
-The parameters it has to satisfy, for whenever that changes: ISO 15118-20 uses pure Ed448 — RFC 9231
-§2.3.12 lists `#eddsa-ed448ph` under its own identifier — with an empty context, signing the
-SignedInfo fragment octets directly, 114 bytes raw. An API with no context parameter is *correct*
-here rather than limited: that is exactly empty-context pure Ed448, and the test pins that a
-context-carrying signature is rejected rather than silently accepted as one without.
+`SignedInfo` carries the algorithm in `SignatureMethod/@Algorithm`, so a peer *states* its choice.
+Every entry point reads that declaration and refuses to act against it:
+
+| Situation | Result |
+|---|---|
+| declared algorithm matches the key | signs / verifies |
+| declared `#ecdsa-sha512`, Ed448 key offered (or the reverse) | `algorithmMismatch(declared:attempted:)` |
+| declared `#eddsa-ed448ph`, or anything unknown | `unsupportedAlgorithm(String)`, carrying the identifier verbatim |
+
+This replaced dispatching on the signature *length*, which was a guess at something we had been
+told. The failure it prevents is the familiar quiet one: signing under one algorithm while the
+message declares another produces a signature that verifies locally and is rejected everywhere else.
+
+`V2GSignature.algorithm(of:)` exposes the same decision, so a caller can route an incoming message
+before choosing a key.
+
+### How the two halves are checked
+
+`Ed448GoldilocksSpikeTests` holds the *library* to RFC 8032 §7.4 — nine published vectors, byte for
+byte, and Ed448 is deterministic so that is an equality check rather than a round trip. It runs with
+every `swift test`, so a version bump that broke the primitive fails here rather than on a charger.
+
+The same target is the only one that sees both Goldilocks and `ExiIso20Common`, so it also joins the
+halves: `V2GSignature.sign` must equal a hand-rolled `Goldilocks.Ed448.sign` over the *fragment*.
+Neither side can check that alone — the vectors do not know what octets we feed the primitive, and
+`Iso20CommonV2GSignatureTests` cannot see inside it.
+
+`V2GDispatchTests/FragmentDivergenceTests` then proves the per-set duplication in the currency that
+matters: one seed, the same logical `SignedInfo`, three sets, three *different* signatures — each
+verifying only in its own set. Collapsing the five helpers into one fails there rather than in the
+field.
 
 One thing this back end should fix when Ed448 lands: `verify` currently decides on the **signature
 length** (114 → unsupported), where the SignedInfo carries the declared algorithm URI. Reading the

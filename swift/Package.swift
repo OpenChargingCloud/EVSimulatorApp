@@ -40,8 +40,8 @@ let package = Package(
     // Pinned `exact:` deliberately: a v0.1.x package with one author behind the wrapper, and a
     // version range would let a crypto dependency move under us between builds.
     //
-    // **Nothing outside the test target uses it yet.** The -20 sets still throw
-    // `ed448NotAvailable`; integrating it is its own change.
+    // All five -20 sets link it — each carries its own `V2GSignature`, for the fragment-selector
+    // reason documented there. ACDP does not: it has no signable element.
     dependencies: [
         .package(url: "https://github.com/Kingpin-Apps/swift-goldilocks.git", exact: "0.1.1"),
     ],
@@ -58,19 +58,19 @@ let package = Package(
 
         // One target per -20 message set, as in kotlin/: they are independent grammars that happen
         // to embed the same CommonTypes, and each carries its own copy of the XMLDSig schema.
-        .target(name: "ExiIso20Common", dependencies: ["ExiRuntime"]),
+        .target(name: "ExiIso20Common", dependencies: ["ExiRuntime", .product(name: "Goldilocks", package: "swift-goldilocks")]),
         .testTarget(name: "ExiIso20CommonTests", dependencies: ["ExiIso20Common"]),
-        .target(name: "ExiIso20DC", dependencies: ["ExiRuntime"]),
+        .target(name: "ExiIso20DC", dependencies: ["ExiRuntime", .product(name: "Goldilocks", package: "swift-goldilocks")]),
         .testTarget(name: "ExiIso20DCTests", dependencies: ["ExiIso20DC"]),
-        .target(name: "ExiIso20AC", dependencies: ["ExiRuntime"]),
+        .target(name: "ExiIso20AC", dependencies: ["ExiRuntime", .product(name: "Goldilocks", package: "swift-goldilocks")]),
         .testTarget(name: "ExiIso20ACTests", dependencies: ["ExiIso20AC"]),
         .target(name: "ExiIso20ACDP", dependencies: ["ExiRuntime"]),
         .testTarget(name: "ExiIso20ACDPTests", dependencies: ["ExiIso20ACDP"]),
 
         // The Amendment 1 DER sets. Their corpora are of mixed provenance — see the tests.
-        .target(name: "ExiIso20AcDerIec", dependencies: ["ExiRuntime"]),
+        .target(name: "ExiIso20AcDerIec", dependencies: ["ExiRuntime", .product(name: "Goldilocks", package: "swift-goldilocks")]),
         .testTarget(name: "ExiIso20AcDerIecTests", dependencies: ["ExiIso20AcDerIec"]),
-        .target(name: "ExiIso20AcDerSae", dependencies: ["ExiRuntime"]),
+        .target(name: "ExiIso20AcDerSae", dependencies: ["ExiRuntime", .product(name: "Goldilocks", package: "swift-goldilocks")]),
         .testTarget(name: "ExiIso20AcDerSaeTests", dependencies: ["ExiIso20AcDerSae"]),
 
         // Hand-written, and split for the reason kotlin/ splits them: reading a frame's type and
@@ -82,10 +82,12 @@ let package = Package(
         ]),
         .testTarget(name: "V2GDispatchTests", dependencies: ["V2GDispatch"]),
 
-        // The library's acceptance test, kept in its own target rather than folded into
-        // ExiIso20CommonTests: it checks *the dependency* against RFC 8032, which is a different
-        // question from whether our codecs are right, and it should stay runnable — and removable —
-        // on its own. It moves into the -20 test targets when Ed448 is actually wired in.
+        // The dependency's acceptance test, kept in its own target rather than folded into
+        // ExiIso20CommonTests: it checks *the library* against RFC 8032, which is a different
+        // question from whether our codecs are right, and it should stay separately runnable when
+        // a version bump needs re-checking. It is also the only target that sees both Goldilocks
+        // and ExiIso20Common, so it is where the two halves are joined — see the test named for
+        // it.
         .testTarget(name: "Ed448GoldilocksSpikeTests", dependencies: [
             .product(name: "Goldilocks", package: "swift-goldilocks"),
             "ExiIso20Common",
