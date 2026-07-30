@@ -4,7 +4,7 @@
 
 import ExiRuntime
 
-public struct SupportedAppProtocolRes: Equatable, Sendable {
+public final class SupportedAppProtocolRes {
     public var responseCode: ResponseCode
     public var schemaID: UInt8?
 

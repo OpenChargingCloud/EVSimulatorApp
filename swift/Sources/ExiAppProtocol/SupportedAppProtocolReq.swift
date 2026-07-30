@@ -4,7 +4,7 @@
 
 import ExiRuntime
 
-public struct SupportedAppProtocolReq: Equatable, Sendable {
+public final class SupportedAppProtocolReq {
     public var appProtocol: [AppProtocolType]
 
     public init(appProtocol: [AppProtocolType]) {

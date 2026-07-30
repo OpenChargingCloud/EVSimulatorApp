@@ -104,6 +104,15 @@ public enum ExiPrimitives {
     }
 }
 
+/// Always throws, with a return type the call site infers.
+///
+/// The generated decoders need an *expression* where a construct is not modelled — Swift has no
+/// throw-expression, and a closure that throws would have to be called with `try` at every site.
+/// This keeps the shape of the surrounding assignment identical to a real read.
+public func exiUnsupported<T>(_ what: String) throws -> T {
+    throw ExiError.unsupportedConstruct(what)
+}
+
 /// Resolves an EXI enumeration index, throwing rather than trapping on a value the type does not
 /// have.
 ///

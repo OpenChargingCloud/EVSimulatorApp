@@ -4,7 +4,7 @@
 
 import ExiRuntime
 
-public struct AppProtocolType: Equatable, Sendable {
+public final class AppProtocolType {
     public var protocolNamespace: String
     public var versionNumberMajor: UInt32
     public var versionNumberMinor: UInt32
