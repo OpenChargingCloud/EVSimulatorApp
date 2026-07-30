@@ -161,12 +161,18 @@ sticker, and that should be a decision rather than a default.
 
 ## Not done here
 
-`docs/CONCEPT.md` §5 B0 also wants the Pi itself: **hosting** the SECC over WLAN, interface
-binding, AP mode, and serving this page over HTTP. Those need hardware to verify and are tracked
+`docs/CONCEPT.md` §5 B0 also wants what only the Pi can give: **binding to the WLAN interface**,
+**AP mode**, and the two-device exit criterion. Those need hardware to verify and are tracked
 there, not here.
 
-The signing meter is done and lives in the submodule (`Vanaheimr.V2G.Simulation/Metering/`), with
-the app's verifying half in `swift/Sources/V2GMetering` and `kotlin/v2g-metering`.
+An earlier version of this paragraph also listed hosting the SECC and serving this page, on the
+grounds that they run on the Pi. They do, but that is not the same as needing it — see the
+"Hosting it" section above, which is exercised identically on a laptop.
+
+The signing meter is done and lives in the submodule (`Vanaheimr.V2G.Simulation/Metering/`),
+wired into **-2 and -20** — the latter in both the AC and DC charge loops, each of which builds its
+own `MeterInfoType`. The app's verifying half is in `swift/Sources/V2GMetering` and
+`kotlin/v2g-metering`.
 
 What this project owns is the format, the check and the page — the pieces that are pure logic,
 that both ends depend on, and that would otherwise be settled by whichever end happened to be

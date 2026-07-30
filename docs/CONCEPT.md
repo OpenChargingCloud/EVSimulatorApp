@@ -19,7 +19,7 @@ The decisive finding is that the submodules under `libs/` are not partial buildi
 Together they are **a complete, externally-validated ISO 15118 stack, a security-research
 toolkit, and a standardised dynamic-QR mechanism**:
 
-- **`Vanaheimr.V2G.Exi`** — both protocols feature-complete at session level, 689 green tests,
+- **`Vanaheimr.V2G.Exi`** — both protocols feature-complete at session level, 866 green tests,
   byte-exact against libcbv2g, cross-checked against EXIficient, and live-interop-proven against
   Josev in both directions including Plug & Charge, contract provisioning, pause/resume,
   renegotiation and signed tariffs. ~122k lines of generated codec, ~2.7k lines of state
@@ -900,7 +900,10 @@ plan has two tracks that meet at the app:
   Kotlin/Swift libraries, the wallet, metering, and the inspector.
 
 Track B's Pi work (Phase B0) has **no dependency on Track A** and should start immediately in
-parallel — it gives Track A a live counterpart to test against beyond the offline vectors.
+parallel — it gives Track A a live counterpart to test against beyond the offline vectors. It did,
+and as of 2026-07-31 everything in it that is not the hardware is done: a station that runs the
+SECC behind a live display, gates its accept on the pairing proof, and signs its meter readings on
+both protocols. Only the WLAN-specific parts wait for the Pi.
 
 ### Phase 0 — Wire up the repo (1–2 days) — mostly done
 
@@ -1077,34 +1080,67 @@ well-formed instance of the wrong type and re-encodes to the bytes it came from,
 directions consult the same table. That mapping is now checked directly, per set, across all three
 back ends. Nothing was broken; the point is that nothing would have said so.
 
+**A fourth instance, this time self-inflicted (2026-07-31).** The signing meter was wired into the
+-20 charge loops with the gap written honestly into the commit message: *no test drives a -20
+session that far, so this rests on the code being read.* Recording a gap is better than hiding one,
+but a note in a commit message is not a gate — it is invisible to `dotnet test` and to everyone who
+did not read that commit. The reason given for deferring was also wrong: a -20 session harness was
+said not to exist, when in fact `Secc20DynamicModeTests` already drove the sequence inline. What did
+not exist was a *reusable* one, and thirty lines of setup before the first assertion was the whole
+obstacle. `Iso20SessionDriver` is now that harness, and the meter is checked by running rather than
+by reading — verified by mutation, since a green suite proves nothing about a test that would pass
+anyway. **The lesson to keep: "documented" and "covered" are different words, and the gap between
+them does not close by being described accurately.**
+
 ### Track B — App & Pi
 
 **B0 — RPi SECC + dynamic pairing QR (5–7 days, start immediately, no Track-A dependency).**
 
-> **Started 2026-07-30. The two hardware-independent halves are done** and live in `pairing/`
-> (which also gives the parent repository its first solution): the **v1 payload format** with its
-> parser, warning classification and round-trip tests, and the **Tier-1 TOTP check** with the
-> one-shot nonce cache. 61 tests. §6.3's negative catalogue for pairing is covered — expired slot,
-> replay, wrong secret, ±1 and ±2 skew, and a two-minute-old screenshot.
+> **Started 2026-07-30. Everything except the hardware itself is done**, and lives in `pairing/`
+> (which also gives the parent repository its first solution). 106 tests there, plus the
+> submodule's own.
 >
-> **The signing meter is done too** (submodule `Metering/`): `SigMeterReading` now carries a real
-> P-256 signature over a documented payload, and a station with a meter installed reports its
-> reading every cycle rather than only when demanding a receipt. The layout signed is **ours** —
-> ISO 15118 defines the field and not its content — so it is written down rather than merely
-> implemented, and the app must reproduce it byte for byte to verify anything.
+> **The format and the check.** The **v1 payload format** with its parser, warning classification
+> and round-trip tests, and the **Tier-1 TOTP check** with the one-shot nonce cache. §6.3's
+> negative catalogue for pairing is covered — expired slot, replay, wrong secret, ±1 and ±2 skew,
+> and a two-minute-old screenshot.
 >
-> **The app's verifying half is done as well**, in Swift (`V2GMetering`) and Kotlin
-> (`v2g-metering`). Both are held to a corpus the C# side generates rather than to their own
-> output — three ports of one layout, each tested against itself, agree perfectly and can be wrong
-> together. Each vector carries the payload as well as the signature, so a divergence says *which
-> byte* instead of just "no". That closes §4.3's first leg: a phone can now verify a station's
-> signed reading, which is the part that has to work before the three-way comparison means anything.
+> **The station host** — `EVSimulatorApp.Pi`, a .NET 10 minimal-API application. It serves the
+> display page, pushes each new pairing slot over a WebSocket (rather than letting the page reload
+> on a timer, which drifts against the station's own clock), shows whether a vehicle is attached,
+> and streams the session log. The real SECC runs behind it as a `BackgroundService`, and the
+> Tier-1 check gates the TCP accept **before the TLS handshake** via `TcpV2GListener.Admit`.
+> `StationProfile` is one value with two projections — the `TlsOptions` the listener runs and the
+> `PairingPayload` the display advertises — so display and station cannot disagree about TLS or the
+> protocol. That is a structural guarantee, not a test.
 >
-> **Everything needing the Pi is not.** Hosting the SECC over WLAN, interface binding, the display
-> page, AP mode and the exit criterion below all need hardware to verify, and claiming them from a
-> laptop would be claiming an untested deployment. The pieces that were done first are the ones
-> both ends depend on — the payload format, the pairing check and the meter layout — because each
-> would otherwise be settled by whichever end happened to be written first.
+> **The signing meter** (submodule `Metering/`): `SigMeterReading` (-2) and `MeterSignature` (-20)
+> now carry a real P-256 signature over a documented payload, on **both** protocols and in the
+> AC and DC charge loops alike. A station with a meter installed reports its reading every cycle
+> rather than only when demanding a receipt. The layout signed is **ours** — ISO 15118 defines the
+> field and not its content — so it is written down rather than merely implemented, and the app
+> must reproduce it byte for byte to verify anything. The payload's protocol byte differs, so a
+> -20 reading cannot be presented as a -2 one; that byte never appears on the wire and is
+> checkable only from a session-level test.
+>
+> **The app's verifying half**, in Swift (`V2GMetering`) and Kotlin (`v2g-metering`). Both are held
+> to a corpus the C# side generates rather than to their own output — three ports of one layout,
+> each tested against itself, agree perfectly and can be wrong together. Each vector carries the
+> payload as well as the signature, so a divergence says *which byte* instead of just "no". That
+> closes §4.3's first leg: a phone can verify a station's signed reading, which is the part that
+> has to work before the three-way comparison means anything.
+>
+> **What actually still needs the Pi:** binding to the WLAN interface, AP mode, and the two-device
+> exit criterion below. That list is much shorter than the one written here on 2026-07-30, which
+> claimed the display page and the hosting needed hardware too. They did not — the correction came
+> from Achim, and it was right: what runs on the Pi is C#, and an HTTP host, a WebSocket and a page
+> renderer are exercised identically on a laptop. The mistake was conflating *hardware-specific*
+> (interface binding, AP mode, PLC) with *merely destined for the Pi*. Worth recording, because the
+> same conflation would have deferred B1 and B2 as well.
+>
+> The pieces that were done first are still the ones both ends depend on — the payload format, the
+> pairing check and the meter layout — because each would otherwise be settled by whichever end
+> happened to be written first.
 
 Host
 `Vanaheimr.V2G.Simulation`'s SECC on the Pi over WLAN; bind `TcpV2GListener` to the WLAN
@@ -1119,6 +1155,9 @@ TOTP with a one-shot nonce cache and gate the V2G TCP accept on it. Optional AP 
 plus a one-time static setup QR to provision the shared secret.
 **Exit:** the C# CLI EVCC completes a -2 and a -20 session over WLAN to the Pi; the QR rotates and
 round-trips through a parser test; a stale or replayed TOTP is refused.
+*Two of the three are met (2026-07-31) — the rotation and the refusals are tested, and the SECC
+runs behind the host on a laptop. Only the words "over WLAN to the Pi" are outstanding, and they
+are outstanding because of the hardware, not the software.*
 
 **B1 — Capacitor plugin + QR pairing (2–2.5 weeks, needs A1+A4 Kotlin).** Wrap the Kotlin (and
 later Swift) stack behind a Capacitor plugin: start/stop, config in, **event stream out** (state
