@@ -23,6 +23,8 @@ DEX file's 64k method limit all at once), and made the smallest schema change re
 | `exi-iso20-acdp` | Generated ISO 15118-20 ACDP codec + vector test (same loop). |
 | `exi-iso20-acderiec` | Generated ISO 15118-20 AC_DER_IEC codec + vector test. Its corpus is **mixed provenance** — see below. |
 | `exi-iso20-acdersae` | Generated ISO 15118-20 AC_DER_SAE codec + vector test. Same. |
+| `v2g-tp` | Hand-written `V2GTP` — the 8-byte transfer-protocol header. No dependencies at all. |
+| `v2g-dispatch` | Hand-written `MessageSet` / `V2GTPDispatcher` — payload type ↔ message set. Depends on every codec module. |
 
 ```bash
 gradle -p kotlin test --rerun-tasks
@@ -138,6 +140,38 @@ check below turns into noise.
 
 Regenerating without changing the emitter must leave every file byte-identical; that is the
 cheapest check that a refactor was behaviour-neutral.
+
+## Framing and dispatch
+
+`v2g-tp` and `v2g-dispatch` are hand-written ports of the C# `V2GTP` / `V2GTPDispatcher` — the layer
+between a socket and a codec. They are split because the header is useful without any codec: reading
+a frame's type and length pulls in nothing, while resolving the type to a decoder needs all six
+message-set modules.
+
+Three places where the Kotlin API has to differ from the C# one, and none of them changes a byte:
+
+* C#'s `bool TryReadHeader(…, out …)` becomes a nullable `V2GTPHeader?`, and
+  `bool TryDecode(…, out set, out message, out error)` becomes a sealed `V2GTPDecodeResult`. The
+  distinction that matters is preserved exactly: a *framing* problem — bad version bytes, a length
+  field that disagrees with the frame, an unmodelled payload type — is a value, while malformed EXI
+  inside a recognised set throws out of the codec, the same as calling `decodeAny` directly.
+* The payload is **copied** out of the frame. The generated decoders take a `ByteArray` starting at
+  the EXI header, where the C# side passes a `ReadOnlySpan` into the frame it already has.
+* The payload-type constants are `val`, not `const val`: Kotlin has no `UShort` literal, and the
+  wire width is worth keeping.
+
+`PAYLOAD_TYPE_APP_PROTOCOL` and `PAYLOAD_TYPE_DIN_ISO2_MAIN` are **the same value**, 0x8001. SAP and
+a -2 message are told apart by session phase, not by payload type, so the dispatcher only ever
+*frames* SAP and never decodes it — 0x8001 resolves to the -2 set. That is why `v2g-dispatch` does
+not depend on `exi-appprotocol`. A live interop run against Josev caught an earlier distinct 0x8000
+here as a wire-conformance bug.
+
+The dispatcher test frames real cbV2G vectors — the first of each set's corpus — rather than
+hand-built payloads, and asserts the decoded message's *package*. A payload type wired to the wrong
+codec therefore cannot pass: pointing AC at DC's type fails that test and the bijection test with it.
+`V2GTPTest` pins the eight header bytes literally, to the same array the C# `V2GTPFrameTests` pins;
+flipping the byte order on both the write and the read side — which a round trip cannot see — fails
+it.
 
 ## How these codecs are checked
 

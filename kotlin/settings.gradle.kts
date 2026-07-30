@@ -11,3 +11,6 @@ include("exi-iso20-wpt")
 include("exi-iso20-acdp")
 include("exi-iso20-acderiec")
 include("exi-iso20-acdersae")
+
+include("v2g-tp")
+include("v2g-dispatch")
