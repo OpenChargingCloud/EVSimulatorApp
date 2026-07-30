@@ -57,8 +57,9 @@ byte-identical — the cheapest check that a refactor was behaviour-neutral.
 
 Three shapes differ from Kotlin. None changes a byte.
 
-* **Records are `struct`s**, so messages are values; the codec object is an `enum` with static
-  members, Swift's idiom for a namespace that cannot be instantiated.
+* **The codec object is an `enum`** with static members — Swift's idiom for a namespace that
+  cannot be instantiated. Message types are classes (see Layout), as Kotlin's hierarchy members
+  are.
 * **Every decoder is `throws`; encoders are not.** Swift has no unchecked exceptions, so the
   distinction the other back ends get for free lives in the signatures. A decoder faces bytes from
   the network, so malformed input is a recoverable `ExiError`; an encoder is driven by our own
@@ -83,7 +84,9 @@ cannot afford.
 
 ## How these codecs are checked
 
-`kotlin/README.md` describes three independent gates. Swift currently has the first:
+`kotlin/README.md` describes three independent gates. Swift has all three — the first back end in
+this project that demonstrably does, since gate 2 had no implementation before the Swift port
+needed it:
 
 1. **Vectors** — `expectedHex` from EVerest's libcbv2g at a pinned commit, read straight out of
    the submodule, the same corpus the C# and Kotlin suites use. AppProtocol encodes and compares
