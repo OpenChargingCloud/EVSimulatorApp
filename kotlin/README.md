@@ -124,9 +124,12 @@ Different octets, therefore different signed bytes. One shared helper would sign
 produce a signature that verifies locally and nowhere else — note that the DER sets move even though
 their *messages* are AC's, so borrowing AC's helper there would be wrong too.
 
+Every one of these has a C# counterpart in the matching project, with the same measurements in its
+own doc comment — the two back ends generate the same event codes, which is one more place they are
+checked against each other.
+
 Still not implemented: **WPT and ACDP**, which have no fragment elements at all — what they would
-sign is an open question, not a port. And the four -20 helpers above have C# counterparts only for
-AC, DC and CommonMessages; the two DER ones exist on the Kotlin side alone.
+sign is an open question, not a port.
 
 **The order of `--xsd` matters.** It decides the order of declarations in the output, so passing
 the same files in a different order regenerates a file that differs everywhere while encoding the
