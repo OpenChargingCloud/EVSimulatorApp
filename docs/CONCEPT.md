@@ -1037,10 +1037,10 @@ standing. It had **no implementation in the repository** — the Kotlin-era comp
 ad-hoc run whose tool was never checked in, so nothing would have caught a regression in it.
 
 It was built during the Swift port (`CrossEmitterComparisonTests`) and immediately earned its
-place. It now compares Swift against C# across **seven whole schema sets** (-2, CommonMessages,
-DC, AC, ACDP, AC_DER_IEC, AC_DER_SAE); Kotlin is still compared on AppProtocol only. It found
-**four real bugs that vectors, compilation and round-trips all missed**, of which two make the
-argument by themselves:
+place. It compares each back end against C# across every whole schema set it generates — seven for
+Swift, and since 2026-07-30 **eight for Kotlin**, the extra one being WPT, which only Kotlin
+emits. It found **four real bugs that vectors, compilation and round-trips all missed**, of which
+two make the argument by themselves:
 
 - `SalesTariffEntryType` wrote a **1-bit run selector where cbV2G writes 2**, because an optional
   *list* was treated as terminating an optional run rather than belonging to it. Every bit after
@@ -1059,6 +1059,19 @@ byte-exact oracle" — true, and it is not sufficient on its own.
 The second-order lesson matches the one Phase 1 already recorded about the "language-neutral"
 front end: **a documented check is not a running check.** Both times, something this document
 counted as an asset turned out to need building before it could be counted.
+
+**Extending it to Kotlin (2026-07-30) produced a third instance of the same lesson**, one layer up.
+Kotlin needed no emitter change — the one divergence was the document-index switch, which Kotlin
+writes in plan order and C# and Swift write sorted by index. The same table, and a keyed switch's
+arm order is not wire structure, so the comparison was wrong, not the emitter.
+
+Fixing that exposed the real gap: to sort arms the comparison has to *see* the keys, and it had
+never been looking at them. Every back end could have routed document index 4 to the wrong message
+and passed — the operation sequences would have matched, since only the calls beneath the arms were
+compared. The vectors would not have caught it either: a misrouted document decodes into a
+well-formed instance of the wrong type and re-encodes to the bytes it came from, because both
+directions consult the same table. That mapping is now checked directly, per set, across all three
+back ends. Nothing was broken; the point is that nothing would have said so.
 
 ### Track B — App & Pi
 

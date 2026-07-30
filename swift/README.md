@@ -186,8 +186,13 @@ needed it:
    same encoder.
 
    It covers **seven whole sets** — -2, CommonMessages, DC, AC, ACDP, AC_DER_IEC and AC_DER_SAE —
-   and they all agree. (Kotlin is compared on AppProtocol only; the two back ends are not equally
-   covered by this gate.)
+   and they all agree. Kotlin is now compared across the same seven plus WPT, so all three back
+   ends are equally covered.
+
+   Alongside it, `EveryBackEndRoutesEachDocumentIndexToTheSameMessage` compares each set's
+   document-index → message-decoder table across the three back ends. That is a separate claim
+   from the operation sequences — those say each codec reads the same bits in the same order, this
+   says the dispatcher hands index 4 to the same message — and nothing was making it before.
 
    It has found **four real bugs**, and two of them make the case better than any argument:
 

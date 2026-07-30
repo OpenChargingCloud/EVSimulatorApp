@@ -196,22 +196,39 @@ Three independent gates, and none is sufficient alone:
    output from the same `SchemaPlan`. That is what rules out the mirrored bug — and the C# side is
    itself pinned to these vectors.
 
-   **Scope, accurately (updated 2026-07-30):** this runs in `CrossEmitterComparisonTests`, added
-   when the Swift back end needed it. **Kotlin is still compared on AppProtocol only.** Swift has
-   since been extended to seven whole schema sets (-2, CommonMessages, DC, AC, ACDP, AC_DER_IEC,
-   AC_DER_SAE), so the two back ends are *not* equally covered by this gate — and the Swift
-   extension found four real bugs that vectors and round-trips had missed, which is a fair estimate
-   of what Kotlin is currently not being checked for.
+   **Scope (updated 2026-07-30):** this runs in `CrossEmitterComparisonTests`, and Kotlin is now
+   compared across **eight whole schema sets** — -2, CommonMessages, DC, AC, ACDP, AC_DER_IEC,
+   AC_DER_SAE and **WPT**, which Swift refuses and only Kotlin generates. Every one agrees with the
+   C# back end operation for operation.
 
-   The wider statements below — including the WPT figure — come from an ad-hoc run during the
-   Kotlin port whose tool was never checked in, so they are historical observations rather than
-   something CI would catch again today. Extending the Kotlin comparison to the -2 and -20 sets is
-   the obvious next step, and now a cheap one: the harness exists and only the `EmitKotlin` test
-   cases are missing.
+   The wider statements below — including the old "2 of 130 WPT functions differ" figure — came
+   from an ad-hoc run during the Kotlin port whose tool was never checked in. They are superseded:
+   the checked-in gate reports no divergence in WPT or anywhere else.
+
+   **WPT is where this gate carries the most weight and deserves the least confidence.** Its
+   `WPT_LF_TransmitterDataType` is the construct cbexigen's own encoder cannot represent (see
+   below), so no vector reaches it and two emitters agreeing is the *only* check the set has. Two
+   ports of one grammar agreeing says they read it the same way, not that they read it correctly.
+
+   Extending it to Kotlin needed one fix to the comparison itself, not to the emitter. The
+   document-index `when` is emitted in plan order by Kotlin and sorted by index in C# and Swift —
+   the same table, written in a different order, which a strict sequence comparison called a
+   divergence. Runs of keyed arms are now sorted by key before comparing, because `4 -> Foo` before
+   `0 -> Bar` decodes exactly as the reverse.
 
    Values are deliberately not compared: `(uint)msg.SchemaID`, `UInt32(v)` and
    `msg.schemaID!!.toLong().toUInt()` are one operand written three ways. What must agree is every
    literal event code and every bit width.
+
+   Arm *keys* are excluded from an operation's identity for the same reason — C# writes
+   `case 1u:` where Kotlin writes `else if (rc == 1u)`, and folding that in would compare languages
+   rather than grammars. But the keys do have to agree on something, so that claim is made
+   separately and precisely: `EveryBackEndRoutesEachDocumentIndexToTheSameMessage` extracts each
+   set's document-index → message-decoder table and requires all three back ends to produce the
+   same one. **Nothing was checking that before.** A back end that routed index 4 to the wrong
+   message would have agreed operation for operation, and the vectors would not have noticed
+   either: a misrouted document decodes into a well-formed instance of the wrong type and
+   round-trips back to the bytes it came from, because both directions read the same table.
 3. **Structure**, in the .NET suite (`KotlinEmitterSplitTests`, `CodegenDriverTests`). The Kotlin
    back end is driven directly on a mini-XSD and on the real -2 set, and the result is checked for
    the things a byte diff cannot see: that every `encodeX(…)` call resolves to a function some file
