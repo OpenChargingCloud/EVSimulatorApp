@@ -99,10 +99,10 @@ public sealed class SeccStation(
             var timeout = TimeSpan.FromSeconds(60);
             if (profile.Protocol is 20)
             {
-                // -20 AC. The meter is not wired here yet: MeterSignature lives on
-                // SignedMeteringData rather than on the charging-loop responses, so it belongs with
-                // MeteringConfirmation and is a different piece of work from -2's.
-                var secc = new Secc20Ac(timeout, TimeProvider.System);
+                // -20 AC, with the same meter as -2. An earlier comment here claimed MeterSignature
+                // lived only on SignedMeteringData and so was separate work; it is on the charge-loop
+                // responses too, so this is simply the same wiring.
+                var secc = new Secc20Ac(timeout, TimeProvider.System) { InstalledMeter = meter };
                 await secc.RunAsync(stream, ct);
                 Report(hub.LogAsync("tx", "session complete"));
             }
