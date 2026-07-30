@@ -119,7 +119,45 @@ Three things the tests are really for:
 The station also shows **its own warnings about itself**. The operator standing in front of the Pi
 is the person who can fix a weakened profile, so it should not only be the phone that says so.
 
-Serving it is a few lines of `HttpListener` somewhere else, and nothing depends on them.
+## Hosting it — `EVSimulatorApp.Pi`
+
+A .NET 10 minimal-API host. Nothing in it is Raspberry-Pi-specific, which is the point: it runs and
+is exercised identically on a laptop, and only the layer *below* it — binding to the WLAN interface,
+AP mode, PLC — actually needs the hardware.
+
+```bash
+station__totpSecret=… dotnet run --project pairing/EVSimulatorApp.Pi
+```
+
+| Route | |
+|---|---|
+| `GET /` | the display page |
+| `GET /qrcode.min.js` | the vendored renderer, off disk — **500 if missing**, rather than a page whose QR silently never appears |
+| `/ws` | the live channel |
+
+**Push rather than poll.** The page no longer reloads on a timer; the station pushes each new slot.
+A reloading page and a station whose clock has drifted disagree silently, and the symptom is a code
+the station has already stopped accepting. Pushing means what is on screen is what was just minted.
+The rotation waits on the verifier's *own* remaining time rather than a timer of its own, for the
+same reason: two independent clocks is exactly how the two drift apart.
+
+Three message types, all JSON: `pairing` (new URI + seconds left), `status` (a vehicle attached or
+detached, with its peer), and `log` (one line of ISO 15118 traffic). A page opening mid-session is
+sent live state plus the log backlog, so it is immediately right rather than blank — but **never a
+replayed pairing code**, which would put an expired one on screen.
+
+`StationHub` holds all of that and knows nothing about sockets, so the rules are testable without a
+server; `PairingWebApp` is the thin mapping onto HTTP. Two properties worth naming:
+
+- **The shared secret never reaches an event.** Asserted over every message type, not just the page.
+- **A display that has gone away cannot affect the station.** A throwing subscriber does not stop
+  the others being told and does not propagate back — this is a screen, and the session outranks it.
+
+Log lines carry peer-controlled text (an EVCC id, a TLS error), so the hub carries them verbatim and
+the page renders them with `textContent`, never `innerHTML`.
+
+The host refuses to start without `station__totpSecret`. A display with no rotating code is a
+sticker, and that should be a decision rather than a default.
 
 ## Not done here
 

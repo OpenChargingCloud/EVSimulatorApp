@@ -35,7 +35,14 @@ public static class PairingPage
     /// </param>
     /// <param name="totp">The code for this slot, or null for a static (non-rotating) display.</param>
     /// <param name="remaining">How long this code lasts; drives the page's own refresh.</param>
-    public static string Render(PairingPayload payload, string? totp, TimeSpan remaining)
+    /// <param name="liveEndpoint">
+    /// A WebSocket path to subscribe to, e.g. <c>/ws</c>. When given, the page redraws its QR from
+    /// pushed messages instead of reloading, and gains a connection indicator and a log window.
+    /// When null it is a self-contained page that reloads itself — which is what makes it testable
+    /// and printable without a server behind it.
+    /// </param>
+    public static string Render(PairingPayload payload, string? totp, TimeSpan remaining,
+                                string? liveEndpoint = null)
     {
         var shown = totp is null ? payload : payload with { Totp = totp };
         var uri   = PairingUri.Format(shown);
@@ -52,12 +59,27 @@ public static class PairingPage
               dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; }
               dt { font-weight: 600; }
               .warn { color: #a00; font-weight: 600; }
+              #status { font-weight: 600; }
+              #status.idle { color: #666; }
+              #status.live { color: #070; }
+              #log { background: #111; color: #ddd; font-family: ui-monospace, monospace;
+                     font-size: .75rem; height: 16rem; overflow-y: auto; padding: .5rem;
+                     white-space: pre-wrap; }
+              #log .err { color: #f88; }
+              #log .rx  { color: #8cf; }
+              #log .tx  { color: #8f8; }
               .uri { word-break: break-all; font-family: ui-monospace, monospace; font-size: .8rem; }
             </style></head><body>
             <h1>Scan to pair</h1>
             <div id="qr"></div>
 
             """);
+
+        if (liveEndpoint is not null)
+            html.Append("""
+                <p id="status" class="idle">No vehicle connected</p>
+
+                """);
 
         html.Append("<dl>");
         Row(html, "Endpoint", $"{payload.Host} : {payload.Port}");
@@ -87,6 +109,9 @@ public static class PairingPage
         if (totp is not null)
             html.Append($"<p>This code changes in <span id=\"left\">{(int) remaining.TotalSeconds}</span> s.</p>\n");
 
+        if (liveEndpoint is not null)
+            html.Append("<h2>Session log</h2>\n<div id=\"log\"></div>\n");
+
         // Not interpolated: the script body has braces of its own, and doubling them to satisfy the
         // interpolator would make this unreadable for no gain.
         html.Append("""
@@ -98,13 +123,61 @@ public static class PairingPage
             """.Replace("@SCRIPT@", QrScriptPath)
                .Replace("@URI@", JsonString(uri)));
 
-        if (totp is not null)
+        if (liveEndpoint is not null)
             html.Append("""
 
                 <script>
-                  // Reload just after this slot ends, so the page never shows a code the station has
-                  // already stopped accepting. Reloading early would be the opposite failure: the
-                  // next code shown before the station honours it.
+                  // Live mode: the station pushes each new slot, so the page never reloads and never
+                  // guesses. A reload-driven page and a station whose clock has drifted disagree
+                  // silently; here the code on screen is the one the station just minted.
+                  const qr     = document.getElementById('qr');
+                  const status = document.getElementById('status');
+                  const log    = document.getElementById('log');
+                  const left   = document.getElementById('left');
+                  let code = null;
+
+                  const draw = (uri) => { qr.replaceChildren();
+                                          code = new QRCode(qr, { text: uri, useSVG: true }); };
+
+                  // textContent, never innerHTML: these lines carry peer-controlled text — an EVCC
+                  // id, a TLS error — onto the operator's own screen.
+                  const line = (at, level, text) => {
+                    const el = document.createElement('div');
+                    el.className = level;
+                    el.textContent = at + '  ' + text;
+                    log.appendChild(el);
+                    while (log.childElementCount > 500) log.firstElementChild.remove();
+                    log.scrollTop = log.scrollHeight;
+                  };
+
+                  const open = () => {
+                    const ws = new WebSocket(new URL('@WS@', location.href.replace(/^http/, 'ws')));
+                    ws.onmessage = (m) => {
+                      const e = JSON.parse(m.data);
+                      if (e.type === 'pairing') { draw(e.uri); left.textContent = e.seconds; }
+                      if (e.type === 'status')  { status.textContent = e.connected
+                                                    ? 'Vehicle connected — ' + (e.peer || '')
+                                                    : 'No vehicle connected';
+                                                  status.className = e.connected ? 'live' : 'idle'; }
+                      if (e.type === 'log')     { line(e.at, e.level, e.text); }
+                    };
+                    // A dropped socket must not leave a stale code on screen looking valid.
+                    ws.onclose = () => { status.textContent = 'Display disconnected';
+                                         status.className = 'idle';
+                                         setTimeout(open, 1000); };
+                  };
+                  open();
+
+                  setInterval(() => { left.textContent = Math.max(0, +left.textContent - 1); }, 1000);
+                </script>
+                """.Replace("@WS@", JsonEscapeForUrl(liveEndpoint)));
+        else if (totp is not null)
+            html.Append("""
+
+                <script>
+                  // Standalone mode: reload just after this slot ends, so the page never shows a code
+                  // the station has already stopped accepting. Reloading early would be the opposite
+                  // failure — the next code shown before the station honours it.
                   setTimeout(() => location.reload(), @MS@);
                   // The countdown is why the span has an id — someone deciding whether to scan now
                   // wants to know whether there is time.
@@ -127,6 +200,15 @@ public static class PairingPage
     /// injection hole on the one screen an operator is meant to trust.
     /// </summary>
     private static string Escape(string s) => WebUtility.HtmlEncode(s);
+
+    /// <summary>A path, restricted to what a path may contain — it lands inside a script.</summary>
+    private static string JsonEscapeForUrl(string path)
+    {
+        foreach (var c in path)
+            if (!char.IsAsciiLetterOrDigit(c) && c is not ('/' or '-' or '_' or '.'))
+                throw new ArgumentException($"unsafe character '{c}' in the live endpoint path", nameof(path));
+        return path;
+    }
 
     /// <summary>A JSON string literal, so the URI cannot break out of the script element.</summary>
     private static string JsonString(string s) =>

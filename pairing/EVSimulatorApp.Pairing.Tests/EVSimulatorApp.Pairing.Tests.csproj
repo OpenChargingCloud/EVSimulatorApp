@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../EVSimulatorApp.Pairing/EVSimulatorApp.Pairing.csproj" />
+    <ProjectReference Include="../EVSimulatorApp.Pi/EVSimulatorApp.Pi.csproj" />
   </ItemGroup>
 
 </Project>
