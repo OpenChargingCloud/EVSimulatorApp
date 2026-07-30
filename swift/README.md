@@ -13,6 +13,30 @@ hand-written; every codec module is emitted from the XSDs and checked in.
 | `ExiIso20Common` | Generated -20 CommonMessages codec, 160 files. |
 | `ExiIso20DC` / `ExiIso20AC` / `ExiIso20ACDP` | The -20 power-transfer sets, 72 / 59 / 58 files. |
 | `ExiIso20AcDerIec` / `ExiIso20AcDerSae` | The Amendment 1 DER sets, 86 / 107 files. Their corpora are of **mixed provenance** — see below. |
+| `V2GTP` | Hand-written 8-byte transfer-protocol header. No dependencies at all. |
+| `V2GDispatch` | Hand-written `MessageSet` / `V2GTPDispatcher` — payload type ↔ message set. Depends on every codec target. |
+
+`V2GTP` and `V2GDispatch` are split for the reason `kotlin/` splits them: reading a frame's type and
+length pulls in nothing, while resolving that type to a decoder needs every message set.
+
+Three shapes differ from the other back ends there, and none changes a byte:
+
+* `V2GTP.header(...)` **returns** the eight bytes where C# and Kotlin write into a caller-supplied
+  array — a Swift array is a value type, so the caller would not see the mutation.
+* `tryReadHeader`'s `bool` + two `out` parameters become an optional `V2GTPHeader`, and the
+  dispatcher's four-way `bool` + `out` becomes a `V2GTPDecodeResult` enum. The distinction that
+  matters survives exactly: a *framing* problem is a value, while malformed EXI inside a recognised
+  set throws out of the codec, the same as calling `decodeAny` directly.
+* Payload-type constants are plain `UInt16` literals. Kotlin needs `val` rather than `const val`
+  because it has no `UShort` literal; Swift has one, so the wire width costs nothing here.
+
+`0x8001` is **one id shared by SAP and the DIN/-2 messages** — they are told apart by session phase,
+not payload type. The dispatcher therefore only ever *frames* SAP and never decodes it, which is why
+`V2GDispatch` does not depend on `ExiAppProtocol`. An earlier distinct `0x8000` here was a real
+wire-conformance bug, caught only by a live interop run against Josev.
+
+WPT is a *recognised* payload type with no Swift codec behind it, and the dispatcher says so rather
+than reporting an unknown type — which would suggest the frame was malformed.
 
 Each -20 set is its own target, as in `kotlin/`: they are independent grammars that happen to
 share `CommonTypes`, and each embeds its own copy of the XMLDSig schema — which is why the same

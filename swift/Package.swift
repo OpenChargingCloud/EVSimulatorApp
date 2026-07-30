@@ -25,6 +25,8 @@ let package = Package(
         .library(name: "ExiIso20ACDP", targets: ["ExiIso20ACDP"]),
         .library(name: "ExiIso20AcDerIec", targets: ["ExiIso20AcDerIec"]),
         .library(name: "ExiIso20AcDerSae", targets: ["ExiIso20AcDerSae"]),
+        .library(name: "V2GTP", targets: ["V2GTP"]),
+        .library(name: "V2GDispatch", targets: ["V2GDispatch"]),
     ],
     targets: [
         .target(name: "ExiRuntime"),
@@ -53,5 +55,14 @@ let package = Package(
         .testTarget(name: "ExiIso20AcDerIecTests", dependencies: ["ExiIso20AcDerIec"]),
         .target(name: "ExiIso20AcDerSae", dependencies: ["ExiRuntime"]),
         .testTarget(name: "ExiIso20AcDerSaeTests", dependencies: ["ExiIso20AcDerSae"]),
+
+        // Hand-written, and split for the reason kotlin/ splits them: reading a frame's type and
+        // length pulls in nothing, while resolving that type to a decoder needs every message set.
+        .target(name: "V2GTP"),
+        .testTarget(name: "V2GTPTests", dependencies: ["V2GTP"]),
+        .target(name: "V2GDispatch", dependencies: [
+            "V2GTP", "ExiIso2", "ExiIso20Common", "ExiIso20AC", "ExiIso20DC", "ExiIso20ACDP",
+        ]),
+        .testTarget(name: "V2GDispatchTests", dependencies: ["V2GDispatch"]),
     ]
 )
