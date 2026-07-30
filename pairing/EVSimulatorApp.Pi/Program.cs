@@ -43,9 +43,17 @@ var profile = StationProfile.Parse(
                                                    X509KeyStorageFlags.Exportable)
         : null);
 
+// The address on screen is the one thing a person acts on, so it is detected rather than assumed:
+// the first wireless interface's routable IPv4, which on the Pi in AP mode is 192.168.4.1 and on a
+// development laptop is that laptop's address. station:host still wins where the two cannot be
+// guessed apart — behind NAT, or when the phone reaches the station by a name.
+var (host, hostBecause) = config["station:host"] is { Length: > 0 } configuredHost
+                              ? (configuredHost, "station:host")
+                              : StationAddress.Detect();
+
 // The display's declaration, projected from the profile rather than configured beside it.
 var template = profile.Declare(
-    host:                 config["station:host"] ?? "192.168.4.1",
+    host:                 host,
     port:                 int.Parse(config["station:port"] ?? "15118"),
     evseId:               config["station:evseId"],
     rootFingerprint:      config["station:root"],
@@ -94,6 +102,9 @@ _ = Task.Run(async () =>
 });
 
 app.Logger.LogInformation("pairing display on {Urls}", string.Join(", ", app.Urls.DefaultIfEmpty("(default)")));
+// Named, not silent: a screen advertising an address nobody can reach is the failure this detection
+// exists to avoid, and the log is where that becomes visible without scanning the code.
+app.Logger.LogInformation("display advertises {Host} — {Because}", host, hostBecause);
 app.Run();
 
 /// <summary>Exposed so the tests can drive the same wiring the binary uses.</summary>
