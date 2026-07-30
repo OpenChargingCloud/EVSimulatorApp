@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Vanaheimr.V2G.Simulation.Metering;
 using Vanaheimr.V2G.Simulation.StateMachines;
 using Vanaheimr.V2G.Simulation.StateMachines.Iso2;
+using Vanaheimr.V2G.Simulation.StateMachines.Iso20;
 using Vanaheimr.V2G.Simulation.Transport;
 
 namespace EVSimulatorApp.Pi;
@@ -29,6 +30,7 @@ namespace EVSimulatorApp.Pi;
 /// </remarks>
 public sealed class SeccStation(
     IPEndPoint endpoint,
+    StationProfile profile,
     PairingAdmission admission,
     StationHub hub,
     SigningMeter? meter,
@@ -39,7 +41,9 @@ public sealed class SeccStation(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var listener = new TcpV2GListener(endpoint)
+        // The transport comes from the profile, which is the same value the display declares — so
+        // the code on screen cannot advertise a transport the station is not running.
+        using var listener = new TcpV2GListener(endpoint, profile.ToTlsOptions())
         {
             // Gate the accept, not the session: an unadmitted peer gets no handshake and no reply.
             Admit = peer =>
@@ -55,17 +59,27 @@ public sealed class SeccStation(
         };
 
         LocalEndpoint = listener.LocalEndpoint;
-        logger.LogInformation("SECC listening on {Endpoint}", LocalEndpoint);
-        Report(hub.LogAsync("rx", $"SECC listening on {LocalEndpoint}"));
+        var what = $"ISO 15118-{profile.Protocol} over {(profile.UseTls ? "TLS" : "plaintext TCP")}";
+        logger.LogInformation("SECC listening on {Endpoint} — {What}", LocalEndpoint, what);
+        Report(hub.LogAsync("rx", $"SECC listening on {LocalEndpoint} — {what}"));
 
         while (!stoppingToken.IsCancellationRequested)
         {
             Stream stream;
             try { stream = await listener.AcceptAsync(stoppingToken); }
             catch (OperationCanceledException) { break; }
-            catch (SocketException e)
+            catch (Exception e)
             {
+                // Deliberately every exception, not just SocketException. AcceptAsync performs the
+                // TLS handshake, so a peer that speaks TLS badly — or an openssl probe that hangs up
+                // — throws AuthenticationException or IOException from here. Catching narrowly took
+                // the whole station down on the first such connection during a live run: the
+                // BackgroundService died and the host stopped with it.
+                //
+                // A charger must not be killable by a port scan. One bad connection is one bad
+                // connection.
                 logger.LogWarning(e, "accept failed");
+                Report(hub.LogAsync("err", $"accept failed: {e.Message}"));
                 continue;
             }
 
@@ -82,10 +96,22 @@ public sealed class SeccStation(
 
         try
         {
-            var secc = new Secc2(PowerMode.Ac, TimeSpan.FromSeconds(60), TimeProvider.System)
-                       { InstalledMeter = meter };
-            await secc.RunAsync(stream, ct);
-            Report(hub.LogAsync("tx", secc.Paused ? "session paused" : "session complete"));
+            var timeout = TimeSpan.FromSeconds(60);
+            if (profile.Protocol is 20)
+            {
+                // -20 AC. The meter is not wired here yet: MeterSignature lives on
+                // SignedMeteringData rather than on the charging-loop responses, so it belongs with
+                // MeteringConfirmation and is a different piece of work from -2's.
+                var secc = new Secc20Ac(timeout, TimeProvider.System);
+                await secc.RunAsync(stream, ct);
+                Report(hub.LogAsync("tx", "session complete"));
+            }
+            else
+            {
+                var secc = new Secc2(PowerMode.Ac, timeout, TimeProvider.System) { InstalledMeter = meter };
+                await secc.RunAsync(stream, ct);
+                Report(hub.LogAsync("tx", secc.Paused ? "session paused" : "session complete"));
+            }
         }
         catch (Exception e)
         {

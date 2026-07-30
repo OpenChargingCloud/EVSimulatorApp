@@ -1,5 +1,6 @@
 using System.Net;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 using EVSimulatorApp.Pairing;
 using EVSimulatorApp.Pi;
@@ -19,21 +20,6 @@ var config = builder.Configuration;
 
 // The station's live configuration. The display is derived from this every rotation, so it cannot
 // advertise a profile the station is not running (docs/CONCEPT.md §4.5).
-var template = new PairingPayload
-{
-    Version   = 1,
-    Host      = config["station:host"] ?? "192.168.4.1",
-    Port      = int.Parse(config["station:port"] ?? "15118"),
-    Transport = config["station:transport"] is "tcp" ? PairingTransport.Tcp : PairingTransport.Tls,
-    Protocols = (config["station:protocols"] ?? "iso2,iso20").Split(',', StringSplitOptions.RemoveEmptyEntries),
-    Crypto    = config["station:crypto"] ?? PairingWarnings.ConformantCurve,
-    NonConformant        = config["station:nc"] is "1" or "true",
-    NonConformanceReason = config["station:ncwhy"],
-    RootFingerprint      = config["station:root"],
-    Meter                = config["station:meter"],
-    EvseId               = config["station:evseId"],
-};
-
 // The shared secret is provisioned out of band and never rendered — only the code derived from it
 // reaches the screen (§4.6). Refusing to start without one is deliberate: a display with no
 // proximity proof is a sticker, and it should be a decision rather than a default.
@@ -41,6 +27,31 @@ var secret = config["station:totpSecret"]
              ?? throw new InvalidOperationException(
                  "station:totpSecret is required — the rotating code is what makes this a proximity "
                + "proof rather than a photograph. Set it, or run a static display on purpose.");
+
+// One profile, two projections: the listener's transport and the display's declaration. Keeping
+// them as separate config keys is how a screen ends up advertising TLS beside a plaintext port.
+var certificatePath = config["station:certificate"];
+var profile = StationProfile.Parse(
+    int.Parse(config["station:protocol"] ?? "2"),
+    config["station:transport"] ?? "tcp",
+    certificatePath is { Length: > 0 }
+        // Exportable on purpose: a TLS-1.3-only session on macOS runs on the BouncyCastle fallback
+        // (docs/pki-model.md), and its credential bridge exports the key to PKCS#8. Loading without
+        // this flag fails every -20 accept with "the private key is not exportable" — found by
+        // running it, not by reading it.
+        ? X509CertificateLoader.LoadPkcs12FromFile(certificatePath, config["station:certificatePassword"],
+                                                   X509KeyStorageFlags.Exportable)
+        : null);
+
+// The display's declaration, projected from the profile rather than configured beside it.
+var template = profile.Declare(
+    host:                 config["station:host"] ?? "192.168.4.1",
+    port:                 int.Parse(config["station:port"] ?? "15118"),
+    evseId:               config["station:evseId"],
+    rootFingerprint:      config["station:root"],
+    meter:                config["station:meter"],
+    nonConformant:        config["station:nc"] is "1" or "true",
+    nonConformanceReason: config["station:ncwhy"]);
 
 var slot      = TimeSpan.FromSeconds(int.Parse(config["station:slotSeconds"] ?? "10"));
 var verifier  = new PairingTotpVerifier(secret, slot);
@@ -57,7 +68,7 @@ builder.Services.AddSingleton(admission);
 builder.Services.AddSingleton(hub);
 builder.Services.AddHostedService(sp => new SeccStation(
     new IPEndPoint(IPAddress.IPv6Any, int.Parse(config["station:listenPort"] ?? "15118")),
-    admission, hub, meter, sp.GetRequiredService<ILogger<SeccStation>>()));
+    profile, admission, hub, meter, sp.GetRequiredService<ILogger<SeccStation>>()));
 
 var app = builder.Build();
 
