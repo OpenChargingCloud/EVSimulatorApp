@@ -1087,11 +1087,17 @@ back ends. Nothing was broken; the point is that nothing would have said so.
 > one-shot nonce cache. 61 tests. §6.3's negative catalogue for pairing is covered — expired slot,
 > replay, wrong secret, ±1 and ±2 skew, and a two-minute-old screenshot.
 >
+> **The signing meter is done too** (submodule `Metering/`): `SigMeterReading` now carries a real
+> P-256 signature over a documented payload, and a station with a meter installed reports its
+> reading every cycle rather than only when demanding a receipt. The layout signed is **ours** —
+> ISO 15118 defines the field and not its content — so it is written down rather than merely
+> implemented, and the app must reproduce it byte for byte to verify anything.
+>
 > **Everything needing the Pi is not.** Hosting the SECC over WLAN, interface binding, the display
-> page, AP mode, the signing meter, and the exit criterion below all need hardware to verify, and
-> claiming them from a laptop would be claiming an untested deployment. The format and the check
-> were done first deliberately: they are what both ends depend on, and they would otherwise be
-> settled by whichever end happened to be written first.
+> page, AP mode and the exit criterion below all need hardware to verify, and claiming them from a
+> laptop would be claiming an untested deployment. The pieces that were done first are the ones
+> both ends depend on — the payload format, the pairing check and the meter layout — because each
+> would otherwise be settled by whichever end happened to be written first.
 
 Host
 `Vanaheimr.V2G.Simulation`'s SECC on the Pi over WLAN; bind `TcpV2GListener` to the WLAN
