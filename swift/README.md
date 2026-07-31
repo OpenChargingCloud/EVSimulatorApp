@@ -17,6 +17,7 @@ hand-written; every codec module is emitted from the XSDs and checked in.
 | `V2GDispatch` | Hand-written `MessageSet` / `V2GTPDispatcher` — payload type ↔ message set. Depends on every codec target. |
 | `V2GMetering` | Verifies a station's signed meter reading. Held to the corpus the C# side generates, not to its own output. |
 | `ExiXmlDsig` | Generated standalone W3C XMLDSig codec. Not a message set — it exists only to produce the octets a Plug & Charge signature is actually over. |
+| `V2GCertificates` | X.509 for the app: reading, the MO root store, chain validation. The only target that knows `swift-certificates` exists. |
 | `V2GEvcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM **and** Plug & Charge) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
 
 `V2GTP` and `V2GDispatch` are split for the reason `kotlin/` splits them: reading a frame's type and
@@ -91,9 +92,9 @@ global elements. That is the form a live Josev peer produces and accepts.
 
 Signing is CryptoKit `P256.Signing`, whose `rawRepresentation` is already the raw `r‖s` the field
 wants — no DER conversion anywhere, and the field is 64 bytes so a DER signature would not fit even
-by accident. `PncEvccOptions` takes the **eMAID as a value** rather than parsing it out of the
-certificate's CN as C# does: that would need an X.509 parser this package does not have and does not
-want, and the identity is known to whoever provisioned the credentials.
+by accident. `PncEvccOptions` reads the **eMAID from the contract certificate's Common Name**, as C#
+and Kotlin do. (An earlier draft took it as a value and said this package had no X.509 parser and
+wanted none; `V2GCertificates` is that parser, and the reasoning is below.)
 
 Signed sessions are compared by substituting the recorded signature and verifying the produced one
 separately (`SignedFrame.swift`). Which leaves a gap that took a moment to see:
@@ -107,6 +108,76 @@ separately (`SignedFrame.swift`). Which leaves a gap that took a moment to see:
 made by C# over C#'s octets, so it verifies here only if the two encoders agree. Confirmed by
 mutation — corrupting only the standalone mapping leaves both Plug & Charge replay tests green and
 fails exactly that one test, in Swift and Kotlin alike.
+
+## Certificates: reading, trusting, validating
+
+`V2GCertificates` is the app's X.509. It is also the only target that knows `swift-certificates`
+exists — the dependency is one target wide, so vendoring or replacing it costs one file.
+
+**Why a library and not our own ASN.1.** C# uses `System.Security.Cryptography.X509Certificates` and
+Kotlin `java.security.cert`; both take their platform's implementation. Writing our own only here
+would make Swift the outlier in the risky direction, and the direction settles it: a contract chain
+arrives from a **scanned QR code**, so it is untrusted input reaching a parser on a phone.
+Certificate parsers are a classic vulnerability class. It brings `swift-asn1` and `swift-crypto`
+with it — three packages, all Apple's, all Apache-2.0, bounded to the current minor with
+`Package.resolved` as the actual pin.
+
+### The eMAID rule, and how it was found
+
+`eMAIDType` is 14–15 characters (`V2G_CI_MsgDataTypes.xsd`). Nothing enforced it: the generated codec
+does not apply string-length facets, reasonably for an encoder that assumes schema-valid input, and
+so nothing below the state machine was ever going to. Giving Swift a reader that checked the length
+the schema states promptly refused **this repository's own corpus certificate** — a 19-character
+Common Name that had been travelling in a recorded Plug & Charge session, accepted by all three back
+ends. A second one turned up in the -2 PnC loopback test at 16 characters. The check now lives in all
+three, before the session opens rather than four exchanges in; note that it is a **-2** rule, since
+-20 never sends the eMAID from the certificate at all.
+
+### The trust store, and what a dialog can honestly say
+
+The app keeps MO roots and takes new ones by QR scan, TOFU-style with a confirmation. Four verdicts,
+and the distinctions are the point:
+
+| Verdict | When | What the dialog may say |
+|---|---|---|
+| `alreadyTrusted` | byte-identical | nothing; it is a no-op |
+| `new` | no stored root with this subject | "unknown — you decide" |
+| `renewal` | same subject **and same key** | "the same CA, re-issued" |
+| `vouchedByTrustedRoot` | signed by a stored root, signature checked | "the root you trust vouches for this one" |
+| `replacementUnderKnownName` | same subject, different key, nobody vouches | as loudly as `new`, never as a refresh |
+
+A root's subject is written by whoever made it, so anyone can mint one calling itself "Hubject MO
+Root CA". Only the **fingerprint** binds; the dialog may show the name and must not let it convince.
+
+Vouching is the friendly rotation — a CA introducing its successor with the key it still holds — and
+`testAStolenRootKeyProducesAnEquallyValidVouching` pins what it is worth: whoever holds that key can
+vouch for anything, and it is indistinguishable from an honest rotation because cryptographically it
+*is* one. Conversely a CA that **lost** its key cannot use this path, so its legitimate rotation
+appears as the loud `replacementUnderKnownName`. Both directions are the honest ones, and neither is
+proof.
+
+### Chain validation: two questions, deliberately not one
+
+**Is the chain sound?** Path, signatures, dates, CA flags, path length — RFC 5280's question,
+answered by `swift-certificates`. One right answer, no user opinion.
+
+**Does the leaf match the ISO 15118 profile?** Ours, and PKIX has no view on it. A contract
+certificate carrying `serverAuth` builds a perfect path and is simply a credential that could also
+impersonate a station. Reported, not rejected — fold the two together and the user is told "invalid"
+about a chain that is entirely valid and merely wrong.
+
+Held to `Vectors/Certificate.chain.vectors.json`, generated from `WWCP_ISO15118_PKI` including its
+evil-certificate factory — which exists to defeat validators that stop at the path maths, and says so
+in its own comment. That corpus earned its place immediately: an earlier draft treated a shuffled
+bundle as "a wire problem, not a trust problem" and validated whatever came first, which meant it
+cheerfully trusted a **sub-CA** as a contract credential. The order is what states *which* certificate
+is being presented, so a bundle that does not link up gets `bundleDoesNotLinkUp` and no findings at
+all — nothing said about a guessed leaf is worth saying.
+
+Not done, and named rather than assumed: **revocation**. ISO 15118-20 staples OCSP into the TLS
+handshake, which is the transport's business, and nothing here checks a contract certificate against
+a CRL. Kotlin has neither store nor validator — the requirement came from the app, not the state
+machine.
 
 WPT is a *recognised* payload type with no Swift codec behind it, and the dispatcher says so rather
 than reporting an unknown type — which would suggest the frame was malformed.

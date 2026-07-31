@@ -4,6 +4,7 @@ import Foundation
 import ExiIso2
 import ExiIso20Common
 import ExiXmlDsig
+import V2GCertificates
 
 /// Contract credentials that switch an EVCC from EIM to **Plug & Charge**. `nil` (the default) keeps
 /// the session on external payment.
@@ -16,17 +17,30 @@ public struct PncEvccOptions {
     public let contractCertificate: [UInt8]
     public let subCertificates: [[UInt8]]
     public let contractKey: P256.Signing.PrivateKey
-    /// The eMAID sent in -2's PaymentDetails. Supplied rather than derived: reading the CN out of the
-    /// certificate needs an X.509 parser, which this Foundation-light package does not have and does
-    /// not need — the identity is known to whoever provisioned the credentials.
-    public let emaid: String
 
+    /// The eMAID this credential can present in -2's PaymentDetails, read from the contract
+    /// certificate's Common Name — as C# and Kotlin both do. `nil` when the Common Name cannot be
+    /// one.
+    ///
+    /// **Optional on purpose, and this was a correction.** An earlier version refused the credential
+    /// outright, which is stricter than the standard: the 14–15 character rule is a *-2* rule, from
+    /// `eMAIDType` in `V2G_CI_MsgDataTypes.xsd`. ISO 15118-20 never sends the eMAID from the
+    /// certificate at all — it carries only the chain — so a credential that cannot do -2 Plug &
+    /// Charge may be perfectly usable for -20. Refusing it here would have blocked both.
+    ///
+    /// ``Evcc2`` therefore checks it before opening a session, and ``Evcc20Base`` never looks. An app
+    /// installing a chain from a QR code should check ``V2GCertificate/hasUnusableEmaid`` at that
+    /// moment and say so, which is where the warning actually belongs.
+    public let emaid: String?
+
+    /// - Throws: if the contract certificate will not parse at all.
     public init(contractCertificate: [UInt8], subCertificates: [[UInt8]],
-                contractKey: P256.Signing.PrivateKey, emaid: String) {
+                contractKey: P256.Signing.PrivateKey) throws {
+
+        self.emaid = try V2GCertificate(der: contractCertificate).emaid
         self.contractCertificate = contractCertificate
         self.subCertificates = subCertificates
         self.contractKey = contractKey
-        self.emaid = emaid
     }
 }
 

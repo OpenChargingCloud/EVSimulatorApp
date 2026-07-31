@@ -52,6 +52,9 @@ class Evcc2(
     private companion object {
         const val POLL_INTERVAL_MS = 50L
         const val CHARGE_CYCLES    = 3
+
+        /** ISO 15118-2 `eMAIDType`: 14 characters without the check digit, 15 with it. */
+        val EMAID_LENGTH = 14..15
     }
 
     private var sessionId = ByteArray(8)   // 0 until SessionSetupRes assigns one
@@ -99,6 +102,11 @@ class Evcc2(
 
 
     fun run() {
+
+        // Check the credential before opening the session, not four exchanges in: a station that has
+        // already assigned a session id and been asked for its payment options should not then be
+        // abandoned over something knowable before the first byte.
+        pnc?.let { contractEmaid(it.contractCertificate) }
 
         // ── SETUP ──────────────────────────────────────────────────────────
         val setup = send<SessionSetupResType>(
@@ -208,18 +216,29 @@ class Evcc2(
 
 
     /**
-     * The eMAID for PaymentDetails — the contract certificate's CN.
+     * The eMAID for PaymentDetails — the contract certificate's CN, checked against the one rule the
+     * schema states.
      *
-     * C# reads it with `GetNameInfo(X509NameType.SimpleName, …)`; the JVM has no direct equivalent,
-     * so the RFC 2253 subject is parsed for its CN. Equivalent for the single-CN subjects this ever
-     * sees, and it fails loudly rather than sending an empty eMAID if that assumption ever breaks.
+     * C# reads the CN with `GetNameInfo(X509NameType.SimpleName, …)`; the JVM has no direct
+     * equivalent, so the RFC 2253 subject is parsed for it. Equivalent for the single-CN subjects
+     * this ever sees, and it fails loudly rather than sending an empty eMAID if that ever breaks.
+     *
+     * ISO 15118-2 constrains `eMAIDType` to **14 or 15 characters** (`V2G_CI_MsgDataTypes.xsd`), and
+     * that is checked here because it was missing: a corpus certificate with a 19-character CN
+     * travelled in a recorded PnC session and nothing objected, in any of the three back ends. The
+     * generated codec does not enforce string-length facets — reasonably, since an EXI encoder
+     * assumes schema-valid input — so nothing else was going to catch it.
+     *
+     * It is a **-2** rule, not a certificate-profile rule: ISO 15118-20 never sends the eMAID from
+     * the certificate, so the same credential can be perfectly usable there. Hence the check lives
+     * on this path and not on [PncEvccOptions].
      */
     private fun contractEmaid(certificateDer: ByteArray): String {
 
         val certificate = CertificateFactory.getInstance("X.509")
             .generateCertificate(certificateDer.inputStream()) as X509Certificate
 
-        return certificate.subjectX500Principal.name
+        val commonName = certificate.subjectX500Principal.name
             .split(',')
             .map { it.trim() }
             .firstOrNull { it.startsWith("CN=") }
@@ -227,6 +246,14 @@ class Evcc2(
             ?: throw SessionAborted(
                 "the contract certificate's subject has no CN, so there is no eMAID to send: " +
                 certificate.subjectX500Principal.name)
+
+        if (commonName.length !in EMAID_LENGTH)
+            throw SessionAborted(
+                "the contract certificate's Common Name \"$commonName\" is ${commonName.length} " +
+                "characters; ISO 15118-2 allows an eMAID of 14 or 15, so this credential cannot " +
+                "authorize a -2 Plug & Charge session.")
+
+        return commonName
     }
 
 

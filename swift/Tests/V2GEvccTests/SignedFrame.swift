@@ -111,6 +111,7 @@ enum PncMaterial {
     private struct Material: Decodable {
         let privateKeyD: String
         let certificate: String
+        let certificateWithUnusableEmaid: String
     }
 
     private static var material: Material {
@@ -127,16 +128,24 @@ enum PncMaterial {
 
     static var certificate: [UInt8] { SignedFrame.hex(material.certificate) }
 
+    /// A certificate whose Common Name is 19 characters and therefore cannot be an eMAID — the
+    /// negative case every back end's length check is held to.
+    static var certificateWithUnusableEmaid: [UInt8] {
+        SignedFrame.hex(material.certificateWithUnusableEmaid)
+    }
+
     static var key: P256.Signing.PrivateKey {
         try! P256.Signing.PrivateKey(rawRepresentation: Data(SignedFrame.hex(material.privateKeyD)))
     }
 
-    /// The subject CN of the certificate above. Stated rather than parsed — see `PncEvccOptions.emaid`
-    /// for why this package has no X.509 parser and does not want one.
-    static let emaid = "TraceCorpusContract"
+    /// The eMAID the certificate carries. Not passed in any more — `PncEvccOptions` reads it from
+    /// the certificate, as C# and Kotlin do. Kept here only so a test can say what it expects.
+    static let expectedEmaid = "DE8AA1A2B3C4D5"
 
     static var options: PncEvccOptions {
-        PncEvccOptions(contractCertificate: certificate, subCertificates: [certificate],
-                       contractKey: key, emaid: emaid)
+        get throws {
+            try PncEvccOptions(contractCertificate: certificate, subCertificates: [certificate],
+                               contractKey: key)
+        }
     }
 }

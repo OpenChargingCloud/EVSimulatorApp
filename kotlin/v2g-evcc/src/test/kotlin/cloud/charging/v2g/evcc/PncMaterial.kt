@@ -33,6 +33,12 @@ internal object PncMaterial {
 
     val certificate: ByteArray by lazy { hex(material.get("certificate").asString) }
 
+    /** A certificate whose Common Name is 19 characters and therefore cannot be an eMAID — the
+     *  negative case every back end's length check is held to. */
+    val certificateWithUnusableEmaid: ByteArray by lazy {
+        hex(material.get("certificateWithUnusableEmaid").asString)
+    }
+
     val key: PrivateKey by lazy {
         val parameters = AlgorithmParameters.getInstance("EC").apply {
             init(ECGenParameterSpec("secp256r1"))

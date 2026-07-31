@@ -87,6 +87,15 @@ public final class Evcc2 {
 
     public func run() throws {
 
+        // Check the credential before opening the session, not four exchanges in: a station that has
+        // already assigned a session id and been asked for its payment options should not then be
+        // abandoned over something knowable before the first byte.
+        if let credentials = pnc, credentials.emaid == nil {
+            throw SessionAborted(
+                "the contract certificate's Common Name is not a usable eMAID; ISO 15118-2 allows " +
+                "14 or 15 characters, so this credential cannot authorize a -2 Plug & Charge session.")
+        }
+
         // ── SETUP ──────────────────────────────────────────────────────────
         let setup: SessionSetupResType = try send(SessionSetupReqType(
             eVCCID: [0xAB, 0xCD, 0xEF, 0x01, 0x02, 0x03]))
@@ -113,7 +122,7 @@ public final class Evcc2 {
 
         if let credentials, contract {
             let details: PaymentDetailsResType = try send(PaymentDetailsReqType(
-                eMAID: credentials.emaid,
+                eMAID: credentials.emaid!,   // checked at the top of run()
                 contractSignatureCertChain: CertificateChainType(
                     certificate: credentials.contractCertificate,
                     subCertificates: SubCertificatesType(certificate: credentials.subCertificates))))

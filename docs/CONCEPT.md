@@ -19,7 +19,7 @@ The decisive finding is that the submodules under `libs/` are not partial buildi
 Together they are **a complete, externally-validated ISO 15118 stack, a security-research
 toolkit, and a standardised dynamic-QR mechanism**:
 
-- **`Vanaheimr.V2G.Exi`** — both protocols feature-complete at session level, 892 green tests,
+- **`Vanaheimr.V2G.Exi`** — both protocols feature-complete at session level, 897 green tests,
   byte-exact against libcbv2g, cross-checked against EXIficient, and live-interop-proven against
   Josev in both directions including Plug & Charge, contract provisioning, pause/resume,
   renegotiation and signed tariffs. ~122k lines of generated codec, ~2.7k lines of state
@@ -1302,10 +1302,57 @@ now** (§8).
 **Exit:** scan the Pi's rotating code → confirmation sheet → a complete -2 EIM session, on a real
 phone; scanning a screenshot from two minutes ago is rejected.
 
-**B2 — Certificate wallet (1.5–2 weeks).** Per §4.1: import/generate/inspect/select, platform
-keystore with the §3.4 asymmetry surfaced, test-PKI bootstrap, deliberate-breakage backed by the
-`Evil/` factory. **Exit:** -20 mutual TLS with a device-held Vehicle cert (relaxed or conformant
-mode as declared by the pairing QR, §3.3/§4.5); PnC authz with a device-held Contract cert.
+**B2 — Certificate wallet (1.5–2 weeks).** 🟡 **the certificate half started 2026-07-31.** Per §4.1:
+import/generate/inspect/select, platform keystore with the §3.4 asymmetry surfaced, test-PKI
+bootstrap, deliberate-breakage backed by the `Evil/` factory. **Exit:** -20 mutual TLS with a
+device-held Vehicle cert (relaxed or conformant mode as declared by the pairing QR, §3.3/§4.5); PnC
+authz with a device-held Contract cert.
+
+Done so far, in Swift's `V2GCertificates`: reading certificates and chains, the MO root store with
+its install verdicts, and chain validation against it. The use case that drove it is scanning a QR
+code to install a contract certificate and its chain, then charging with it.
+
+**The dependency question, decided.** This is the Swift package's first third-party *package*
+dependency — `swift-certificates`, which brings `swift-asn1` and `swift-crypto`. C# and Kotlin both
+use their platform's X.509; writing our own only in Swift would have made it the outlier in the risky
+direction, and the direction settles it: the chain arrives from a scanned QR, so it is untrusted input
+reaching a parser on a phone. Contrast `CGoldilocks`, which is vendored rather than depended upon —
+that was a C library with no SwiftPM story that *signs* our messages. The `V2GCertificates` seam keeps
+the dependency one target wide, so vendoring it later costs one file.
+
+**Three findings, all from building the checks rather than from reading the code.**
+
+- **The eMAID length rule was enforced nowhere.** `eMAIDType` is 14–15 characters; the generated codec
+  does not apply string-length facets, so nothing below the state machine was going to catch a
+  violation. A reader that checked it refused this repository's own corpus certificate — 19 characters,
+  and it had been travelling in a recorded PnC session accepted by all three back ends. A second, at
+  16, sat in the -2 PnC loopback test, which is the closest thing here to the live-interop scenario.
+  The check is now in all three back ends, before the session opens. Whether the *generator* should
+  emit facet validation is a real open question, deliberately not decided.
+
+- **Trust rotation needs four answers, not two.** A stored root and a scanned one with the same
+  subject can differ in ways that are not the same question: same key is a renewal, a different key
+  is a stranger under a known name, and a different key *signed by the stored root* is a vouched
+  rotation. Achim's point, and it improved the model — a friendly root update is normally introduced
+  by its predecessor. Its limit is pinned as a test: whoever holds a compromised root key vouches
+  exactly as well as an honest CA, because cryptographically it is the same act.
+
+- **A shuffled bundle is not a cosmetic problem.** An earlier draft called it "a wire problem, not a
+  trust problem", reordered, and validated whatever came first — which trusted a **sub-CA** as a
+  contract credential. The order is what states which certificate is being presented. Caught by the
+  chain corpus, within minutes of it existing.
+
+Chain validation keeps two questions apart on purpose, and the split is the design: **is the chain
+sound** (path, signatures, dates, CA flags — RFC 5280's question, one right answer) versus **does the
+leaf match the ISO 15118 profile** (ours, and PKIX has no view). A contract certificate carrying
+`serverAuth` builds a perfect path and could impersonate a station: reported, not rejected. Folding
+them together would tell a user "invalid" about a chain that is valid and merely wrong — the same
+distinction `pairing/README.md` already draws for the QR payload.
+
+Still open here: **revocation** (ISO 15118-20 staples OCSP into the TLS handshake — the transport's
+business, and nothing checks a contract certificate against a CRL), the keystore and the §3.4
+asymmetry, CSR generation, and Kotlin, which has neither store nor validator because the requirement
+came from the app rather than the state machine.
 
 **B3 — Signed metering + session UI (1.5–2 weeks).** Per §4.2: -2 `MeteringReceiptReq`, -20
 `MeteringConfirmationReq`, the signing-detail view, the EV's own meter model, receipt

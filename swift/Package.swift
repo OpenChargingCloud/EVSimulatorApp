@@ -30,7 +30,33 @@ let package = Package(
         .library(name: "V2GTP", targets: ["V2GTP"]),
         .library(name: "V2GDispatch", targets: ["V2GDispatch"]),
         .library(name: "ExiXmlDsig", targets: ["ExiXmlDsig"]),
+        .library(name: "V2GCertificates", targets: ["V2GCertificates"]),
         .library(name: "V2GEvcc", targets: ["V2GEvcc"]),
+    ],
+    dependencies: [
+        // The Swift package's first third-party *package* dependency, and a deliberate one.
+        //
+        // C# uses System.Security.Cryptography.X509Certificates and Kotlin java.security.cert — both
+        // their platform's implementation. Writing our own only here would make Swift the outlier in
+        // the risky direction, and the direction is what settles it: the contract chain arrives from
+        // a scanned QR code, so it is UNTRUSTED INPUT reaching a parser on a phone. Certificate
+        // parsers are a classic vulnerability class; this is not the place to have our own.
+        //
+        // (An earlier draft of this note also argued that writing certificates is harder than
+        // reading them. True, and irrelevant: the app never issues certificates. It may need to
+        // produce a CSR, which this library also covers.)
+        //
+        // It brings two more with it — swift-asn1 and swift-crypto — so this is three packages, not
+        // one. All Apple's, all Apache-2.0, same platform floors as ours. Bounded to the current
+        // minor so an explicit `swift package update` cannot wander; Package.resolved is the actual
+        // pin and is checked in.
+        //
+        // Note the contrast with CGoldilocks below, which is vendored rather than depended upon.
+        // That was a C library with no SwiftPM story and it signs our messages; this is a Swift
+        // package from the same vendor as the toolchain, and it parses. If the release cadence ever
+        // becomes a problem, it can be vendored the same way — the V2GCertificates seam exists so
+        // that swap costs one target.
+        .package(url: "https://github.com/apple/swift-certificates.git", .upToNextMinor(from: "1.19.4")),
     ],
     targets: [
         .target(name: "ExiRuntime"),
@@ -107,9 +133,17 @@ let package = Package(
         // -20 codecs use for everything else. Generated, like every other codec here.
         .target(name: "ExiXmlDsig", dependencies: ["ExiRuntime"]),
 
+        // The X.509 seam. Everything that knows swift-certificates exists lives here and nowhere
+        // else, so the dependency is one target wide — replaceable, and absent from the graph of
+        // anyone who only wants a codec. B2's certificate wallet is what this grows into.
+        .target(name: "V2GCertificates", dependencies: [
+            .product(name: "X509", package: "swift-certificates"),
+        ]),
+        .testTarget(name: "V2GCertificatesTests", dependencies: ["V2GCertificates"]),
+
         .target(name: "V2GEvcc", dependencies: [
             "V2GTP", "V2GDispatch", "ExiAppProtocol", "ExiIso2", "ExiIso20Common",
-            "ExiIso20AC", "ExiIso20DC", "ExiXmlDsig",
+            "ExiIso20AC", "ExiIso20DC", "ExiXmlDsig", "V2GCertificates",
         ]),
         .testTarget(name: "V2GEvccTests", dependencies: ["V2GEvcc"]),
     ]

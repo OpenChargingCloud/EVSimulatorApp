@@ -136,6 +136,34 @@ class Evcc2TraceTest {
     }
 
     /**
+     * A Common Name that cannot be an eMAID is refused before the session opens.
+     *
+     * ISO 15118-2 constrains `eMAIDType` to 14–15 characters, and nothing enforced it: the generated
+     * codec does not apply string-length facets, so a 19-character CN travelled in this repository's
+     * own recorded PnC session, accepted by all three back ends, until Swift got an X.509 reader
+     * that checked the length the schema states.
+     *
+     * The rule is **-2's**, not a certificate profile's — ISO 15118-20 never sends the eMAID from the
+     * certificate, so [Evcc20Base] deliberately does not check.
+     */
+    @Test
+    fun aCommonNameThatCannotBeAnEmaidIsRefusedBeforeTheSessionOpens() {
+
+        // The trace's own credential is fine; only its identity is swapped for a bad one. The stream
+        // would fail on first use, so reaching it at all would be a different error — which is how
+        // this test knows the check ran before any I/O.
+        val replay = TraceReplay(SessionTrace.load("iso2-ac-pnc"))
+        val evcc = Evcc2(V2GTPStream(replay.input, replay.output), PowerMode.Ac, pollDelay = { })
+
+        evcc.pnc = PncEvccOptions(PncMaterial.certificateWithUnusableEmaid,
+                                  listOf(PncMaterial.certificateWithUnusableEmaid),
+                                  PncMaterial.key)
+
+        val aborted = assertFailsWith<SessionAborted> { evcc.run() }
+        assertTrue(aborted.message!!.contains("14 or 15"), aborted.message!!)
+    }
+
+    /**
      * The harness fails when it should. Without this, the tests above being green could equally mean
      * the comparison never compares anything — the failure mode a corpus check is most prone to, and
      * the one that is invisible from a passing suite.

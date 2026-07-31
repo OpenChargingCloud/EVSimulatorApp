@@ -150,7 +150,7 @@ final class EvccTraceTests: XCTestCase {
 
         try SapHandshake.runEvccSide(stream, .iso15118_2, .ac)
         let evcc = Evcc2(stream, .ac)
-        evcc.pnc = PncMaterial.options
+        evcc.pnc = try PncMaterial.options
         try evcc.run()
 
         XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
@@ -170,11 +170,41 @@ final class EvccTraceTests: XCTestCase {
 
         try SapHandshake.runEvccSide(stream, .iso15118_20, .dc)
         let evcc = Evcc20Dc(stream, clock: recordedAt)
-        evcc.pnc = PncMaterial.options
+        evcc.pnc = try PncMaterial.options
         try evcc.run()
 
         XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
         XCTAssertEqual(evcc.authorizationMode, "pnc-signed")
+    }
+
+    /// A Common Name that cannot be an eMAID is refused before the session opens.
+    ///
+    /// ISO 15118-2 constrains `eMAIDType` to 14–15 characters, and nothing enforced it: the generated
+    /// codec does not apply string-length facets, so a 19-character CN travelled in this repository's
+    /// own recorded PnC session, accepted by all three back ends, until this port got an X.509 reader
+    /// that checked the length the schema states.
+    ///
+    /// The rule is **-2's**, not a certificate profile's — ISO 15118-20 never sends the eMAID from
+    /// the certificate, so ``Evcc20Base`` deliberately does not check, and the credential itself does
+    /// not refuse. An earlier draft here did refuse it, and was wrong in exactly that way.
+    func testACommonNameThatCannotBeAnEmaidIsRefusedBeforeTheSessionOpens() throws {
+
+        let replay = TraceReplay(try SessionTrace.load("iso2-ac-pnc"))
+        let evcc = Evcc2(V2GTPStream(replay), .ac)
+
+        // The credential itself is accepted — it is usable for -20 — and carries no eMAID.
+        let credential = try PncEvccOptions(
+            contractCertificate: PncMaterial.certificateWithUnusableEmaid,
+            subCertificates: [PncMaterial.certificateWithUnusableEmaid],
+            contractKey: PncMaterial.key)
+        XCTAssertNil(credential.emaid, "a 19-character Common Name is not an eMAID")
+
+        evcc.pnc = credential
+
+        // The -2 session refuses it, before any byte reaches the transport.
+        XCTAssertThrowsError(try evcc.run()) { error in
+            XCTAssertTrue(String(describing: error).contains("14 or 15"), String(describing: error))
+        }
     }
 
     /// **The signature C# produced verifies under this port's own verification path.**
