@@ -8,7 +8,8 @@ package cloud.charging.v2g.exi
  *
  * A faithful port of the C# `BitWriter`; the two must agree bit for bit.
  *
- * @param buffer destination, assumed zero-initialised (a fresh [ByteArray] is).
+ * @param buffer destination. It need NOT be zero-initialised: every byte is cleared as it is
+ *   first reached (see [writeBit]).
  * @param offset byte offset the bitstream starts at — the EXI header occupies byte 0.
  */
 class BitWriter(private val buffer: ByteArray, private val offset: Int = 0) {
@@ -27,16 +28,24 @@ class BitWriter(private val buffer: ByteArray, private val offset: Int = 0) {
 
     fun writeBit(b: Boolean) {
         val byteIdx = offset + (bitPos shr 3)
-        val mask = 1 shl (7 - (bitPos and 7))
-        // Overwrite the target bit rather than only OR-ing 1s, so a reused buffer cannot
-        // leave stale 1-bits behind.
-        buffer[byteIdx] =
-            if (b) (buffer[byteIdx].toInt() or mask).toByte()
-            else (buffer[byteIdx].toInt() and mask.inv()).toByte()
+        val bit = bitPos and 7
+        // Clear each byte as it is first reached, rather than only overwriting the bits actually
+        // written. Both matter for a reused buffer, but for different reasons: stale 1-bits inside
+        // the message would corrupt it, and stale bits in the trailing PARTIAL byte — the padding
+        // nobody ever writes — travel silently. Up to seven bits of whatever occupied that byte
+        // before, which in a session is the previous message.
+        //
+        // Found in the C# writer on 2026-07-31 by re-recording a session trace and fixed in both;
+        // the Swift writer never had it, because it appends a zero byte as it grows. Neither
+        // round-trips nor the vector corpus can see this: padding is never read back, and each
+        // vector encodes into a fresh — therefore zeroed — array.
+        if (bit == 0) buffer[byteIdx] = 0
+        if (b) buffer[byteIdx] = (buffer[byteIdx].toInt() or (1 shl (7 - bit))).toByte()
         bitPos++
     }
 
-    /** Pad to the next byte boundary with zero bits. */
+    /** Pad to the next byte boundary. The skipped bits are already zero: the byte was cleared
+     *  when [writeBit] first reached it. */
     fun alignToByte() {
         val rem = bitPos and 7
         if (rem != 0) bitPos += 8 - rem
