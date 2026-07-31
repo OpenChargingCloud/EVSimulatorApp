@@ -26,6 +26,10 @@
     <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_SLAC/WWCP_ISO15118_SLAC.csproj" />
     <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_V2GTP/WWCP_ISO15118_V2GTP.csproj" />
   </Folder>
+  <Folder Name="/bridge/">
+    <Project Path="bridge/EVSimulatorApp.Bridge.Tests/EVSimulatorApp.Bridge.Tests.csproj" />
+    <Project Path="bridge/EVSimulatorApp.Bridge/EVSimulatorApp.Bridge.csproj" />
+  </Folder>
   <Folder Name="/pairing/">
     <Project Path="pairing/EVSimulatorApp.Pairing.Tests/EVSimulatorApp.Pairing.Tests.csproj" />
     <Project Path="pairing/EVSimulatorApp.Pairing/EVSimulatorApp.Pairing.csproj" />

@@ -1413,6 +1413,30 @@ now** (§8).
 **Exit:** scan the Pi's rotating code → confirmation sheet → a complete -2 EIM session, on a real
 phone; scanning a screenshot from two minutes ago is rejected.
 
+> **The Capacitor shell's checkable half, 2026-07-31: the event stream and the command surface.**
+> `bridge/EVSimulatorApp.Bridge` defines what an event *is* and turns a recorded session into the
+> stream a WebView receives; `typescript/src/bridge/` is the plugin contract and the reader.
+> `Vectors/Bridge.events.json` pins 196 events across the six recorded sessions.
+>
+> **The one property nothing else here checks.** B1 asks the stream to carry every message "as
+> JSON-LD *and* raw EXI". Each half is checked on its own — the codecs against cbV2G's bytes, the
+> JSON-LD against the document corpus — and nothing checked that *the two halves of one event
+> describe the same message*. An event whose JSON-LD came from a different frame than its `exi`
+> would pass every existing test in four languages, and is precisely what an inspector cannot see:
+> it shows you the JSON and tells you the bytes are right there. So the TypeScript side decodes each
+> event's own frame and compares — from the consumer's side, in the consumer's language, trusting
+> nothing about where the event came from. That is what the raw frame is *for*.
+>
+> **The stream is a record, never a channel.** No event asks the native side to do anything, which is
+> what makes it safe to hand to a WebView; everything a page can cause is the three commands in
+> `EvSimulatorPlugin`, and both back ends assert that the kinds stay observations. A fourth command
+> is a decision, not a detail.
+>
+> Nothing imports Capacitor yet, deliberately — it is how the calls *travel*, not what they *are*.
+> The contract, the events and both readers are typed and tested with no packages installed, which
+> leaves the dependency as one adapter of about forty lines per platform. Still to do: that adapter,
+> the Kotlin and Swift event emitters (held to this corpus), and the UI.
+
 > **Pairing ported to Kotlin and Swift, 2026-07-31.** `v2g-pairing` and `V2GPairing` carry the
 > payload parser, the warning classification and both halves of the TOTP — generator and verifier —
 > against two corpora the C# side generates (`Pairing.payload.vectors.json`, 22 cases;
