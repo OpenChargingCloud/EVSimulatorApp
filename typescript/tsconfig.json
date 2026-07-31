@@ -1,0 +1,17 @@
+{
+  // For editors and for `tsc --noEmit` where a toolchain exists. Nothing here is required to RUN
+  // the code: Node strips types natively, which is why the generated sources use only erasable
+  // syntax — no `enum`, no parameter properties, no `namespace`.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

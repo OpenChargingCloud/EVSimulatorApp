@@ -1,0 +1,11 @@
+{
+  "name": "@open-charging-cloud/v2g-exi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ISO 15118 EXI codec and JSON-LD serializer for the browser and the Capacitor bridge.",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\""
+  }
+}
