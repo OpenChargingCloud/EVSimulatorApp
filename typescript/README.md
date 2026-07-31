@@ -1,7 +1,8 @@
 # `typescript/` — the fourth back end
 
 ISO 15118 EXI for the browser, the WebView inspector and the Capacitor bridge (`docs/CONCEPT.md`
-A5). **Started 2026-07-31: the runtime is here and verified; the generated codec is not.**
+A5). **The runtime and the generated codec are here and verified against cbV2G's bytes; the JSON-LD
+pass is not.**
 
 ## Run
 
@@ -51,8 +52,35 @@ carries the note *"this is what catches a code-unit-wise encoder"* — writing t
 defined on *signed* 32-bit integers, so a 32-bit read built with shifts comes back negative. The
 write path has the mirror of it: `value >>> i`, never `>>`.
 
+## The generated codec
+
+`src/appprotocol/` and `src/iso2/` come from the same generator, the same schema plan and the same
+pass as the C#, Kotlin and Swift codecs:
+
+```bash
+dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release -- \
+  --xsd libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Prototype/Schemas/V2G_CI_AppProtocol.xsd \
+  --out typescript/src/appprotocol \
+  --lang typescript --namespace cloud.charging.v2g.appprotocol --codec SupportedAppProtocolCodec
+```
+
+Every AppProtocol vector encodes to cbV2G's bytes and decodes back; every ISO 15118-2 vector decodes
+and re-encodes byte-identically, which reaches the `V2G_Message` wrapper, the `BodyType` substitution
+group, attributes, simple content, optional runs and bounded lists.
+
+Three shapes differ from the other back ends, and none changes a byte:
+
+* **A frozen const object per enumeration**, plus a `…Names` table, because `enum` is not erasable.
+  The wire value *is* the index, so nothing is looked up on decode — `exiEnum` only checks that the
+  index is one the type has, which a decoder must do with network input.
+* **`instanceof` for substitution dispatch**, ordered most-derived-first, since `instanceof` is true
+  for a base class too. The member guard uses `constructor !==` rather than `instanceof`, because
+  its whole point is that the value is *exactly* the member type its branch selected — a consumer
+  can extend a generated class, and such a value used to go out with its ancestor's event code.
+* **An if/else-if chain where Kotlin has `when`**, seeded with `if (false) {}` so that every arm is
+  spelled `else if` and no part of the emitter has to know which arm comes first.
+
 ## Still to do
 
-The `TypeScriptCodecEmitter` — the generated codec itself, the bulk of A5 — and then the JSON-LD
-pass, which is cheap once the emitter exists and is where the 64-bit-as-string decision in
-`JsonPrimitives` was aimed all along.
+The JSON-LD pass, which is cheap now that the emitter exists — and is where the 64-bit-as-string
+decision in `JsonPrimitives` was aimed all along.

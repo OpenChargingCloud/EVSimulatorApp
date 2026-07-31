@@ -1170,8 +1170,8 @@ Three corrections to this item's premises, two from A1/A2/A6 and one from A4 its
   B0's Pi remains the better check and is not replaced by this. What changed is that A4 no longer
   waits on it.
 
-**A5 — TypeScriptEmitter (2–3 weeks).** 🟡 **started 2026-07-31: the runtime is in and verified,
-the emitter is not.** For Chargy, the WebView inspector, and as a cross-check of the Kotlin/Swift
+**A5 — TypeScriptEmitter (2–3 weeks).** 🟡 **the codec back end is done and byte-exact
+(2026-07-31); the JSON-LD pass is not.** For Chargy, the WebView inspector, and as a cross-check of the Kotlin/Swift
 codecs. WebCrypto covers P-256/P-521; Ed448 and keystore signing cross the bridge.
 
 > `typescript/src/runtime/` ports C#'s `Exi/` and is held to `Primitives.vectors.json`, cbV2G's own
@@ -1191,7 +1191,25 @@ codecs. WebCrypto covers P-256/P-521; Ed448 and keystore signing cross the bridg
 > JavaScript's bitwise operators are defined on signed 32-bit integers and a 32-bit read built with
 > shifts comes back negative.
 >
-> The `TypeScriptCodecEmitter` is the bulk of this item and is not started.
+> **The emitter itself is a port of the Kotlin one rather than a rewrite**, for the reason every
+> other back end's port was: the grammar decisions are identical because both are driven by the same
+> plan, and re-deriving them would be re-deriving the chance to get them subtly wrong. Every
+> AppProtocol vector encodes to cbV2G's bytes and decodes back; every ISO 15118-2 vector decodes and
+> re-encodes byte-identically, which reaches the `V2G_Message` wrapper, the `BodyType` substitution
+> group, attributes, simple content, optional runs and bounded lists.
+>
+> Kotlin's `when` has no TypeScript counterpart, and the translation is what made the port
+> mechanical: an if/else-if chain in a bare block, seeded with `if (false) {}` so that *every* arm is
+> spelled `else if`. Without the seed, each of a dozen emit methods would have had to know whether it
+> was writing the first arm — a question several of them cannot answer.
+>
+> **What the corpus caught that no compiler could.** The enumeration write still emitted Kotlin's
+> `.ordinal`, so a string reached `writeBits` and coerced to 0 — and only the one vector whose
+> response code is not zero noticed, off by a single bit. Likewise `.add()` on an array, `return X()`
+> without `new`, and the number/bigint split, which rounds silently if it goes the wrong way. Three
+> back ends and a byte-exact corpus is what turns "it compiles" into "it agrees".
+>
+> Left: the JSON-LD pass, cheap now, and the language the 64-bit-as-string rule was written for.
 
 **A6 — SwiftEmitter (2–3 weeks).** ✅ **done (2026-07-30)**, and out of order — it ran second, not
 last (§2). 89,670 lines across 669 files; 1,855 lines of emitter. Everything -2 uses is modelled
