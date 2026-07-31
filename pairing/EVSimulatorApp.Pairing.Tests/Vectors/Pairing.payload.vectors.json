@@ -1,0 +1,489 @@
+{
+  "note": "Scanned pairing codes and what a parser must make of each. The format is the one thing the Pi and the phone must agree on exactly, and they never run in the same process. Most of what is pinned here is refusals: a pairing code is an image anyone can tape over a display. \u0027outcome\u0027 is parsed / notAPairingCode / malformed, and the distinction between the last two matters at the scanner \u2014 one is a shrug, the other is worth telling the user about.",
+  "cases": [
+    {
+      "name": "minimal",
+      "what": "The least a code can carry. Note what it still warns about: no crypto profile stated, no trust anchor, no proximity proof \u2014 silence is not conformance.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=192.168.4.1\u0026port=15118",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 1,
+        "host": "192.168.4.1",
+        "port": 15118,
+        "transport": "tls",
+        "protocols": [],
+        "crypto": null,
+        "nonConformant": false,
+        "nonConformanceReason": null,
+        "rootFingerprint": null,
+        "meter": null,
+        "totp": null,
+        "evseId": null,
+        "tariffId": null,
+        "currency": null,
+        "uiLanguage": null,
+        "wifiSsid": null,
+        "wifiPsk": null,
+        "extra": {}
+      },
+      "warnings": [
+        {
+          "kind": "weakenedCrypto",
+          "blocking": false
+        },
+        {
+          "kind": "noTrustAnchor",
+          "blocking": false
+        },
+        {
+          "kind": "noProximityProof",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "name": "full",
+      "what": "Everything understood, conformant, link-local. The only shape that warns about nothing.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=fe80::1%25wlan0\u0026port=15118\u0026tp=tls\u0026crypto=secp521r1\u0026proto=iso2,iso20\u0026root=ab12\u0026meter=key\u0026totp=123456789012\u0026evseId=DE*ABC*E1\u0026tariffId=T1\u0026currency=EUR\u0026uiLanguage=de",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 1,
+        "host": "fe80::1%wlan0",
+        "port": 15118,
+        "transport": "tls",
+        "protocols": [
+          "iso2",
+          "iso20"
+        ],
+        "crypto": "secp521r1",
+        "nonConformant": false,
+        "nonConformanceReason": null,
+        "rootFingerprint": "ab12",
+        "meter": "key",
+        "totp": "123456789012",
+        "evseId": "DE*ABC*E1",
+        "tariffId": "T1",
+        "currency": "EUR",
+        "uiLanguage": "de",
+        "wifiSsid": null,
+        "wifiPsk": null,
+        "extra": {}
+      },
+      "warnings": []
+    },
+    {
+      "name": "alt-scheme",
+      "what": "The in-app scheme is an alias, and parses identically.",
+      "input": "v2gsim://pair#v=1\u0026host=192.168.4.1\u0026port=15118\u0026crypto=secp521r1\u0026root=ab\u0026totp=1",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 1,
+        "host": "192.168.4.1",
+        "port": 15118,
+        "transport": "tls",
+        "protocols": [],
+        "crypto": "secp521r1",
+        "nonConformant": false,
+        "nonConformanceReason": null,
+        "rootFingerprint": "ab",
+        "meter": null,
+        "totp": "1",
+        "evseId": null,
+        "tariffId": null,
+        "currency": null,
+        "uiLanguage": null,
+        "wifiSsid": null,
+        "wifiPsk": null,
+        "extra": {}
+      },
+      "warnings": []
+    },
+    {
+      "name": "plaintext",
+      "what": "Plaintext TCP: reported, not refused. The session simply will not be encrypted, and a human decides whether that is acceptable.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=192.168.4.1\u0026port=15118\u0026tp=tcp\u0026crypto=secp521r1\u0026root=ab\u0026totp=1",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 1,
+        "host": "192.168.4.1",
+        "port": 15118,
+        "transport": "tcp",
+        "protocols": [],
+        "crypto": "secp521r1",
+        "nonConformant": false,
+        "nonConformanceReason": null,
+        "rootFingerprint": "ab",
+        "meter": null,
+        "totp": "1",
+        "evseId": null,
+        "tariffId": null,
+        "currency": null,
+        "uiLanguage": null,
+        "wifiSsid": null,
+        "wifiPsk": null,
+        "extra": {}
+      },
+      "warnings": [
+        {
+          "kind": "plaintextTransport",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "name": "weakened-crypto",
+      "what": "A curve below the -20 conformant profile.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=192.168.4.1\u0026port=15118\u0026crypto=secp256r1\u0026root=ab\u0026totp=1",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 1,
+        "host": "192.168.4.1",
+        "port": 15118,
+        "transport": "tls",
+        "protocols": [],
+        "crypto": "secp256r1",
+        "nonConformant": false,
+        "nonConformanceReason": null,
+        "rootFingerprint": "ab",
+        "meter": null,
+        "totp": "1",
+        "evseId": null,
+        "tariffId": null,
+        "currency": null,
+        "uiLanguage": null,
+        "wifiSsid": null,
+        "wifiPsk": null,
+        "extra": {}
+      },
+      "warnings": [
+        {
+          "kind": "weakenedCrypto",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "name": "declared-non-conformance",
+      "what": "The peer says so itself, and its reason is carried verbatim \u2014 that is the whole mechanism: a relaxed session is relaxed because the counterpart asked, on the record.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=192.168.4.1\u0026port=15118\u0026crypto=secp521r1\u0026root=ab\u0026totp=1\u0026nc=1\u0026ncwhy=lab%20unit%2C%20no%20HSM",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 1,
+        "host": "192.168.4.1",
+        "port": 15118,
+        "transport": "tls",
+        "protocols": [],
+        "crypto": "secp521r1",
+        "nonConformant": true,
+        "nonConformanceReason": "lab unit, no HSM",
+        "rootFingerprint": "ab",
+        "meter": null,
+        "totp": "1",
+        "evseId": null,
+        "tariffId": null,
+        "currency": null,
+        "uiLanguage": null,
+        "wifiSsid": null,
+        "wifiPsk": null,
+        "extra": {}
+      },
+      "warnings": [
+        {
+          "kind": "declaredNonConformance",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "name": "public-target",
+      "what": "A routable address. Blocking: the intended counterpart is a Pi on your own network.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=203.0.113.9\u0026port=15118\u0026crypto=secp521r1\u0026root=ab\u0026totp=1",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 1,
+        "host": "203.0.113.9",
+        "port": 15118,
+        "transport": "tls",
+        "protocols": [],
+        "crypto": "secp521r1",
+        "nonConformant": false,
+        "nonConformanceReason": null,
+        "rootFingerprint": "ab",
+        "meter": null,
+        "totp": "1",
+        "evseId": null,
+        "tariffId": null,
+        "currency": null,
+        "uiLanguage": null,
+        "wifiSsid": null,
+        "wifiPsk": null,
+        "extra": {}
+      },
+      "warnings": [
+        {
+          "kind": "publicTarget",
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "name": "hostname-is-not-resolved",
+      "what": "\u0027localhost\u0027 counts as PUBLIC. Resolving a name would mean a DNS query on behalf of a code nobody has approved yet \u2014 a callback to whoever made it. The decision is made on the text, so anything that is not an address or .local is treated as public.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=localhost\u0026port=15118\u0026crypto=secp521r1\u0026root=ab\u0026totp=1",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 1,
+        "host": "localhost",
+        "port": 15118,
+        "transport": "tls",
+        "protocols": [],
+        "crypto": "secp521r1",
+        "nonConformant": false,
+        "nonConformanceReason": null,
+        "rootFingerprint": "ab",
+        "meter": null,
+        "totp": "1",
+        "evseId": null,
+        "tariffId": null,
+        "currency": null,
+        "uiLanguage": null,
+        "wifiSsid": null,
+        "wifiPsk": null,
+        "extra": {}
+      },
+      "warnings": [
+        {
+          "kind": "publicTarget",
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "name": "mdns-name",
+      "what": "\u2026and .local is the exception, because it cannot leave the link.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=evsim-pi.local\u0026port=15118\u0026crypto=secp521r1\u0026root=ab\u0026totp=1",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 1,
+        "host": "evsim-pi.local",
+        "port": 15118,
+        "transport": "tls",
+        "protocols": [],
+        "crypto": "secp521r1",
+        "nonConformant": false,
+        "nonConformanceReason": null,
+        "rootFingerprint": "ab",
+        "meter": null,
+        "totp": "1",
+        "evseId": null,
+        "tariffId": null,
+        "currency": null,
+        "uiLanguage": null,
+        "wifiSsid": null,
+        "wifiPsk": null,
+        "extra": {}
+      },
+      "warnings": []
+    },
+    {
+      "name": "wifi-credentials",
+      "what": "Joining stores a password on the device, so the code says it carries one.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=192.168.4.1\u0026port=15118\u0026crypto=secp521r1\u0026root=ab\u0026totp=1\u0026wifi=EVSim%3Ahunter2",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 1,
+        "host": "192.168.4.1",
+        "port": 15118,
+        "transport": "tls",
+        "protocols": [],
+        "crypto": "secp521r1",
+        "nonConformant": false,
+        "nonConformanceReason": null,
+        "rootFingerprint": "ab",
+        "meter": null,
+        "totp": "1",
+        "evseId": null,
+        "tariffId": null,
+        "currency": null,
+        "uiLanguage": null,
+        "wifiSsid": "EVSim",
+        "wifiPsk": "hunter2",
+        "extra": {}
+      },
+      "warnings": [
+        {
+          "kind": "carriesWifiCredentials",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "name": "unknown-parameters",
+      "what": "Carried, never interpreted, and reported. An app that silently discarded it could not warn that the code contained something it could not read.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=192.168.4.1\u0026port=15118\u0026crypto=secp521r1\u0026root=ab\u0026totp=1\u0026futureThing=x",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 1,
+        "host": "192.168.4.1",
+        "port": 15118,
+        "transport": "tls",
+        "protocols": [],
+        "crypto": "secp521r1",
+        "nonConformant": false,
+        "nonConformanceReason": null,
+        "rootFingerprint": "ab",
+        "meter": null,
+        "totp": "1",
+        "evseId": null,
+        "tariffId": null,
+        "currency": null,
+        "uiLanguage": null,
+        "wifiSsid": null,
+        "wifiPsk": null,
+        "extra": {
+          "futureThing": "x"
+        }
+      },
+      "warnings": [
+        {
+          "kind": "unknownParameters",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "name": "unsupported-version",
+      "what": "Blocking: in a version this build cannot read, the fields it thinks it understands may not mean what it thinks.",
+      "input": "https://open.charging.cloud/evsim/pair#v=2\u0026host=192.168.4.1\u0026port=15118\u0026crypto=secp521r1\u0026root=ab\u0026totp=1",
+      "outcome": "parsed",
+      "error": null,
+      "payload": {
+        "version": 2,
+        "host": "192.168.4.1",
+        "port": 15118,
+        "transport": "tls",
+        "protocols": [],
+        "crypto": "secp521r1",
+        "nonConformant": false,
+        "nonConformanceReason": null,
+        "rootFingerprint": "ab",
+        "meter": null,
+        "totp": "1",
+        "evseId": null,
+        "tariffId": null,
+        "currency": null,
+        "uiLanguage": null,
+        "wifiSsid": null,
+        "wifiPsk": null,
+        "extra": {}
+      },
+      "warnings": [
+        {
+          "kind": "unsupportedVersion",
+          "blocking": true
+        }
+      ]
+    },
+    {
+      "name": "some-other-qr",
+      "what": "Not a pairing code: a shrug, not an error.",
+      "input": "https://example.com/",
+      "outcome": "notAPairingCode",
+      "error": null,
+      "payload": null,
+      "warnings": []
+    },
+    {
+      "name": "plain-text",
+      "what": "Not even a URI.",
+      "input": "hello world",
+      "outcome": "notAPairingCode",
+      "error": null,
+      "payload": null,
+      "warnings": []
+    },
+    {
+      "name": "query-instead-of-fragment",
+      "what": "THE ONE THAT MATTERS MOST. Parameters in the query are not read, because a query is sent to the server: a format that worked either way would hand every scan to whoever runs the host. Malformed, not merely warned about.",
+      "input": "https://open.charging.cloud/evsim/pair?v=1\u0026host=192.168.4.1\u0026port=15118",
+      "outcome": "malformed",
+      "error": "the pairing code carries no fragment; data in the query string is not read, because a query is sent to the server",
+      "payload": null,
+      "warnings": []
+    },
+    {
+      "name": "repeated-parameter",
+      "what": "Refused rather than resolved. \u0027First wins\u0027 and \u0027last wins\u0027 are both defensible, and an attacker needs only the sheet and the connector to disagree about which.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=192.168.4.1\u0026host=10.0.0.1\u0026port=15118",
+      "outcome": "malformed",
+      "error": "parameter \u0027host\u0027 appears more than once",
+      "payload": null,
+      "warnings": []
+    },
+    {
+      "name": "missing-host",
+      "what": "A required field is absent.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026port=15118",
+      "outcome": "malformed",
+      "error": "required parameter \u0027host\u0027 is missing",
+      "payload": null,
+      "warnings": []
+    },
+    {
+      "name": "port-not-a-number",
+      "what": "Not a port.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=192.168.4.1\u0026port=abc",
+      "outcome": "malformed",
+      "error": "port \u0027abc\u0027 is not a port number",
+      "payload": null,
+      "warnings": []
+    },
+    {
+      "name": "port-out-of-range",
+      "what": "Not a port either.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=192.168.4.1\u0026port=70000",
+      "outcome": "malformed",
+      "error": "port \u002770000\u0027 is not a port number",
+      "payload": null,
+      "warnings": []
+    },
+    {
+      "name": "unknown-transport",
+      "what": "An unknown transport is refused, not defaulted.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host=192.168.4.1\u0026port=15118\u0026tp=quic",
+      "outcome": "malformed",
+      "error": "unknown transport \u0027quic\u0027",
+      "payload": null,
+      "warnings": []
+    },
+    {
+      "name": "not-a-pair",
+      "what": "A fragment entry that is not key=value.",
+      "input": "https://open.charging.cloud/evsim/pair#v=1\u0026host\u0026port=15118",
+      "outcome": "malformed",
+      "error": "\u0027host\u0027 is not a key=value pair",
+      "payload": null,
+      "warnings": []
+    },
+    {
+      "name": "empty-fragment",
+      "what": "A pairing code with nothing in it.",
+      "input": "https://open.charging.cloud/evsim/pair#",
+      "outcome": "malformed",
+      "error": "the pairing code carries no fragment; data in the query string is not read, because a query is sent to the server",
+      "payload": null,
+      "warnings": []
+    }
+  ]
+}

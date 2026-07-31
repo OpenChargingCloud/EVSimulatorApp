@@ -1315,7 +1315,8 @@ round-trips through a parser test; a stale or replayed TOTP is refused.
 runs behind the host on a laptop. Only the words "over WLAN to the Pi" are outstanding, and they
 are outstanding because of the hardware, not the software.*
 
-**B1 — Capacitor plugin + QR pairing (2–2.5 weeks, needs A1+A4 Kotlin).** Wrap the Kotlin (and
+**B1 — Capacitor plugin + QR pairing (2–2.5 weeks, needs A1+A4 Kotlin).** 🟡 **the pairing half
+landed 2026-07-31.** Wrap the Kotlin (and
 later Swift) stack behind a Capacitor plugin: start/stop, config in, **event stream out** (state
 changes, each message as JSON-LD *and* raw EXI, errors, timings). Threading/lifecycle incl.
 background handling (§3.5). **QR scanner + pairing sheet (§4.5/§4.6)**: camera scan, payload parse
@@ -1326,6 +1327,37 @@ private-range target restriction, trust-anchor pinning from `root`, optional WLA
 now** (§8).
 **Exit:** scan the Pi's rotating code → confirmation sheet → a complete -2 EIM session, on a real
 phone; scanning a screenshot from two minutes ago is rejected.
+
+> **Pairing ported to Kotlin and Swift, 2026-07-31.** `v2g-pairing` and `V2GPairing` carry the
+> payload parser, the warning classification and both halves of the TOTP — generator and verifier —
+> against two corpora the C# side generates (`Pairing.payload.vectors.json`, 22 cases;
+> `Pairing.totp.vectors.json`, 9 slot vectors and a 12-step verifier script). The exit criterion
+> above is still hardware-bound, but everything a phone decides *before* it opens a socket is now
+> settled in all three back ends and pinned byte for byte.
+>
+> Ported first because the Pi and the phone never run in the same process. Everywhere else a shared
+> corpus is insurance against drift; here it is the only thing connecting the two halves at all, and
+> the failure mode has no symptom — a TOTP that disagrees does not show a wrong field on a screen, it
+> reports *"pairing does not work"* while both sides remain certain they are right. It is also not
+> RFC 6238: the generator draws twelve characters from a 62-character alphabet rather than doing
+> RFC 4226 dynamic truncation to digits, so a port written from the name alone would compile, run,
+> and never agree.
+>
+> **What the ports found, and what it says about the check.** The Kotlin port needed a mechanical
+> guard the others do not, because the JVM makes §4.5's no-resolution rule easiest to break:
+> `InetAddress.getByName` **resolves**, and reaching for it looks like exactly the right call — so a
+> port could perform, in the course of judging a scanned host, precisely the callback to whoever
+> printed the code that the rule exists to prevent. A resolver registered through `META-INF/services`
+> now fails any test that causes a lookup.
+>
+> It throws *and records*, and a mutation is the reason. The first version only threw — and an
+> implementation that resolved inside a `runCatching` swallowed it whole while the suite stayed
+> green. That is not a contrived mutation: DNS lookups fail routinely, so wrapping one in a try/catch
+> is what a careful person writes, which made it the exact mistake a throw-only watchdog could not
+> see. This is §5's recurring shape once more, from the other side: a check that tolerates being
+> caught stops seeing anything that catches it. The repair was a record no `catch` can undo, plus a
+> second test that fires the watchdog on purpose — because a services file that stopped being
+> packaged would quietly turn every no-resolution assertion into an assertion about nothing.
 
 **B2 — Certificate wallet (1.5–2 weeks).** 🟡 **the certificate half started 2026-07-31.** Per §4.1:
 import/generate/inspect/select, platform keystore with the §3.4 asymmetry surfaced, test-PKI

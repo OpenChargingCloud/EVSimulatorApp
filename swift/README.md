@@ -19,6 +19,7 @@ hand-written; every codec module is emitted from the XSDs and checked in.
 | `ExiXmlDsig` | Generated standalone W3C XMLDSig codec. Not a message set — it exists only to produce the octets a Plug & Charge signature is actually over. |
 | `V2GKeystore` | Private keys and what may honestly be claimed about them (§3.4). No certificates, no EXI. |
 | `V2GCertificates` | X.509 for the app: reading, the MO root store, chain validation. The only target that knows `swift-certificates` exists. |
+| `V2GPairing` | The scanned pairing code: payload format, warning classification, TOTP. No dependencies at all — it runs before any session exists. |
 | `V2GEvcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM **and** Plug & Charge) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
 
 `V2GTP` and `V2GDispatch` are split for the reason `kotlin/` splits them: reading a frame's type and
@@ -509,3 +510,35 @@ needed it:
 
 Bit-exactness and well-formedness are separate concerns: a byte-level diff says nothing about
 whether the emitted Swift *compiles*. That check runs nowhere but `swift test`.
+
+
+## `V2GPairing`: the code on the display
+
+The same module as Kotlin's `v2g-pairing`, held to the same two C#-generated corpora
+(`Pairing.payload.vectors.json`, `Pairing.totp.vectors.json`), and the long version of why each
+refusal exists is in `kotlin/README.md`. Three things differ here.
+
+**No dependencies at all, not even `swift-certificates`.** This is the first code to touch input from
+outside, it runs before any session or key exists, and it should be possible to reason about it
+without reasoning about anything else.
+
+**`percentEncodedFragment`, never `fragment`.** Decoding has to happen per value, after the fragment
+is split on `&` and `=`. Decoding first would let an encoded `%26` inside a value become a real
+separator and smuggle in a parameter — the classic double-decode bug. `URLComponents` offers both
+properties and the wrong one is shorter to type.
+
+**The no-resolution rule is asserted by consequence rather than mechanically.** Kotlin can install a
+resolver that fails any test causing a lookup; Foundation has no equivalent hook. What is asserted
+instead is that `localhost` is judged **public** — it is a name, and whether it maps to 127.0.0.1 on
+this device is not knowable without asking. Any implementation that resolved would get that one wrong
+in the reassuring direction.
+
+Two things the Swift port checks that the others do not, both because Swift makes them possible to
+get wrong in ways C# and Kotlin do not:
+
+* **Slot arithmetic below the epoch.** `Int64(someDouble)` truncates towards zero, which merges the
+  first slot on each side of 1970. No realistic clock reaches it; a `-1` in an offset calculation
+  does. `.rounded(.down)` throughout.
+* **The constant-time comparison against an empty comparand.** C#'s `b[i % Math.Max(b.Length, 1)]`
+  throws in that case and Swift's traps, and a generated code is never empty — which is a reason it
+  has not happened, not a reason it cannot.

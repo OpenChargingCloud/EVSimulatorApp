@@ -27,4 +27,7 @@ include("v2g-certificates")
 // Private keys, and what may honestly be claimed about them (docs/CONCEPT.md §3.4). No certificates
 // and no EXI: a key is a key whatever it ends up signing.
 include("v2g-keystore")
+// The scanned pairing code: payload format, warning classification, TOTP. No EXI — it is what
+// stands in for plug-in, SLAC and SDP, and it happens before any session exists.
+include("v2g-pairing")
 include("v2g-evcc")

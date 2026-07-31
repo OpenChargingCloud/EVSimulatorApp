@@ -32,6 +32,7 @@ let package = Package(
         .library(name: "ExiXmlDsig", targets: ["ExiXmlDsig"]),
         .library(name: "V2GCertificates", targets: ["V2GCertificates"]),
         .library(name: "V2GKeystore", targets: ["V2GKeystore"]),
+        .library(name: "V2GPairing",  targets: ["V2GPairing"]),
         .library(name: "V2GEvcc", targets: ["V2GEvcc"]),
     ],
     dependencies: [
@@ -151,6 +152,12 @@ let package = Package(
             .product(name: "X509", package: "swift-certificates"),
         ]),
         .testTarget(name: "V2GKeystoreTests", dependencies: ["V2GKeystore"]),
+
+        // The scanned pairing code. No dependencies at all, deliberately: this is the first thing to
+        // touch input from outside, it runs before any session or key exists, and it should be
+        // possible to reason about it without reasoning about anything else.
+        .target(name: "V2GPairing"),
+        .testTarget(name: "V2GPairingTests", dependencies: ["V2GPairing"]),
 
         .target(name: "V2GEvcc", dependencies: [
             "V2GTP", "V2GDispatch", "ExiAppProtocol", "ExiIso2", "ExiIso20Common",
