@@ -1395,9 +1395,36 @@ to read those bytes out of the serialised form. Each suite verifies its own outp
 that made it, which is weaker than it looks, so both were also checked once against **openssl**:
 `Certificate request self-signature verify OK` for a request from each language.
 
-Still open here: **revocation** (ISO 15118-20 staples OCSP into the TLS handshake — the transport's
-business, and nothing checks a contract certificate against a CRL) and **the platform key binding**
-(Keychain, Android Keystore — both need a device).
+**Revocation followed** (2026-07-31), in both ports, and it began with a correction to something
+this document and several commits had been repeating. "Revocation is the transport's business" is
+true of the **station's** chain — ISO 15118-20 staples OCSP into the TLS handshake — and was not true
+of the **contract certificate a user installs from a QR code**, which nothing was checking. The
+phrase had become a way of not looking.
+
+The design point is that revocation has **three** answers. "Not on the list" and "no usable list"
+look identical to a naive check and are not the same thing at all: the second is the classic
+soft-fail hole, where whoever wants a revoked credential accepted simply arranges for the list to be
+unavailable. So the result is `notRevoked` / `revoked` / **`unknown(why:)`**, and what to do about
+the third is a policy the app owns. A CRL is attacker-supplied input that fails in an easy-to-miss
+direction — a forged list need not lie, it only needs to be *empty* — so its signature, its currency
+and its issuer are all checked before its contents count, and each failure yields `unknown` rather
+than `notRevoked`. Confirmed by mutation: unhooking the signature check makes a tampered CRL parse
+cleanly and report `revoked`.
+
+The platforms diverge here and the divergence decided the shape. The JVM parses and verifies CRLs
+natively; `swift-certificates` models **OCSP and not CRLs**. Since the ISO 15118 PKI publishes CRLs,
+Swift parses one from nodes `swift-asn1` has already decoded — that library does the DER work and
+`V2GCrl` only names the fields, which is the same relationship the module already has to
+`swift-certificates` for extensions. Both are held to one corpus containing a genuine CRL, an expired
+one and one from an unrelated CA.
+
+One more display string normalised for the same reason as the fingerprint: the JVM spells the
+revocation reason `KEY_COMPROMISE`, and it is shown to a user, so both back ends report RFC 5280's
+`keyCompromise`.
+
+Still open here: **the platform key binding** (Keychain, Android Keystore — both need a device) and
+**fetching** a CRL, which is deliberately the app's business: a check that reaches the network cannot
+be run offline, and one that cannot be run offline is one nobody runs.
 
 **B3 — Signed metering + session UI (1.5–2 weeks).** Per §4.2: -2 `MeteringReceiptReq`, -20
 `MeteringConfirmationReq`, the signing-detail view, the EV's own meter model, receipt

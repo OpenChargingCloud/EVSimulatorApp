@@ -86,6 +86,14 @@ public struct V2GCertificate: Sendable {
         }
     }
 
+    /// The issuer as a parsed name, for comparing against a CRL's issuer. The string forms are for
+    /// display; comparing names as values avoids depending on two encoders agreeing on punctuation.
+    public var issuerName: DistinguishedName { certificate.issuer }
+
+    /// The public key in the form the verifier wants — for checking a CRL this certificate's owner
+    /// signed, which is the one place a certificate is asked to vouch for something other than itself.
+    public var publicKeyForVerification: Certificate.PublicKey { certificate.publicKey }
+
     /// The subject as an RFC 4514 string, for display and for tests to pin.
     public var subject: String { certificate.subject.description }
 

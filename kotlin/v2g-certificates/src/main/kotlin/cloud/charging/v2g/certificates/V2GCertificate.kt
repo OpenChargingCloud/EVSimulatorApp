@@ -1,5 +1,11 @@
 package cloud.charging.v2g.certificates
 
+import org.bouncycastle.asn1.ASN1IA5String
+import org.bouncycastle.asn1.ASN1OctetString
+import org.bouncycastle.asn1.x509.CRLDistPoint
+import org.bouncycastle.asn1.x509.DistributionPointName
+import org.bouncycastle.asn1.x509.GeneralName
+import org.bouncycastle.asn1.x509.GeneralNames
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.util.Date
@@ -94,6 +100,24 @@ class V2GCertificate(val der: ByteArray) {
      *  no business carrying, since it would let the same credential be presented as a station. */
     val permitsServerAuth: Boolean
         get() = x509.extendedKeyUsage?.contains(SERVER_AUTH_OID) == true
+
+    /**
+     * Where this certificate says its revocation list lives — the CRL distribution points, as URIs.
+     *
+     * Reading them is this module's business; *fetching* is the app's. A check that reaches the
+     * network cannot be run offline, and one that cannot be run offline is one nobody runs.
+     */
+    val crlDistributionPointUris: List<String>
+        get() = x509.getExtensionValue("2.5.29.31")?.let { raw ->
+            // The extension value is an OCTET STRING wrapping the real DER.
+            val inner = ASN1OctetString.getInstance(raw).octets
+            CRLDistPoint.getInstance(inner).distributionPoints
+                .mapNotNull { it.distributionPoint }
+                .filter { it.type == DistributionPointName.FULL_NAME }
+                .flatMap { GeneralNames.getInstance(it.name).names.asList() }
+                .filter { it.tagNo == GeneralName.uniformResourceIdentifier }
+                .map { ASN1IA5String.getInstance(it.name).string }
+        } ?: emptyList()
 
     /** The subject public key, DER-encoded — for asking whether two certificates carry the *same*
      *  key, which separates a CA renewing itself from a different CA taking its name. */

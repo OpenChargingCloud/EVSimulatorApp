@@ -175,10 +175,41 @@ cheerfully trusted a **sub-CA** as a contract credential. The order is what stat
 is being presented, so a bundle that does not link up gets `bundleDoesNotLinkUp` and no findings at
 all — nothing said about a guessed leaf is worth saying.
 
-Not done, and named rather than assumed: **revocation**. ISO 15118-20 staples OCSP into the TLS
-handshake, which is the transport's business, and nothing here checks a contract certificate against
-a CRL. Kotlin has neither store nor validator — the requirement came from the app, not the state
-machine.
+### Revocation: three answers, not two
+
+``V2GRevocationChecker`` answers `notRevoked`, `revoked(on:reason:)` or **`unknown(why:)`**, and the third is the
+whole reason the type exists. "Not on the list" and "no usable list" look identical to a naive check
+and are not the same thing at all — the second is the classic soft-fail hole, where whoever wants a
+revoked credential accepted simply arranges for the list to be unavailable. A boolean cannot express
+that difference, so it is not a boolean. What to *do* about `unknown` is a policy the app owns.
+
+A CRL is attacker-supplied input in exactly the way a chain is, and it fails in a direction that is
+easy to miss: a forged list need not make false claims, it only needs to be **empty**. So before its
+contents count for anything, three things are checked, and each failure yields `unknown` rather than
+`notRevoked`:
+
+* the signature verifies under the issuing CA;
+* the list is current — a stale CRL is a snapshot of the past, and believing it is how a revocation
+  gets outrun by waiting;
+* its issuer is the certificate's issuer — a genuine CRL from another CA says nothing about this
+  certificate, and reading "not listed" off it would be a straightforward bypass.
+
+Confirmed by mutation: unhooking the signature check makes a tampered CRL parse cleanly and report
+`revoked` — the demonstration that parsing without verifying is worth nothing.
+
+`swift-certificates` models OCSP and not CRLs, so the list is parsed here from nodes `swift-asn1`
+has already decoded — it does the DER work, bounds and tags and lengths included, and `V2GCrl` only
+names the fields. That is the same relationship this module has to `swift-certificates` for
+extensions, and a different thing from hand-rolling a parser. Only what the question needs is read:
+issuer, validity window, revoked serials with dates and reasons; the rest of a CRL is skipped rather
+than half-understood. The bytes the signature covers come from the parsed node rather than a
+re-serialisation, because a value that round-trips through any encoder is not guaranteed to come
+back identical.
+
+Not here: **fetching**. Where a CRL comes from is the app's business, and a check that reaches the
+network cannot be run offline — which means nobody runs it. And **OCSP**, which ISO 15118-20 staples
+into the TLS handshake for the *station's* chain; that is the transport's business, and a contract
+certificate is a separate question that the ISO 15118 PKI answers with CRLs.
 
 ### Keys, and what may honestly be claimed about them
 

@@ -302,8 +302,37 @@ which exists to defeat validators that stop at the path maths. A bundle whose ce
 link up is refused outright with no findings: the order states *which* certificate is being
 presented, and nothing said about a guessed leaf is worth saying.
 
-Not done: revocation. ISO 15118-20 staples OCSP into the TLS handshake, which is the transport's
-business, and nothing here checks a contract certificate against a CRL.
+### Revocation: three answers, not two
+
+``V2GRevocationChecker`` answers `notRevoked`, `revoked(on:reason:)` or **`unknown(why:)`**, and the third is the
+whole reason the type exists. "Not on the list" and "no usable list" look identical to a naive check
+and are not the same thing at all — the second is the classic soft-fail hole, where whoever wants a
+revoked credential accepted simply arranges for the list to be unavailable. A boolean cannot express
+that difference, so it is not a boolean. What to *do* about `unknown` is a policy the app owns.
+
+A CRL is attacker-supplied input in exactly the way a chain is, and it fails in a direction that is
+easy to miss: a forged list need not make false claims, it only needs to be **empty**. So before its
+contents count for anything, three things are checked, and each failure yields `unknown` rather than
+`notRevoked`:
+
+* the signature verifies under the issuing CA;
+* the list is current — a stale CRL is a snapshot of the past, and believing it is how a revocation
+  gets outrun by waiting;
+* its issuer is the certificate's issuer — a genuine CRL from another CA says nothing about this
+  certificate, and reading "not listed" off it would be a straightforward bypass.
+
+Confirmed by mutation: unhooking the signature check makes a tampered CRL parse cleanly and report
+`revoked` — the demonstration that parsing without verifying is worth nothing.
+
+The JVM parses and verifies CRLs itself, so this module only asks the questions above in the right
+order. The revocation reason is **normalised** — the JVM spells it `KEY_COMPROMISE`, and this string
+is shown to a user, so it is mapped to RFC 5280's own `keyCompromise` and reads the same in every
+back end. The fingerprint format taught that lesson one file over.
+
+Not here: **fetching**. Where a CRL comes from is the app's business, and a check that reaches the
+network cannot be run offline — which means nobody runs it. And **OCSP**, which ISO 15118-20 staples
+into the TLS handshake for the *station's* chain; that is the transport's business, and a contract
+certificate is a separate question that the ISO 15118 PKI answers with CRLs.
 
 ### Keys, and what may honestly be claimed about them
 
