@@ -33,6 +33,7 @@ let package = Package(
         .library(name: "V2GCertificates", targets: ["V2GCertificates"]),
         .library(name: "V2GKeystore", targets: ["V2GKeystore"]),
         .library(name: "V2GPairing",  targets: ["V2GPairing"]),
+        .library(name: "V2GBridge",   targets: ["V2GBridge"]),
         .library(name: "V2GEvcc", targets: ["V2GEvcc"]),
     ],
     dependencies: [
@@ -158,6 +159,15 @@ let package = Package(
         // possible to reason about it without reasoning about anything else.
         .target(name: "V2GPairing"),
         .testTarget(name: "V2GPairingTests", dependencies: ["V2GPairing"]),
+
+        // The event stream the Capacitor plugin emits (docs/CONCEPT.md B1). Every message goes out
+        // twice — as JSON-LD and as the raw V2GTP frame — so it needs the codecs and their JSON-LD
+        // passes, and nothing else: what produces the events is the session runner, and this target
+        // only says what an event IS.
+        .target(name: "V2GBridge", dependencies: [
+            "ExiRuntime", "ExiAppProtocol", "ExiIso2", "ExiIso20Common", "ExiIso20AC", "ExiIso20DC",
+        ]),
+        .testTarget(name: "V2GBridgeTests", dependencies: ["V2GBridge"]),
 
         // Test-only: the JSON-LD documents this back end produces, against the ones C# produces.
         // Its own test target because the property is about ALL message sets at once, and no

@@ -1434,8 +1434,16 @@ phone; scanning a screenshot from two minutes ago is rejected.
 >
 > Nothing imports Capacitor yet, deliberately — it is how the calls *travel*, not what they *are*.
 > The contract, the events and both readers are typed and tested with no packages installed, which
-> leaves the dependency as one adapter of about forty lines per platform. Still to do: that adapter,
-> the Kotlin and Swift event emitters (held to this corpus), and the UI.
+> leaves the dependency as one adapter of about forty lines per platform.
+>
+> **The Kotlin and Swift emitters followed the same day** (`v2g-bridge`, `V2GBridge`), held to the
+> same corpus and carrying the same self-check. All four back ends now agree on the event stream
+> character for character, and all four can decode an event's own frame back to that event's own
+> JSON-LD. The clock is the one coupling worth naming: the corpus is generated with a clock that
+> steps a millisecond per reading, so a port that read it a different number of times would emit the
+> same events with different timings — checked by mutation, which fails at the second event.
+>
+> Still to do: the Capacitor adapter itself, and the UI.
 
 > **Pairing ported to Kotlin and Swift, 2026-07-31.** `v2g-pairing` and `V2GPairing` carry the
 > payload parser, the warning classification and both halves of the TOTP — generator and verifier —

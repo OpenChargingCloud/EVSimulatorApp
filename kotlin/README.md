@@ -29,6 +29,7 @@ DEX file's 64k method limit all at once), and made the smallest schema change re
 | `v2g-keystore` | Private keys and what may honestly be claimed about them (§3.4). No certificates, no EXI. |
 | `v2g-certificates` | X.509 for the app: reading, the MO root store, chain validation over the JVM's own PKIX. No EXI anywhere. |
 | `exi-xmldsig` | Generated standalone W3C XMLDSig codec. Not a message set — it exists only to produce the octets a Plug & Charge signature is actually over. |
+| `v2g-bridge` | The event stream the Capacitor plugin emits (B1): what a WebView receives while a session runs. |
 | `jsonld-agreement` | Test-only: the JSON-LD documents this back end produces, against the ones C# produces. |
 | `v2g-pairing` | The scanned pairing code: payload format, warning classification, TOTP. No EXI and no dependencies — it runs before any session exists. |
 | `v2g-evcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM **and** Plug & Charge) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |

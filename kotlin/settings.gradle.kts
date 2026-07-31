@@ -32,4 +32,6 @@ include("v2g-keystore")
 include("v2g-pairing")
 // Test-only: the JSON-LD documents this back end produces, against the ones C# produces.
 include("jsonld-agreement")
+// What a WebView receives while a session runs (§B1).
+include("v2g-bridge")
 include("v2g-evcc")

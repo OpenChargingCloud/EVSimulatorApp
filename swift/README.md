@@ -19,6 +19,7 @@ hand-written; every codec module is emitted from the XSDs and checked in.
 | `ExiXmlDsig` | Generated standalone W3C XMLDSig codec. Not a message set — it exists only to produce the octets a Plug & Charge signature is actually over. |
 | `V2GKeystore` | Private keys and what may honestly be claimed about them (§3.4). No certificates, no EXI. |
 | `V2GCertificates` | X.509 for the app: reading, the MO root store, chain validation. The only target that knows `swift-certificates` exists. |
+| `V2GBridge` | The event stream the Capacitor plugin emits (B1): what a WebView receives while a session runs. |
 | *(test-only)* `JsonLdAgreementTests` | The JSON-LD documents this back end produces, against the ones C# produces. |
 | `V2GPairing` | The scanned pairing code: payload format, warning classification, TOTP. No dependencies at all — it runs before any session exists. |
 | `V2GEvcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM **and** Plug & Charge) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
