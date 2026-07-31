@@ -145,7 +145,11 @@ let package = Package(
         // Private keys, and what may honestly be claimed about them (docs/CONCEPT.md §3.4). No
         // certificates and no EXI: a key is a key whatever it ends up signing, and the module that
         // decides how a key is protected should not also be the one parsing untrusted input.
-        .target(name: "V2GKeystore"),
+        .target(name: "V2GKeystore", dependencies: [
+            // CSR assembly needs X.509 structures. The keystore still never touches a certificate's
+            // trust decisions — that is V2GCertificates' business.
+            .product(name: "X509", package: "swift-certificates"),
+        ]),
         .testTarget(name: "V2GKeystoreTests", dependencies: ["V2GKeystore"]),
 
         .target(name: "V2GEvcc", dependencies: [

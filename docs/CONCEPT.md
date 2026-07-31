@@ -1384,9 +1384,20 @@ against one printed elsewhere. Swift was the odd one out and is fixed.
 **The keystore and the §3.4 asymmetry followed** (2026-07-31) — see §3.4, which now records what was
 built and the two corrections the work made to itself.
 
+**CSR generation followed** (2026-07-31), in both ports, and it is the first thing that really needed
+§3.4's signer shape: a request proves possession by being signed with the key, so a secure-element key
+must produce one without its bytes appearing. Two findings. The **signature form changes** — the
+signer returns raw `r‖s` for the wire, PKCS#10 wants DER, and a request with the wrong one is refused
+by the CA and by nothing before it. And the platforms are **not symmetric**: BouncyCastle takes an
+external `ContentSigner` directly, while `swift-certificates` keeps the bytes a signature must cover
+`@usableFromInline internal`, so the Swift half builds the request twice — once with a placeholder,
+to read those bytes out of the serialised form. Each suite verifies its own output with the library
+that made it, which is weaker than it looks, so both were also checked once against **openssl**:
+`Certificate request self-signature verify OK` for a request from each language.
+
 Still open here: **revocation** (ISO 15118-20 staples OCSP into the TLS handshake — the transport's
-business, and nothing checks a contract certificate against a CRL), **the platform key binding**
-(Keychain, Android Keystore — both need a device), and **CSR generation**.
+business, and nothing checks a contract certificate against a CRL) and **the platform key binding**
+(Keychain, Android Keystore — both need a device).
 
 **B3 — Signed metering + session UI (1.5–2 weeks).** Per §4.2: -2 `MeteringReceiptReq`, -20
 `MeteringConfirmationReq`, the signing-detail view, the EV's own meter model, receipt

@@ -213,6 +213,27 @@ wrong loudly. What the tests pin:
 Gating on **use** rather than storage is a separate flag and reads as an extra sentence, because a
 key can be biometrically gated and still be software.
 
+Both ports also build **PKCS#10 certificate signing requests**, and a CSR is the first thing that
+really needs the signer shape: it proves possession of a private key by being signed with it, so a
+secure-element key must be able to produce one without its bytes ever appearing.
+
+Two things about that are worth knowing.
+
+**The signature form changes.** `V2GSigner` returns raw `r‖s`, because that is what ISO 15118 puts on
+the wire and the field is sized for it. PKCS#10 and X.509 want the DER form, `SEQUENCE { INTEGER r,
+INTEGER s }`. A request carrying a raw signature is not malformed in any way a parser notices — it is
+simply refused by whichever CA receives it, which is a miserable place to find out.
+
+**`swift-certificates` cannot quite do this alone. It offers an initialiser taking a pre-computed
+signature — exactly the external-signer shape — but the bytes that signature must cover are
+`@usableFromInline internal`, so there is no public way to ask for them. The way through is to build
+the request once with a placeholder signature, serialise it, and take the first element of the outer
+`SEQUENCE`, which by PKCS#10's own definition *is* those bytes.**
+
+Each suite verifies its own request with the library that produced it, which is weaker than it looks.
+So both were also checked once against **openssl**, which neither built nor parsed anything here:
+`Certificate request self-signature verify OK`, for a request from each language.
+
 Not done: the platform binding itself — Keychain and Android Keystore need a device. The model above
 admits them; nothing here pretends they exist.
 
