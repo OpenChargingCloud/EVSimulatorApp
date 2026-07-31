@@ -996,13 +996,15 @@ JSON-LD (de)serializer from the same type graph, for **-2 and -20 alike**; namin
 second backend exists. *Shorter than the first draft's estimate: reusing the hand-written WWCP
 model — and hand-building a -2 one — is no longer in scope.*
 
-**A4 — EVCC state machines, Kotlin (2–3 weeks).** ✅ **done for Kotlin, EIM (2026-07-31)** — and in a
-day rather than the 2–3 weeks estimated. Ported `Evcc2` + `Evcc20Base`/`Ac`/`Dc` (~890 LOC, not the
-~1,100 first estimated). SDP is optional (§3.2); V2GTP framing per §8. TLS/crypto modes per §3.3
-remain unported along with the rest of the signature work.
+**A4 — EVCC state machines (2–3 weeks, Kotlin).** ✅ **done in Kotlin *and* Swift, EIM (2026-07-31)**
+— both in a day, against an estimate of 2–3 weeks for one of them. Ported `Evcc2` +
+`Evcc20Base`/`Ac`/`Dc` (~890 LOC, not the ~1,100 first estimated). SDP is optional (§3.2); V2GTP
+framing per §8. TLS/crypto modes per §3.3 remain unported along with the rest of the signature work.
 
-The `v2g-evcc` module: `V2GTPStream` framing, the SAP handshake, `SessionContext`, and both state
-machines for AC and DC. All four recorded sessions replay byte for byte.
+Kotlin `v2g-evcc` and Swift `V2GEvcc`, structurally the same: `V2GTPStream` framing, the SAP
+handshake, `SessionContext`, and both state machines for AC and DC. All four recorded sessions replay
+byte for byte in both languages. **This item's first correction — "it needs doing twice, and the plan
+only ever scheduled the Kotlin half" — is now discharged rather than merely recorded.**
 
 **Why it took a day and not three weeks**, because the estimate was not merely pessimistic — it was
 aimed at the wrong risk. The plan expected A4 to be where "the ~15 live-interop conformance fixes
@@ -1012,17 +1014,24 @@ each survives in the C# source as a comment saying which live run caught it. Por
 is not the same work as earning it. What remained was mechanical, and the corpus made it checkable in
 minutes rather than at the next interop event. The same correction the A2 entry records, one layer up.
 
-Checked by mutation, not by greenness — five mutations across both protocols, all caught; the table
-is in `kotlin/README.md`. Two of them are only possible against -20: sending an AC request on the DC
-message set (caught at byte 3 of the frame header — 0x8003 and 0x8004 share their high byte, so two
-whole grammars are seven bits apart), and moving the pinned clock by one second, which breaks every
-frame because -20 timestamps every header.
+Checked by mutation, not by greenness — nine across the two languages, all caught; the tables are in
+`kotlin/README.md` and `swift/README.md`. Two mutations are only possible against -20: sending an AC
+request on the DC message set (caught at byte 3 of the frame header — 0x8003 and 0x8004 share their
+high byte, so two whole grammars are seven bits apart), and moving the pinned clock by one second,
+which breaks every frame because -20 timestamps every header. **Both languages fail at the identical
+byte**, which is the clearest evidence available that the three implementations are in lockstep.
 
-Still open: **both halves in Swift**, which nothing has started and B1's iOS side depends on; and
-**the signature work** — Plug & Charge, contract provisioning, signed metering receipts, tariff and
-price-schedule verification — which is not merely unported but *uncheckable* as things stand, because
-the corpus is EIM and a randomised ECDSA signature cannot be compared byte for byte at all. That one
-needs a signature-aware comparison before any of it should be written.
+**One thing Swift made visible that the other two hide.** The three -20 `MessageHeaderType`s are
+ambiguous by bare name in Swift and must be written module-qualified. C# reaches for `using` aliases
+and Kotlin for `import … as`, so both read as if the duplication were a naming inconvenience. It is
+not: they are three self-contained schemas that happen to embed identical types, and `SessionContext`
+exists in all three back ends precisely because of it. Swift simply refuses to let it go unsaid.
+
+Still open: **the signature work** — Plug & Charge, contract provisioning, signed metering receipts,
+tariff and price-schedule verification — which is not merely unported but *uncheckable* as things
+stand, because the corpus is EIM and a randomised ECDSA signature cannot be compared byte for byte at
+all. That needs a signature-aware comparison before any of it should be written. Pause/resume needs a
+trace that pauses and rejoins.
 
 Three corrections to this item's premises, two from A1/A2/A6 and one from A4 itself:
 
@@ -1073,7 +1082,9 @@ Two things this step did *not* deliver, stated so they are not assumed:
   a *recognised* payload type with no codec rather than as an unknown one, so a WPT frame is never
   mistaken for a framing error. Irrelevant to the app either way (§1.4).
 - **No state machines, no plugin bridge.** A6 delivered the codec, framing, dispatch and signing.
-  A4 for Swift is not even scheduled yet — the plan only ever scheduled A4 for Kotlin.
+  ~~A4 for Swift is not even scheduled yet~~ — it was never scheduled, and it is nonetheless **done
+  (2026-07-31)**: `V2GEvcc`, held to the same recorded sessions as the Kotlin half. The plugin bridge
+  is still B1's work.
 
 #### Track A note: the gate that was documented but did not exist
 

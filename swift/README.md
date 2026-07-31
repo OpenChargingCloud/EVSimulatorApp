@@ -15,6 +15,8 @@ hand-written; every codec module is emitted from the XSDs and checked in.
 | `ExiIso20AcDerIec` / `ExiIso20AcDerSae` | The Amendment 1 DER sets, 86 / 107 files. Their corpora are of **mixed provenance** — see below. |
 | `V2GTP` | Hand-written 8-byte transfer-protocol header. No dependencies at all. |
 | `V2GDispatch` | Hand-written `MessageSet` / `V2GTPDispatcher` — payload type ↔ message set. Depends on every codec target. |
+| `V2GMetering` | Verifies a station's signed meter reading. Held to the corpus the C# side generates, not to its own output. |
+| `V2GEvcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
 
 `V2GTP` and `V2GDispatch` are split for the reason `kotlin/` splits them: reading a frame's type and
 length pulls in nothing, while resolving that type to a decoder needs every message set.
@@ -34,6 +36,50 @@ Three shapes differ from the other back ends there, and none changes a byte:
 not payload type. The dispatcher therefore only ever *frames* SAP and never decodes it, which is why
 `V2GDispatch` does not depend on `ExiAppProtocol`. An earlier distinct `0x8000` here was a real
 wire-conformance bug, caught only by a live interop run against Josev.
+
+## The EVCC state machines — and how a state machine gets checked at all
+
+`V2GEvcc` is the vehicle side of a session: `V2GTPStream`, `SapHandshake`, `SessionContext`, and
+`Evcc2` / `Evcc20Base`+`Ac`+`Dc`. Hand-written, ported from C#.
+
+Every other gate in this package compares *bytes for a message*. A state machine has no such corpus —
+there is no reference EVCC, and the question is not what one message encodes to but **which messages,
+in what order, carrying what**. "It ran to completion" answers none of that: a session that skips a
+phase, or sends the wrong charging profile, completes just as happily.
+
+So the check is the same construction one layer up. The C# side records whole sessions frame by frame
+into `Vectors/Session.*.trace.json` — SAP handshake to SessionStop — and `EvccTraceTests` replays the
+recorded *responses* into this implementation and requires the *requests* it emits to be byte-identical,
+V2GTP headers included. The file is read out of the submodule, exactly as `V2GMeteringTests` reads the
+meter vectors, so the two cannot drift.
+
+Two things it does not give you, both worth knowing before trusting it:
+
+* **It cannot catch a bug the C# EVCC has too.** C# is a defensible reference because it is the
+  implementation that earned the live-interop conformance fixes against Josev — "agrees with the one
+  that has actually talked to somebody else" is a weaker claim than conformance, and the honest one.
+* **The corpus is EIM.** Plug & Charge, contract provisioning, signed metering receipts and tariff
+  verification are *not ported*, and are named as missing in the type comments rather than quietly
+  absent. ECDSA signing is randomised, so a signed request cannot be compared byte for byte at all.
+
+Verified by mutation, four of them, all caught:
+
+| Mutation | Caught at |
+|---|---|
+| -2: one byte of the EVCCID | exchange 1 |
+| -20: `"EVCC01"` → `"EVCC02"` | exchange 1 |
+| -20: the AC charge-parameter discovery sent on the **DC** message set | exchange 7, byte 3 |
+| -20: the pinned clock moved by one second | exchange 1, EXI payload offset 12 |
+
+Two Swift-specific notes, and the first is the interesting one:
+
+* **The three -20 `MessageHeaderType`s are ambiguous by bare name** and have to be written
+  module-qualified — `ExiIso20Common.MessageHeaderType` and so on. That is not Swift being awkward;
+  it is the situation stated out loud. The -20 sets are self-contained schemas that happen to embed
+  identical types, and C# hides the same fact behind `using` aliases. `SessionContext` is where the
+  three are reconciled, in all three back ends.
+* **The transport is a two-method `V2GByteStream` protocol**, not `Foundation.Stream`: these codecs
+  are Foundation-free and one protocol keeps them so. `read` may return short, as a socket does.
 
 WPT is a *recognised* payload type with no Swift codec behind it, and the dispatcher says so rather
 than reporting an unknown type — which would suggest the frame was malformed.

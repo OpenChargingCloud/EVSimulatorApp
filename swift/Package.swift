@@ -29,6 +29,7 @@ let package = Package(
         .library(name: "V2GMetering", targets: ["V2GMetering"]),
         .library(name: "V2GTP", targets: ["V2GTP"]),
         .library(name: "V2GDispatch", targets: ["V2GDispatch"]),
+        .library(name: "V2GEvcc", targets: ["V2GEvcc"]),
     ],
     targets: [
         .target(name: "ExiRuntime"),
@@ -94,5 +95,15 @@ let package = Package(
         // and ExiIso20Common, so it is where the two halves are joined — see the test named for
         // it.
         .testTarget(name: "Ed448IntegrationTests", dependencies: ["V2GEd448", "ExiIso20Common"]),
+
+        // The EVCC state machines (docs/CONCEPT.md §5, A4) — hand-written, not generated, and the
+        // first thing in this package that is a *session* rather than a message. Its gate is
+        // therefore different in kind from every other target's: not a vector corpus but recorded
+        // sessions, replayed. See Tests/V2GEvccTests/SessionTrace.swift.
+        .target(name: "V2GEvcc", dependencies: [
+            "V2GTP", "V2GDispatch", "ExiAppProtocol", "ExiIso2", "ExiIso20Common",
+            "ExiIso20AC", "ExiIso20DC",
+        ]),
+        .testTarget(name: "V2GEvccTests", dependencies: ["V2GEvcc"]),
     ]
 )
