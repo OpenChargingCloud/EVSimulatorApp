@@ -66,13 +66,13 @@ export function decodeDC_EVPowerDeliveryParameterType(r: BitReader): DC_EVPowerD
                 { const _c264 = r.readBits(2); if (false) {}   // dispatch
                     else if (_c264 === 0) {
                         r.readBits(1)   // value-start
-                        _bulkChargingComplete = r.readBits(1)
+                        _bulkChargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         st262 = 1
                     }
                     else if (_c264 === 1) {   // SE(ChargingComplete)
                         r.readBits(1)   // value-start
-                        _chargingComplete = r.readBits(1)
+                        _chargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         done262 = true
                     }
@@ -83,7 +83,7 @@ export function decodeDC_EVPowerDeliveryParameterType(r: BitReader): DC_EVPowerD
                 { const _c265 = r.readBits(1); if (false) {}   // dispatch
                     else if (_c265 === 0) {   // SE(ChargingComplete)
                         r.readBits(1)   // value-start
-                        _chargingComplete = r.readBits(1)
+                        _chargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         done262 = true
                     }

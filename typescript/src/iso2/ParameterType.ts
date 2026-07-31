@@ -74,7 +74,7 @@ export function decodeParameterType(r: BitReader): ParameterType {
     { const _c135 = r.readBits(3); if (false) {}   // dispatch
         else if (_c135 === 0) {   // BoolValue
             r.readBits(1)   // value-start
-            _boolValue = r.readBits(1)
+            _boolValue = r.readBits(1) !== 0
             r.readBits(1)   // child EE
         }
         else if (_c135 === 1) {   // ByteValue

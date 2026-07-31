@@ -42,7 +42,7 @@ export function decodeAC_EVSEStatusType(r: BitReader): AC_EVSEStatusType {
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    const _rCD = r.readBits(1)
+    const _rCD = r.readBits(1) !== 0
     r.readBits(1)   // child EE
     r.readBits(1)   // element EE
     return new AC_EVSEStatusType(_notificationMaxDelay, _eVSENotification, _rCD);

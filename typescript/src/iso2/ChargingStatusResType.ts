@@ -141,7 +141,7 @@ export function decodeChargingStatusResType(r: BitReader): ChargingStatusResType
                     }
                     else if (_c82 === 2) {
                         r.readBits(1)   // value-start
-                        _receiptRequired = r.readBits(1)
+                        _receiptRequired = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         st80 = 3
                     }
@@ -160,7 +160,7 @@ export function decodeChargingStatusResType(r: BitReader): ChargingStatusResType
                     }
                     else if (_c83 === 1) {
                         r.readBits(1)   // value-start
-                        _receiptRequired = r.readBits(1)
+                        _receiptRequired = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         st80 = 3
                     }
@@ -175,7 +175,7 @@ export function decodeChargingStatusResType(r: BitReader): ChargingStatusResType
                 { const _c84 = r.readBits(2); if (false) {}   // dispatch
                     else if (_c84 === 0) {
                         r.readBits(1)   // value-start
-                        _receiptRequired = r.readBits(1)
+                        _receiptRequired = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         st80 = 3
                     }

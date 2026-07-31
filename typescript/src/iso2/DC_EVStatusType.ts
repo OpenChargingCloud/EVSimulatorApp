@@ -38,7 +38,7 @@ export function encodeDC_EVStatusType(w: BitWriter, msg: DC_EVStatusType): void 
 export function decodeDC_EVStatusType(r: BitReader): DC_EVStatusType {
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    const _eVReady = r.readBits(1)
+    const _eVReady = r.readBits(1) !== 0
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start

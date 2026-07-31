@@ -142,7 +142,7 @@ export function decodeServiceType(r: BitReader): ServiceType {
                     }
                     else if (_c127 === 1) {   // SE(FreeService)
                         r.readBits(1)   // value-start
-                        _freeService = r.readBits(1)
+                        _freeService = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         done125 = true
                     }
@@ -153,7 +153,7 @@ export function decodeServiceType(r: BitReader): ServiceType {
                 { const _c128 = r.readBits(1); if (false) {}   // dispatch
                     else if (_c128 === 0) {   // SE(FreeService)
                         r.readBits(1)   // value-start
-                        _freeService = r.readBits(1)
+                        _freeService = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         done125 = true
                     }

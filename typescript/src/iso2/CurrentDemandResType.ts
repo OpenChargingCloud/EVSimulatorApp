@@ -188,15 +188,15 @@ export function decodeCurrentDemandResType(r: BitReader): CurrentDemandResType {
     const _eVSEPresentCurrent = decodePhysicalValueType(r)
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    const _eVSECurrentLimitAchieved = r.readBits(1)
+    const _eVSECurrentLimitAchieved = r.readBits(1) !== 0
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    const _eVSEVoltageLimitAchieved = r.readBits(1)
+    const _eVSEVoltageLimitAchieved = r.readBits(1) !== 0
     r.readBits(1)   // child EE
     r.readBits(1)   // SE
     r.readBits(1)   // value-start
-    const _eVSEPowerLimitAchieved = r.readBits(1)
+    const _eVSEPowerLimitAchieved = r.readBits(1) !== 0
     r.readBits(1)   // child EE
     let _eVSEMaximumVoltageLimit: PhysicalValueType | null = null
     let _eVSEMaximumCurrentLimit: PhysicalValueType | null = null
@@ -294,7 +294,7 @@ export function decodeCurrentDemandResType(r: BitReader): CurrentDemandResType {
                     }
                     else if (_c114 === 1) {
                         r.readBits(1)   // value-start
-                        _receiptRequired = r.readBits(1)
+                        _receiptRequired = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         st112 = 2
                     }
@@ -306,7 +306,7 @@ export function decodeCurrentDemandResType(r: BitReader): CurrentDemandResType {
                 { const _c115 = r.readBits(2); if (false) {}   // dispatch
                     else if (_c115 === 0) {
                         r.readBits(1)   // value-start
-                        _receiptRequired = r.readBits(1)
+                        _receiptRequired = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         st112 = 2
                     }

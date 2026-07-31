@@ -206,13 +206,13 @@ export function decodeCurrentDemandReqType(r: BitReader): CurrentDemandReqType {
                     }
                     else if (_c92 === 3) {
                         r.readBits(1)   // value-start
-                        _bulkChargingComplete = r.readBits(1)
+                        _bulkChargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         st90 = 4
                     }
                     else if (_c92 === 4) {   // SE(ChargingComplete)
                         r.readBits(1)   // value-start
-                        _chargingComplete = r.readBits(1)
+                        _chargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         done90 = true
                     }
@@ -231,13 +231,13 @@ export function decodeCurrentDemandReqType(r: BitReader): CurrentDemandReqType {
                     }
                     else if (_c93 === 2) {
                         r.readBits(1)   // value-start
-                        _bulkChargingComplete = r.readBits(1)
+                        _bulkChargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         st90 = 4
                     }
                     else if (_c93 === 3) {   // SE(ChargingComplete)
                         r.readBits(1)   // value-start
-                        _chargingComplete = r.readBits(1)
+                        _chargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         done90 = true
                     }
@@ -252,13 +252,13 @@ export function decodeCurrentDemandReqType(r: BitReader): CurrentDemandReqType {
                     }
                     else if (_c94 === 1) {
                         r.readBits(1)   // value-start
-                        _bulkChargingComplete = r.readBits(1)
+                        _bulkChargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         st90 = 4
                     }
                     else if (_c94 === 2) {   // SE(ChargingComplete)
                         r.readBits(1)   // value-start
-                        _chargingComplete = r.readBits(1)
+                        _chargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         done90 = true
                     }
@@ -269,13 +269,13 @@ export function decodeCurrentDemandReqType(r: BitReader): CurrentDemandReqType {
                 { const _c95 = r.readBits(2); if (false) {}   // dispatch
                     else if (_c95 === 0) {
                         r.readBits(1)   // value-start
-                        _bulkChargingComplete = r.readBits(1)
+                        _bulkChargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         st90 = 4
                     }
                     else if (_c95 === 1) {   // SE(ChargingComplete)
                         r.readBits(1)   // value-start
-                        _chargingComplete = r.readBits(1)
+                        _chargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         done90 = true
                     }
@@ -286,7 +286,7 @@ export function decodeCurrentDemandReqType(r: BitReader): CurrentDemandReqType {
                 { const _c96 = r.readBits(1); if (false) {}   // dispatch
                     else if (_c96 === 0) {   // SE(ChargingComplete)
                         r.readBits(1)   // value-start
-                        _chargingComplete = r.readBits(1)
+                        _chargingComplete = r.readBits(1) !== 0
                         r.readBits(1)   // child EE
                         done90 = true
                     }

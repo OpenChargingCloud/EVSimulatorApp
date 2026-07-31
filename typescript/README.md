@@ -1,8 +1,8 @@
 # `typescript/` — the fourth back end
 
 ISO 15118 EXI for the browser, the WebView inspector and the Capacitor bridge (`docs/CONCEPT.md`
-A5). **The runtime and the generated codec are here and verified against cbV2G's bytes; the JSON-LD
-pass is not.**
+A5). **Done: the runtime, the generated codec — verified against cbV2G's bytes — and the JSON-LD
+pass, which agrees with the C# documents character for character.**
 
 ## Run
 
@@ -80,7 +80,34 @@ Three shapes differ from the other back ends, and none changes a byte:
 * **An if/else-if chain where Kotlin has `when`**, seeded with `if (false) {}` so that every arm is
   spelled `else if` and no part of the emitter has to know which arm comes first.
 
-## Still to do
+## The JSON-LD pass
 
-The JSON-LD pass, which is cheap now that the emitter exists — and is where the 64-bit-as-string
-decision in `JsonPrimitives` was aimed all along.
+`<Set>CodecJson.toJSON` / `.parseJSON`, emitted from the same schema plan in the same pass as the
+codec, and held to `JsonLd.documents.json` — the documents the C# back end produces — **in both
+directions and character for character**. This is the back end the 64-bit-as-string rule was written
+for: the other three carry it and would round-trip either way, while here a `TimeStamp` written as a
+JSON number is rounded the moment it passes 2^53.
+
+There is no hand-written JSON tree, and that is the one place this port does *less* than the others.
+Kotlin and Swift each carry one because the agreement is compared as text and both would otherwise
+have surrendered member order to an unordered map and escaping to a library's conventions. A
+JavaScript object preserves the insertion order of its string keys by specification,
+`JSON.stringify` walks them in that order, and its escaping and number formatting are fixed by the
+same specification. So the plain object *is* the ordered tree and `JSON.stringify` *is* the writer.
+
+What is harder: TypeScript's types are gone at runtime, so a polymorphic property cannot be checked
+with a cast. The constructor is passed to `JsonPrimitives.cast` and the check is an `instanceof` —
+without it a wrong `@type` would surface far away, as a missing property on a value of the wrong
+class.
+
+### What the JSON corpus caught that the byte corpus could not
+
+`xs:boolean` decoded to the raw `1`, not `true`. TypeScript would have rejected the assignment;
+stripping does not, so the value was a number wearing a boolean's type. **The bytes never noticed** —
+`1 ? 1 : 0` and `true ? 1 : 0` are the same bit — and every wire vector stayed green. It showed up as
+`"freeService":1` against `"freeService":true`.
+
+The other one was a divergence between the two emitters: the codec's keyword list was still Kotlin's,
+which reserves `object` where JavaScript does not, so the codec named XMLDSig's `Object` field
+`object_` while the JSON pass read `value.object`. It loaded and ran, and failed at the first signed
+message with an error a whole file away from the cause. They share one list now.

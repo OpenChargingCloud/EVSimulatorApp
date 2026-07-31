@@ -13,14 +13,14 @@ export class SignatureType {
     readonly signedInfo: SignedInfoType;
     readonly signatureValue: SignatureValueType;
     readonly keyInfo: KeyInfo | null;
-    readonly object_: Object | null;
+    readonly object: Object | null;
 
-    constructor(id: string | null, signedInfo: SignedInfoType, signatureValue: SignatureValueType, keyInfo: KeyInfo | null, object_: Object | null) {
+    constructor(id: string | null, signedInfo: SignedInfoType, signatureValue: SignatureValueType, keyInfo: KeyInfo | null, object: Object | null) {
         this.id = id;
         this.signedInfo = signedInfo;
         this.signatureValue = signatureValue;
         this.keyInfo = keyInfo;
-        this.object_ = object_;
+        this.object = object;
     }
 }
 
@@ -58,7 +58,7 @@ export function encodeSignatureType(w: BitWriter, msg: SignatureType): void {
                     w.writeBits(0, 2)   // KeyInfo
                     exiUnsupported("encoding a present KeyInfo (XMLDSig)");
                     st281 = 1
-                } else if (msg.object_ != null) {
+                } else if (msg.object != null) {
                     w.writeBits(1, 2)   // Object
                     exiUnsupported("encoding a present Object (XMLDSig)");
                     st281 = 2
@@ -68,7 +68,7 @@ export function encodeSignatureType(w: BitWriter, msg: SignatureType): void {
                 }
             }
             else if (_c282 === 1) {
-                if (msg.object_ != null) {
+                if (msg.object != null) {
                     w.writeBits(0, 2)   // Object
                     exiUnsupported("encoding a present Object (XMLDSig)");
                     st281 = 2

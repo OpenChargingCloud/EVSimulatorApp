@@ -1170,8 +1170,8 @@ Three corrections to this item's premises, two from A1/A2/A6 and one from A4 its
   B0's Pi remains the better check and is not replaced by this. What changed is that A4 no longer
   waits on it.
 
-**A5 — TypeScriptEmitter (2–3 weeks).** 🟡 **the codec back end is done and byte-exact
-(2026-07-31); the JSON-LD pass is not.** For Chargy, the WebView inspector, and as a cross-check of the Kotlin/Swift
+**A5 — TypeScriptEmitter (2–3 weeks).** ✅ **done 2026-07-31: codec byte-exact, JSON-LD in
+agreement with the other three.** For Chargy, the WebView inspector, and as a cross-check of the Kotlin/Swift
 codecs. WebCrypto covers P-256/P-521; Ed448 and keystore signing cross the bridge.
 
 > `typescript/src/runtime/` ports C#'s `Exi/` and is held to `Primitives.vectors.json`, cbV2G's own
@@ -1209,7 +1209,23 @@ codecs. WebCrypto covers P-256/P-521; Ed448 and keystore signing cross the bridg
 > without `new`, and the number/bigint split, which rounds silently if it goes the wrong way. Three
 > back ends and a byte-exact corpus is what turns "it compiles" into "it agrees".
 >
-> Left: the JSON-LD pass, cheap now, and the language the 64-bit-as-string rule was written for.
+> **The JSON-LD pass followed the same day**, and is held to `JsonLd.documents.json` in both
+> directions, character for character. It needs no hand-written JSON tree — the one place this port
+> does less than the others, because a JavaScript object preserves its string keys' insertion order
+> by specification and `JSON.stringify`'s escaping is fixed by the same specification, so the plain
+> object is the ordered tree and `stringify` is the writer.
+>
+> **And it caught two things the byte-exact corpus could not.** `xs:boolean` decoded to the raw `1`
+> rather than `true`; type stripping does not enforce the annotation, so the value was a number
+> wearing a boolean's type — and the bytes never noticed, because `1 ? 1 : 0` and `true ? 1 : 0` are
+> the same bit. It surfaced as `"freeService":1` against `"freeService":true`. The other was a
+> divergence between the codec emitter and the JSON emitter: the codec's keyword list was still
+> Kotlin's, which reserves `object` where JavaScript does not, so one wrote `object_` and the other
+> read `value.object`. That one loaded, ran, and failed a whole file away from its cause.
+>
+> Which is §5's shape once more, and from the direction that matters most for a bridge: **the wire
+> corpus is tolerant of anything two representations encode identically, and what that tolerance
+> hides is every consumer that can tell them apart.**
 
 **A6 — SwiftEmitter (2–3 weeks).** ✅ **done (2026-07-30)**, and out of order — it ran second, not
 last (§2). 89,670 lines across 669 files; 1,855 lines of emitter. Everything -2 uses is modelled
