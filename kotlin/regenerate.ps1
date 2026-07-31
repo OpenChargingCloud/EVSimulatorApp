@@ -39,6 +39,15 @@ Generate @("$s/V2G_CI_MsgDef.xsd", "$s/V2G_CI_MsgBody.xsd", "$s/V2G_CI_MsgDataTy
     'cloud.charging.v2g.iso2' 'Iso15118_2Codec' `
     'AuthorizationReq MeteringReceiptReq SalesTariff SignedInfo'
 
+# ---- Standalone W3C XMLDSig ---------------------------------------------------------------
+# Not a message set. This grammar exists only to reproduce the EXI fragment encoding of a
+# SignedInfo built over xmldsig-core-schema.xsd *alone*, which is what Josev/EXIficient actually
+# signs — distinct from the combined fragment grammar every other set here uses. Plug & Charge
+# needs it; without it a port produces signatures that verify locally and nowhere else.
+Generate @("$libs/Vanaheimr.V2G.Exi.XmlDsig/Schemas/xmldsig-core-schema.xsd") `
+    "$root/kotlin/exi-xmldsig/src/main/kotlin/cloud/charging/v2g/xmldsig" `
+    'cloud.charging.v2g.xmldsig' 'XmlDsigCodec' 'SignedInfo'
+
 # ---- ISO 15118-20 -------------------------------------------------------------------------
 $sets = @(
     @{ Name = 'CommonMessages'; Xsd = 'V2G_CI_CommonMessages.xsd'; Dir = 'common';   Codec = 'CommonMessagesCodec'

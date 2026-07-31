@@ -79,33 +79,28 @@ class Evcc20TraceTest {
     }
 
     /**
-     * A signed trace is refused, not mis-compared.
+     * Plug & Charge, -20: the signed AuthorizationReq matches the recording once its signature is
+     * substituted, and the signature this port produced verifies on its own.
      *
-     * The corpus now contains Plug & Charge sessions whose requests carry an ECDSA signature. Those
-     * are not byte-comparable — the nonce is random — and the C# harness handles them by substituting
-     * the recorded signature and verifying the produced one separately. This harness does neither
-     * yet, and the failure mode worth guarding is the quiet one: comparing such a frame as-is fails
-     * on 64 bytes of signature and reads like a state-machine bug.
-     *
-     * This test also marks the boundary. The day somebody ports Plug & Charge to Kotlin without
-     * extending the harness, this is what tells them.
+     * The two halves are the point. The substitution makes everything *except* 64 bytes comparable
+     * exactly — including SignedInfo, therefore the digest, therefore which octets were signed. The
+     * verification covers those 64 bytes, which the substitution deliberately discards. Either alone
+     * would pass a port that got the other half wrong.
      */
     @Test
-    fun aSignedTraceIsRefusedRatherThanMiscompared() {
+    fun theDcPncSessionMatchesTheRecording() {
 
         val trace  = SessionTrace.load("iso20-dc-pnc")
         val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
 
-        val signedAt = trace.exchanges.indexOfFirst { it.request.isSigned }
-        assertTrue(signedAt > 0, "the PnC trace records no signed request — then this guards nothing")
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_20, PowerMode.Dc)
+        val evcc = Evcc20Dc(stream, recordedAt, pollDelay = { }).apply { pnc = PncMaterial.options }
+        evcc.run()
 
-        // Replay the unsigned prefix by hand, then hit the signed one.
-        for (i in 0 until signedAt) replay.output.write(trace.exchanges[i].request.bytes)
-
-        val refused = assertFailsWith<TraceMismatch> {
-            replay.output.write(trace.exchanges[signedAt].request.bytes)
-        }
-        assertTrue(refused.message!!.contains("signed"), refused.message!!)
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+        assertEquals("pnc-signed", evcc.authorizationMode,
+            "the session completed but authorized via EIM — then nothing signed was compared")
     }
 
     /** Which energy-transfer service the negotiation settled on: DC=2, AC=1 (Table 204). The wire

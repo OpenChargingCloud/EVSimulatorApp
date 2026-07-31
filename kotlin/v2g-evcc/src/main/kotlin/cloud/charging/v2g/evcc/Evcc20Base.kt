@@ -78,6 +78,58 @@ abstract class Evcc20Base(
     /** The session id in effect, station-assigned. */
     val sessionId: ByteArray get() = sessionCtx.sessionId
 
+    /** Contract credentials. When set and the station offers PnC with a challenge, the session
+     *  authorizes with a signed AuthorizationReq instead of EIM. */
+    var pnc: PncEvccOptions? = null
+
+    /** How this session authorized: `"eim"`, or `"pnc-signed"`. */
+    var authorizationMode: String = "eim"
+        private set
+
+
+    /**
+     * Builds the AuthorizationReq encoder once, so the signature is computed once.
+     *
+     * The header is rebuilt on every call and the signature is not: -20 timestamps every header, so
+     * a poll loop must re-render the header, while re-signing per poll would burn entropy over a
+     * challenge that has not changed. The C# original makes the same split, and getting it backwards
+     * is invisible until something checks the bytes.
+     */
+    private fun buildAuthorizationReq(authSetup: AuthorizationSetupRes): () -> ByteArray {
+
+        val credentials = pnc
+        val pncSetup    = authSetup.pnC_ASResAuthorizationMode
+
+        if (credentials != null &&
+            authSetup.authorizationServices.contains(Authorization.PnC) &&
+            pncSetup != null) {
+
+            val pncMode = PnC_AReqAuthorizationModeType(
+                id = "id1",
+                genChallenge = pncSetup.genChallenge,
+                contractCertificateChain = ContractCertificateChainType(
+                    credentials.contractCertificate,
+                    SubCertificatesType(credentials.subCertificates)))
+
+            val signature = XmlDsigInterop.sign20(
+                "id1", CommonMessagesCodec.encodeFragment_PnC_AReqAuthorizationMode(pncMode),
+                credentials.contractKey)
+
+            authorizationMode = "pnc-signed"
+
+            return {
+                CommonMessagesCodec.encode(AuthorizationReq(
+                    sessionCtx.toCommonHeader().copy(signature = signature),
+                    Authorization.PnC, null, pncMode))
+            }
+        }
+
+        return {
+            CommonMessagesCodec.encode(AuthorizationReq(
+                sessionCtx.toCommonHeader(), Authorization.EIM, EIM_AReqAuthorizationModeType(), null))
+        }
+    }
+
 
     /** Charge-parameter discovery. Runs once, not polled: -20's CPD response carries no
      *  EVSEProcessing field to poll on. */
@@ -112,15 +164,16 @@ abstract class Evcc20Base(
         // SECC strictly rejects a mismatched session id where our loopback one did not.
         sessionCtx.sessionId = setupRes.header.sessionID
 
-        exchange<AuthorizationSetupRes>(MessageSet.Iso20CommonMessages,
+        val authSetup = exchange<AuthorizationSetupRes>(MessageSet.Iso20CommonMessages,
             CommonMessagesCodec.encode(AuthorizationSetupReq(sessionCtx.toCommonHeader())))
 
-        // EIM — see the class comment on Plug & Charge.
+        // Plug & Charge only if we have credentials AND the station offers it with a challenge;
+        // anything else falls back to EIM. Built once — the challenge does not change across polls,
+        // so re-signing per poll would only burn entropy.
+        val buildAuthorizationReq = buildAuthorizationReq(authSetup)
+
         while (true) {
-            val authReq = AuthorizationReq(sessionCtx.toCommonHeader(), Authorization.EIM,
-                                           EIM_AReqAuthorizationModeType(), null)
-            val res = exchange<AuthorizationRes>(MessageSet.Iso20CommonMessages,
-                                                 CommonMessagesCodec.encode(authReq))
+            val res = exchange<AuthorizationRes>(MessageSet.Iso20CommonMessages, buildAuthorizationReq())
             if (res.eVSEProcessing == Processing.Finished) break
             pollDelay(POLL_INTERVAL_MS)
         }

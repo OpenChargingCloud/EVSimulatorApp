@@ -29,6 +29,7 @@ let package = Package(
         .library(name: "V2GMetering", targets: ["V2GMetering"]),
         .library(name: "V2GTP", targets: ["V2GTP"]),
         .library(name: "V2GDispatch", targets: ["V2GDispatch"]),
+        .library(name: "ExiXmlDsig", targets: ["ExiXmlDsig"]),
         .library(name: "V2GEvcc", targets: ["V2GEvcc"]),
     ],
     targets: [
@@ -100,9 +101,15 @@ let package = Package(
         // first thing in this package that is a *session* rather than a message. Its gate is
         // therefore different in kind from every other target's: not a vector corpus but recorded
         // sessions, replayed. See Tests/V2GEvccTests/SessionTrace.swift.
+        // The standalone W3C XMLDSig grammar. Not a message set: it exists only to reproduce the EXI
+        // fragment encoding of a SignedInfo built over xmldsig-core-schema.xsd *alone*, which is what
+        // Josev/EXIficient actually signs — distinct from the combined fragment grammar the -2 and
+        // -20 codecs use for everything else. Generated, like every other codec here.
+        .target(name: "ExiXmlDsig", dependencies: ["ExiRuntime"]),
+
         .target(name: "V2GEvcc", dependencies: [
             "V2GTP", "V2GDispatch", "ExiAppProtocol", "ExiIso2", "ExiIso20Common",
-            "ExiIso20AC", "ExiIso20DC",
+            "ExiIso20AC", "ExiIso20DC", "ExiXmlDsig",
         ]),
         .testTarget(name: "V2GEvccTests", dependencies: ["V2GEvcc"]),
     ]

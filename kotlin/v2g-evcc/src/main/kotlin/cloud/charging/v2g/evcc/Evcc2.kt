@@ -1,5 +1,8 @@
 package cloud.charging.v2g.evcc
 
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
+
 import cloud.charging.v2g.iso2.*
 import cloud.charging.v2g.tp.MessageSet
 
@@ -70,6 +73,19 @@ class Evcc2(
     /** How the session ends: Terminate (default) or Pause. */
     var stopMode: ChargingSession = ChargingSession.Terminate
 
+    /** Contract credentials. When set and the station offers Contract, the session runs Plug & Charge
+     *  instead of external payment. */
+    var pnc: PncEvccOptions? = null
+
+    /** How this session authorized: `"eim"`, or `"pnc-signed"` after a signed AuthorizationReq. */
+    var authorizationMode: String = "eim"
+        private set
+
+    /** How many signed MeteringReceiptReq this session sent. Contract only — an EIM station never
+     *  asks, so a non-zero count here is also the clearest single sign that PnC really ran. */
+    var meteringReceiptsSent: Int = 0
+        private set
+
     /** The station's SessionSetup verdict. */
     var sessionSetupCode: ResponseCode? = null
         private set
@@ -89,16 +105,41 @@ class Evcc2(
             SessionSetupReqType(byteArrayOf(0xAB.toByte(), 0xCD.toByte(), 0xEF.toByte(), 0x01, 0x02, 0x03)))
         sessionSetupCode = setup.responseCode
 
-        send<ServiceDiscoveryResType>(ServiceDiscoveryReqType(serviceScope = null, serviceCategory = null))
+        val discovery = send<ServiceDiscoveryResType>(
+            ServiceDiscoveryReqType(serviceScope = null, serviceCategory = null))
 
-        // EIM only — see the class comment on Plug & Charge.
+        // Plug & Charge only if we have credentials AND the station offers it; otherwise EIM.
+        // Read once into a local: `pnc` is settable, and Kotlin will not smart-cast a mutable
+        // property across the calls below.
+        val credentials = pnc
+        val contract = credentials != null &&
+                       discovery.paymentOptionList.paymentOption.contains(PaymentOption.Contract)
+
         send<PaymentServiceSelectionResType>(PaymentServiceSelectionReqType(
-            PaymentOption.ExternalPayment,
+            if (contract) PaymentOption.Contract else PaymentOption.ExternalPayment,
             SelectedServiceListType(listOf(SelectedServiceType(serviceID = 1u, parameterSetID = null)))))
 
         // ── AUTH (poll until authorised) ───────────────────────────────────
-        val authRequest = AuthorizationReqType(id = null, genChallenge = null)
-        while (send<AuthorizationResType>(authRequest).eVSEProcessing != EVSEProcessing.Finished)
+        // Contract: PaymentDetails first (chain in, GenChallenge out), then a signed AuthorizationReq
+        // echoing the challenge. Signed once — the challenge does not change across polls.
+        var authRequest = AuthorizationReqType(id = null, genChallenge = null)
+        var authSignature: SignatureType? = null
+
+        if (contract) {
+            val details = send<PaymentDetailsResType>(PaymentDetailsReqType(
+                eMAID = contractEmaid(credentials!!.contractCertificate),
+                contractSignatureCertChain = CertificateChainType(
+                    id = null,
+                    certificate = credentials.contractCertificate,
+                    subCertificates = SubCertificatesType(credentials.subCertificates))))
+
+            authRequest = AuthorizationReqType(id = "id1", genChallenge = details.genChallenge)
+            authSignature = XmlDsigInterop.sign2(
+                "id1", Iso15118_2Codec.encodeFragment_AuthorizationReq(authRequest), credentials.contractKey)
+            authorizationMode = "pnc-signed"
+        }
+
+        while (send<AuthorizationResType>(authRequest, authSignature).eVSEProcessing != EVSEProcessing.Finished)
             pollDelay(POLL_INTERVAL_MS)
 
         // ── CHARGE PARAMETERS (+ DC cable check / pre-charge) ──────────────
@@ -117,9 +158,20 @@ class Evcc2(
         var renegotiated = false
         repeat(CHARGE_CYCLES) {
 
+            // A Contract station may demand a receipt in its status response — answer with a signed
+            // MeteringReceiptReq echoing its MeterInfo, as a real EV does.
             val notification =
-                if (mode == PowerMode.Dc) send<CurrentDemandResType>(currentDemand()).dC_EVSEStatus.eVSENotification
-                else                      send<ChargingStatusResType>(ChargingStatusReqType()).aC_EVSEStatus.eVSENotification
+                if (mode == PowerMode.Dc) {
+                    val res = send<CurrentDemandResType>(currentDemand())
+                    if (res.receiptRequired == true && res.meterInfo != null)
+                        sendMeteringReceipt(res.meterInfo!!, res.sAScheduleTupleID)
+                    res.dC_EVSEStatus.eVSENotification
+                } else {
+                    val res = send<ChargingStatusResType>(ChargingStatusReqType())
+                    if (res.receiptRequired == true && res.meterInfo != null)
+                        sendMeteringReceipt(res.meterInfo!!, res.sAScheduleTupleID)
+                    res.aC_EVSEStatus.eVSENotification
+                }
 
             // Renegotiation ([V2G2-841]) — reactive (the station notified) or proactive (once):
             // PowerDelivery(Renegotiate) → fresh ChargeParameterDiscovery → PowerDelivery(Start).
@@ -140,6 +192,41 @@ class Evcc2(
             send<WeldingDetectionResType>(WeldingDetectionReqType(evStatus()))
 
         send<SessionStopResType>(SessionStopReqType(stopMode))
+    }
+
+
+    /** Signs and sends one MeteringReceiptReq for the station's MeterInfo. */
+    private fun sendMeteringReceipt(meterInfo: MeterInfoType, saScheduleTupleId: UByte?) {
+
+        val receipt   = MeteringReceiptReqType("id2", sessionId, saScheduleTupleId, meterInfo)
+        val signature = XmlDsigInterop.sign2(
+            "id2", Iso15118_2Codec.encodeFragment_MeteringReceiptReq(receipt), pnc!!.contractKey)
+
+        send<MeteringReceiptResType>(receipt, signature)
+        meteringReceiptsSent++
+    }
+
+
+    /**
+     * The eMAID for PaymentDetails — the contract certificate's CN.
+     *
+     * C# reads it with `GetNameInfo(X509NameType.SimpleName, …)`; the JVM has no direct equivalent,
+     * so the RFC 2253 subject is parsed for its CN. Equivalent for the single-CN subjects this ever
+     * sees, and it fails loudly rather than sending an empty eMAID if that assumption ever breaks.
+     */
+    private fun contractEmaid(certificateDer: ByteArray): String {
+
+        val certificate = CertificateFactory.getInstance("X.509")
+            .generateCertificate(certificateDer.inputStream()) as X509Certificate
+
+        return certificate.subjectX500Principal.name
+            .split(',')
+            .map { it.trim() }
+            .firstOrNull { it.startsWith("CN=") }
+            ?.removePrefix("CN=")
+            ?: throw SessionAborted(
+                "the contract certificate's subject has no CN, so there is no eMAID to send: " +
+                certificate.subjectX500Principal.name)
     }
 
 
@@ -197,9 +284,10 @@ class Evcc2(
     }
 
 
-    private inline fun <reified T : BodyBaseType> send(requestBody: BodyBaseType): T {
+    private inline fun <reified T : BodyBaseType> send(requestBody: BodyBaseType,
+                                                       signature: SignatureType? = null): T {
 
-        val header  = MessageHeaderType(sessionId, notification = null, signature = null)
+        val header  = MessageHeaderType(sessionId, notification = null, signature = signature)
         val request = V2G_Message(header, BodyType(requestBody))
 
         stream.writeFrame(MessageSet.Iso15118_2, Iso15118_2Codec.encode(request))

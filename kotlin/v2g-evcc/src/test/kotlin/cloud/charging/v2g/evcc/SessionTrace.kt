@@ -11,13 +11,18 @@ import java.io.OutputStream
  * One recorded frame: the whole thing, header included. [message] is a label for failure text.
  *
  * [signature] is the raw `r‖s` value the frame carried, when it carried one. Its presence means the
- * frame is **not** byte-comparable as it stands — ECDSA's nonce is random — and the C# side compares
- * it by substituting the recorded value and verifying the produced one separately (`SignedFrame.cs`).
- * This harness does not do that yet, and refuses such a frame rather than pretending.
+ * frame is **not** byte-comparable as it stands — ECDSA's nonce is random — so it is compared by
+ * substituting the recorded value and verifying the produced one separately. See [SignedFrame].
  */
 class TraceFrame(val message: String, val bytes: ByteArray, val signature: String?) {
     val isSigned: Boolean get() = signature != null
+    val signatureBytes: ByteArray?
+        get() = signature?.let { s -> ByteArray(s.length / 2) { s.substring(it * 2, it * 2 + 2).toInt(16).toByte() } }
 }
+
+
+/** A P-256 public key, as the two field elements — enough to verify a raw `r‖s` signature. */
+class TraceSigningKey(val x: String, val y: String)
 
 /** One recorded request/response pair. */
 class TraceExchange(val index: Int, val request: TraceFrame, val response: TraceFrame)
@@ -31,7 +36,7 @@ class TraceExchange(val index: Int, val request: TraceFrame, val response: Trace
  * prove. In short: they pin this port to what the C# EVCC does, and cannot catch a bug it has too.
  */
 class SessionTrace(val name: String, val protocol: String, val mode: String,
-                   val exchanges: List<TraceExchange>) {
+                   val exchanges: List<TraceExchange>, val signingKey: TraceSigningKey?) {
 
     companion object {
 
@@ -66,8 +71,14 @@ class SessionTrace(val name: String, val protocol: String, val mode: String,
                 TraceExchange(e.get("index").asInt, frame("request"), frame("response"))
             }
 
+            val key = root.get("signingKey")
+            val signingKey = if (key == null || key.isJsonNull) null
+                             else key.asJsonObject.let {
+                                 TraceSigningKey(it.get("x").asString, it.get("y").asString)
+                             }
+
             return SessionTrace(root.get("name").asString, root.get("protocol").asString,
-                                root.get("mode").asString, exchanges)
+                                root.get("mode").asString, exchanges, signingKey)
         }
 
         private fun hex(s: String) = ByteArray(s.length / 2) {
@@ -100,6 +111,16 @@ class TraceReplay(private val trace: SessionTrace) {
         private set
 
     val complete: Boolean get() = replayed == trace.exchanges.size
+
+    /** The corpus public key, built once. Verification needs a key from outside the frame — taking
+     *  one from the message itself would accept anything a port cared to sign with. */
+    private val signingKey by lazy {
+        val key = trace.signingKey
+            ?: throw TraceMismatch(
+                "trace '${trace.name}' carries a signed exchange but no signing key. The C# " +
+                "SessionTrace.Build refuses to produce that, so this file was hand-edited.")
+        SignedFrame.publicKey(key.x, key.y)
+    }
 
     val output: OutputStream = object : OutputStream() {
         override fun write(b: Int) = accept(byteArrayOf(b.toByte()))
@@ -149,20 +170,28 @@ class TraceReplay(private val trace: SessionTrace) {
 
             val exchange = trace.exchanges[replayed]
 
-            // The C# harness compares a signed frame by substituting the recorded signature and
-            // verifying the produced one on its own. Doing that here needs a decode/re-encode path
-            // and an ECDSA verify; until it exists, refusing is the only honest option — comparing
-            // the bytes as they stand would fail on the 64 signature bytes and say nothing.
-            if (exchange.request.isSigned)
-                throw TraceMismatch(
-                    "exchange $replayed (${exchange.request.message}) in trace '${trace.name}' is " +
-                    "signed, and this harness cannot compare signed frames yet. The Kotlin EVCC does " +
-                    "not do Plug & Charge either, so no test should be loading this trace.")
+            // A signed frame cannot be compared as bytes — ECDSA's nonce is random. SignedFrame
+            // explains the substitution; the short of it is that the signature value is the only
+            // random part, so putting the recorded one back makes everything else comparable
+            // exactly, and the produced one is checked on its own below.
+            val recordedSignature = exchange.request.signatureBytes
+            val comparable = if (recordedSignature != null)
+                                 SignedFrame.withSignatureValue(frame, recordedSignature)
+                             else frame
 
-            if (!frame.contentEquals(exchange.request.bytes))
+            if (!comparable.contentEquals(exchange.request.bytes))
                 throw TraceMismatch(
                     "exchange $replayed (${exchange.request.message}) differs from the trace " +
-                    "'${trace.name}':\n" + diff(exchange.request.bytes, frame))
+                    "'${trace.name}'" +
+                    (if (exchange.request.isSigned) " (compared with the recorded signature substituted)" else "") +
+                    ":\n" + diff(exchange.request.bytes, comparable))
+
+            if (exchange.request.isSigned && !SignedFrame.verifiesWith(frame, signingKey))
+                throw TraceMismatch(
+                    "exchange $replayed (${exchange.request.message}) matches the trace once its " +
+                    "signature is substituted, but the signature it actually produced does not verify " +
+                    "against the corpus key. The message is right and the signing is not — a wrong " +
+                    "key, wrong octets, or a wrong signature encoding.")
 
             for (b in exchange.response.bytes) readable.addLast(b)
             replayed++

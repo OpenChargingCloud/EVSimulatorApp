@@ -1056,10 +1056,35 @@ byte comparison at offset 190, inside `DigestValue`. What it does *not* check is
 correct — verification uses the library that signed — and that question lives with the RFC 8032
 vectors, not here.
 
-Still open: the signature work itself in Kotlin and Swift. Their harnesses now **refuse** a signed
-trace with a clear message rather than mis-comparing it, and each has a test pinning that refusal — so
-the day somebody ports Plug & Charge without extending the harness, they are told. Pause/resume still
-needs a trace that pauses and rejoins.
+**And with the comparison in place, Plug & Charge followed the same day, in both ports.** -2 does
+PaymentDetails with the contract chain, a signed AuthorizationReq and a signed MeteringReceiptReq per
+demanded receipt; -20 does the signed AuthorizationReq over the `PnC_AReqAuthorizationMode` fragment.
+All of it replays byte for byte.
+
+It needed one thing nobody had noticed was missing: **the standalone W3C XMLDSig codec existed only
+in C#.** The `SignedInfo` that travels *in* a message is encoded under its own message set's grammar,
+while the octets actually *signed* are the same `SignedInfo` under the standalone xmldsig grammar —
+different bytes for the same structure, because the fragment selector is sized over a different set of
+global elements. Without it neither port could produce octets any peer would accept, and hand-writing
+a codec is forbidden. Generated for both (`exi-xmldsig`, `ExiXmlDsig`), which took one command each.
+
+**The finding worth keeping is about the check, not the code.** The signature-aware comparison
+substitutes the recorded signature away, and verifies a produced one using *the port's own*
+standalone encoder. So a port whose encoder disagreed with C#'s would sign over X, verify over X, and
+pass every check — while producing a signature no other implementation accepts. That is the mirrored
+bug again, in the one place the corpus does not otherwise reach, and it appeared precisely *because*
+the new comparison was careful about everything else. The fix is one test per port: verify the
+**recorded** signature — made by C# over C#'s octets — with the port's own encoder. Confirmed by
+mutation: corrupting only the standalone mapping leaves both Plug & Charge replay tests green in both
+languages and fails exactly that one test.
+
+The general shape, now seen often enough to state plainly: **every time a check is made to tolerate
+some legitimate variation, it stops looking at whatever that variation was hiding.** Substituting the
+signature was right, and it blinded the comparison to the signing itself; the repair is not to
+substitute less but to check the discarded half against something outside the port.
+
+Still open: contract provisioning, tariff and price-schedule verification, and pause/resume — the
+last of which needs a trace that pauses and rejoins.
 
 Three corrections to this item's premises, two from A1/A2/A6 and one from A4 itself:
 

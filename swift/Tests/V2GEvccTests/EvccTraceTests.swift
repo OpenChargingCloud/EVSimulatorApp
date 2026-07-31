@@ -131,29 +131,81 @@ final class EvccTraceTests: XCTestCase {
         }
     }
 
-    /// A signed trace is refused, not mis-compared.
+    // ── Plug & Charge ─────────────────────────────────────────────────────
+
+    /// Plug & Charge, -2: PaymentDetails with the contract chain, a signed AuthorizationReq, and a
+    /// signed MeteringReceiptReq for every receipt the station demands — three signed requests in
+    /// one session, each matching the recording once its signature is substituted and each verifying
+    /// on its own.
     ///
-    /// The corpus now contains Plug & Charge sessions whose requests carry an ECDSA signature. Those
-    /// are not byte-comparable — the nonce is random — and the C# harness handles them by
-    /// substituting the recorded signature and verifying the produced one separately. This harness
-    /// does neither yet, and the failure mode worth guarding is the quiet one: comparing such a frame
-    /// as-is fails on 64 bytes of signature and reads like a state-machine bug.
-    ///
-    /// It also marks the boundary. The day somebody ports Plug & Charge to Swift without extending
-    /// the harness, this is what tells them.
-    func testASignedTraceIsRefusedRatherThanMiscompared() throws {
+    /// `meteringReceiptsSent` is asserted because it is the one thing a session-level check can see
+    /// that a byte comparison cannot express: a station only asks for receipts under Contract, so a
+    /// non-zero count is the clearest single sign that PnC really ran rather than quietly falling
+    /// back to EIM.
+    func testAcIso2PncSessionMatchesTheRecording() throws {
+
+        let trace  = try SessionTrace.load("iso2-ac-pnc")
+        let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_2, .ac)
+        let evcc = Evcc2(stream, .ac)
+        evcc.pnc = PncMaterial.options
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+        XCTAssertEqual(evcc.authorizationMode, "pnc-signed",
+            "the session completed but authorized via EIM — then nothing signed was compared")
+        XCTAssertGreaterThan(evcc.meteringReceiptsSent, 0,
+            "no metering receipt was sent, so the second signed message type never ran")
+    }
+
+    /// Plug & Charge, -20: the signed AuthorizationReq, whose signature covers the
+    /// PnC_AReqAuthorizationMode fragment rather than the request body.
+    func testDcIso20PncSessionMatchesTheRecording() throws {
 
         let trace  = try SessionTrace.load("iso20-dc-pnc")
         let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
 
-        let signedAt = try XCTUnwrap(trace.exchanges.firstIndex { $0.request.isSigned },
-                                     "the PnC trace records no signed request — then this guards nothing")
+        try SapHandshake.runEvccSide(stream, .iso15118_20, .dc)
+        let evcc = Evcc20Dc(stream, clock: recordedAt)
+        evcc.pnc = PncMaterial.options
+        try evcc.run()
 
-        // Replay the unsigned prefix by hand, then hit the signed one.
-        for i in 0 ..< signedAt { try replay.write(trace.exchanges[i].request.bytes) }
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+        XCTAssertEqual(evcc.authorizationMode, "pnc-signed")
+    }
 
-        XCTAssertThrowsError(try replay.write(trace.exchanges[signedAt].request.bytes)) { error in
-            XCTAssertTrue(String(describing: error).contains("signed"), String(describing: error))
+    /// **The signature C# produced verifies under this port's own verification path.**
+    ///
+    /// This closes a blind spot the two tests above cannot, and it is worth spelling out because the
+    /// gap is not obvious. A replayed signature is *substituted away* before the byte comparison, and
+    /// the verification of a produced signature uses this port's own `standaloneOctets`. So a Swift
+    /// standalone-xmldsig encoder that disagreed with C#'s would sign over X, verify over X, and pass
+    /// both checks — while producing a signature no other implementation accepts. The mirrored bug,
+    /// in the one place the corpus does not otherwise reach.
+    ///
+    /// Verifying the **recorded** frame breaks the symmetry: those bytes were signed by C# over C#'s
+    /// octets, so they verify here only if the two encoders agree. That is the whole point of the
+    /// separate `ExiXmlDsig` target, checked rather than assumed.
+    func testTheRecordedSignatureVerifiesUnderThisPortsOwnEncoder() throws {
+
+        for name in ["iso2-ac-pnc", "iso20-dc-pnc"] {
+
+            let trace = try SessionTrace.load(name)
+            let key   = try SignedFrame.publicKey(x: XCTUnwrap(trace.signingKey).x,
+                                                  y: XCTUnwrap(trace.signingKey).y)
+            let signed = trace.exchanges.filter { $0.request.isSigned }
+
+            XCTAssertFalse(signed.isEmpty, "\(name) records no signed request")
+
+            for exchange in signed {
+                XCTAssertTrue(SignedFrame.verifies(exchange.request.bytes, with: key),
+                    "\(name) exchange \(exchange.index) (\(exchange.request.message)): the signature " +
+                    "C# recorded does not verify here. The two standalone-xmldsig encoders disagree, " +
+                    "which no other check in this suite can see.")
+            }
         }
     }
 

@@ -26,7 +26,8 @@ DEX file's 64k method limit all at once), and made the smallest schema change re
 | `v2g-tp` | Hand-written `V2GTP` — the 8-byte transfer-protocol header. No dependencies at all. |
 | `v2g-dispatch` | Hand-written `MessageSet` / `V2GTPDispatcher` — payload type ↔ message set. Depends on every codec module. |
 | `v2g-metering` | Verifies a station's signed meter reading. Held to the corpus the C# side generates, not to its own output. |
-| `v2g-evcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
+| `exi-xmldsig` | Generated standalone W3C XMLDSig codec. Not a message set — it exists only to produce the octets a Plug & Charge signature is actually over. |
+| `v2g-evcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM **and** Plug & Charge) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
 
 ```bash
 gradle -p kotlin test --rerun-tasks
@@ -204,14 +205,8 @@ Two things this does not give you, both worth knowing before trusting it:
 * **It cannot catch a bug the C# EVCC has too.** C# is a defensible reference because it is the
   implementation that earned the live-interop conformance fixes against Josev — "agrees with the one
   that has actually talked to somebody else" is a weaker claim than conformance, and the honest one.
-* **This port is EIM.** Plug & Charge, signed metering receipts and tariff-signature verification are
-  *not ported*, and are named as missing in the class comment rather than quietly absent.
-
-  The **corpus** is no longer EIM-only, though: since schema 2 it carries two Plug & Charge sessions,
-  compared by substituting the recorded signature and verifying the produced one separately (see
-  `SignedFrame.cs`). This harness does not do that yet and **refuses** a signed frame rather than
-  comparing bytes that cannot match — `aSignedTraceIsRefusedRatherThanMiscompared` pins the refusal,
-  and is what will tell whoever ports Plug & Charge that the harness needs extending too.
+* **Tariff-signature verification and pause/resume are still unported**, and named as missing in the
+  class comments rather than quietly absent. Plug & Charge **is** ported — see below.
 
 The replay harness carries its own negative tests (`anAlteredRequestIsRejected`,
 `anEarlyEndingSessionIsNotComplete`), because a comparison that silently compares nothing passes every
@@ -238,6 +233,29 @@ is seven bits apart on the wire.
 And -20 puts a **timestamp in every message header**, which is why `SessionContext` takes a clock
 instead of reading one: move it by a single second and not one frame matches. That is also why the
 corpus pins `FixedSessionId` and `FixedGenChallenge` on the C# recording side — see `SessionTrace.cs`.
+
+### Plug & Charge, and the one check that is not obvious
+
+`exi-xmldsig` is a codec module with no message set behind it. It exists because the `SignedInfo`
+that travels **in** a signed message is encoded under its own message set's grammar, while the octets
+actually **signed** are the same `SignedInfo` encoded under the *standalone* W3C xmldsig grammar —
+different bytes for the same structure, because the fragment selector is sized over a different set
+of global elements. That is the form a live Josev peer produces and accepts. Generated, like every
+other codec here; hand-writing it is forbidden for the usual reason.
+
+Signed sessions are compared by substituting the recorded signature and verifying the produced one
+separately (`SignedFrame.kt`, mirroring `SignedFrame.cs`). Which leaves a gap that took a moment to
+see and is worth writing down:
+
+> The signature bytes are substituted away before the comparison, and a produced signature is
+> verified using **this port's own** `standaloneOctets`. So a Kotlin standalone encoder that
+> disagreed with C#'s would sign over X, verify over X, and pass every check here — while producing
+> a signature no other implementation on earth accepts.
+
+`theRecordedSignatureVerifiesUnderThisPortsOwnEncoder` closes it: the **recorded** signature was made
+by C# over C#'s octets, so it verifies here only if the two encoders agree. Confirmed by mutation —
+corrupting only the standalone mapping leaves both Plug & Charge replay tests green and fails exactly
+that one test, in Kotlin and Swift alike.
 
 ## How these codecs are checked
 

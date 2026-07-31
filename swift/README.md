@@ -16,7 +16,8 @@ hand-written; every codec module is emitted from the XSDs and checked in.
 | `V2GTP` | Hand-written 8-byte transfer-protocol header. No dependencies at all. |
 | `V2GDispatch` | Hand-written `MessageSet` / `V2GTPDispatcher` — payload type ↔ message set. Depends on every codec target. |
 | `V2GMetering` | Verifies a station's signed meter reading. Held to the corpus the C# side generates, not to its own output. |
-| `V2GEvcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
+| `ExiXmlDsig` | Generated standalone W3C XMLDSig codec. Not a message set — it exists only to produce the octets a Plug & Charge signature is actually over. |
+| `V2GEvcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM **and** Plug & Charge) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
 
 `V2GTP` and `V2GDispatch` are split for the reason `kotlin/` splits them: reading a frame's type and
 length pulls in nothing, while resolving that type to a decoder needs every message set.
@@ -58,15 +59,8 @@ Two things it does not give you, both worth knowing before trusting it:
 * **It cannot catch a bug the C# EVCC has too.** C# is a defensible reference because it is the
   implementation that earned the live-interop conformance fixes against Josev — "agrees with the one
   that has actually talked to somebody else" is a weaker claim than conformance, and the honest one.
-* **This port is EIM.** Plug & Charge, contract provisioning, signed metering receipts and tariff
-  verification are *not ported*, and are named as missing in the type comments rather than quietly
-  absent.
-
-  The **corpus** is no longer EIM-only, though: since schema 2 it carries two Plug & Charge sessions,
-  compared by substituting the recorded signature and verifying the produced one separately (see
-  `SignedFrame.cs`). This harness does not do that yet and **refuses** a signed frame rather than
-  comparing bytes that cannot match — `testASignedTraceIsRefusedRatherThanMiscompared` pins the
-  refusal, and is what will tell whoever ports Plug & Charge that the harness needs extending too.
+* **Contract provisioning, tariff verification and pause/resume are still unported**, and named as
+  missing in the type comments rather than quietly absent. Plug & Charge **is** ported — see below.
 
 Verified by mutation, four of them, all caught:
 
@@ -86,6 +80,33 @@ Two Swift-specific notes, and the first is the interesting one:
   three are reconciled, in all three back ends.
 * **The transport is a two-method `V2GByteStream` protocol**, not `Foundation.Stream`: these codecs
   are Foundation-free and one protocol keeps them so. `read` may return short, as a socket does.
+
+### Plug & Charge, and the one check that is not obvious
+
+`ExiXmlDsig` is a codec target with no message set behind it. It exists because the `SignedInfo` that
+travels **in** a signed message is encoded under its own message set's grammar, while the octets
+actually **signed** are the same `SignedInfo` encoded under the *standalone* W3C xmldsig grammar —
+different bytes for the same structure, because the fragment selector is sized over a different set of
+global elements. That is the form a live Josev peer produces and accepts.
+
+Signing is CryptoKit `P256.Signing`, whose `rawRepresentation` is already the raw `r‖s` the field
+wants — no DER conversion anywhere, and the field is 64 bytes so a DER signature would not fit even
+by accident. `PncEvccOptions` takes the **eMAID as a value** rather than parsing it out of the
+certificate's CN as C# does: that would need an X.509 parser this package does not have and does not
+want, and the identity is known to whoever provisioned the credentials.
+
+Signed sessions are compared by substituting the recorded signature and verifying the produced one
+separately (`SignedFrame.swift`). Which leaves a gap that took a moment to see:
+
+> The signature bytes are substituted away before the comparison, and a produced signature is verified
+> using **this port's own** `standaloneOctets`. So a Swift standalone encoder that disagreed with C#'s
+> would sign over X, verify over X, and pass every check here — while producing a signature no other
+> implementation on earth accepts.
+
+`testTheRecordedSignatureVerifiesUnderThisPortsOwnEncoder` closes it: the **recorded** signature was
+made by C# over C#'s octets, so it verifies here only if the two encoders agree. Confirmed by
+mutation — corrupting only the standalone mapping leaves both Plug & Charge replay tests green and
+fails exactly that one test, in Swift and Kotlin alike.
 
 WPT is a *recognised* payload type with no Swift codec behind it, and the dispatcher says so rather
 than reporting an unknown type — which would suggest the frame was malformed.
@@ -129,6 +150,16 @@ dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release
   --xsd "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDef.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgBody.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDataTypes.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgHeader.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/xmldsig-core-schema.xsd" \
   --out swift/Sources/ExiIso2 \
   --lang swift --namespace cloud.charging.v2g.iso2 --codec Iso15118_2Codec
+```
+
+The standalone W3C XMLDSig grammar — not a message set, and the only target here generated from a
+single schema that no session ever carries. See the Plug & Charge section for why it exists:
+
+```bash
+dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release -- \
+  --xsd libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.XmlDsig/Schemas/xmldsig-core-schema.xsd \
+  --out swift/Sources/ExiXmlDsig \
+  --lang swift --namespace ExiXmlDsig --codec XmlDsigCodec --fragments SignedInfo
 ```
 
 **The order of `--xsd` matters** once a set has more than one schema: it decides declaration

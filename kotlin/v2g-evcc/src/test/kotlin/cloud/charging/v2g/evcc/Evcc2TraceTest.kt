@@ -74,6 +74,68 @@ class Evcc2TraceTest {
     }
 
     /**
+     * Plug & Charge, -2: PaymentDetails with the contract chain, a signed AuthorizationReq, and a
+     * signed MeteringReceiptReq for every receipt the station demands — three signed requests in one
+     * session, each matching the recording once its signature is substituted and each verifying on
+     * its own.
+     *
+     * `meteringReceiptsSent` is asserted because it is the one thing a session-level check can see
+     * that a byte comparison cannot express: a station only asks for receipts under Contract, so a
+     * non-zero count is the clearest single sign that PnC really ran rather than quietly falling
+     * back to EIM.
+     */
+    @Test
+    fun theAcPncSessionMatchesTheRecording() {
+
+        val trace  = SessionTrace.load("iso2-ac-pnc")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_2, PowerMode.Ac)
+        val evcc = Evcc2(stream, PowerMode.Ac, pollDelay = { }).apply { pnc = PncMaterial.options }
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+        assertEquals("pnc-signed", evcc.authorizationMode,
+            "the session completed but authorized via EIM — then nothing signed was compared")
+        assertTrue(evcc.meteringReceiptsSent > 0,
+            "no metering receipt was sent, so the second signed message type never ran")
+    }
+
+    /**
+     * **The signature C# produced verifies under this port's own verification path.**
+     *
+     * This closes a blind spot the two tests above cannot, and it is worth spelling out because the
+     * gap is not obvious. A replayed signature is *substituted away* before the byte comparison, and
+     * the verification of a produced signature uses this port's own `standaloneOctets`. So a Kotlin
+     * standalone-xmldsig encoder that disagreed with C#'s would sign over X, verify over X, and pass
+     * both checks — while producing a signature no other implementation accepts. The mirrored bug,
+     * in the one place the corpus does not otherwise reach.
+     *
+     * Verifying the **recorded** frame breaks the symmetry: those bytes were signed by C# over C#'s
+     * octets, so they verify here only if the two encoders agree. That is the whole point of the
+     * separate `exi-xmldsig` module, checked rather than assumed.
+     */
+    @Test
+    fun theRecordedSignatureVerifiesUnderThisPortsOwnEncoder() {
+
+        for (name in listOf("iso2-ac-pnc", "iso20-dc-pnc")) {
+
+            val trace = SessionTrace.load(name)
+            val key   = SignedFrame.publicKey(trace.signingKey!!.x, trace.signingKey.y)
+            val signed = trace.exchanges.filter { it.request.isSigned }
+
+            assertTrue(signed.isNotEmpty(), "$name records no signed request")
+
+            for (exchange in signed)
+                assertTrue(SignedFrame.verifiesWith(exchange.request.bytes, key),
+                    "$name exchange ${exchange.index} (${exchange.request.message}): the signature C# " +
+                    "recorded does not verify here. The two standalone-xmldsig encoders disagree, " +
+                    "which no other check in this suite can see.")
+        }
+    }
+
+    /**
      * The harness fails when it should. Without this, the tests above being green could equally mean
      * the comparison never compares anything — the failure mode a corpus check is most prone to, and
      * the one that is invisible from a passing suite.

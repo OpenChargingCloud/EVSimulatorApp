@@ -5,6 +5,8 @@ dependencies {
     implementation(project(":exi-iso20-common"))
     implementation(project(":exi-iso20-ac"))
     implementation(project(":exi-iso20-dc"))
+    // Plug & Charge signs its SignedInfo under the standalone xmldsig grammar, not the combined one.
+    implementation(project(":exi-xmldsig"))
     implementation(project(":v2g-tp"))
     implementation(project(":v2g-dispatch"))
 

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import V2GTP
 @testable import V2GEvcc
@@ -15,6 +16,7 @@ struct TraceFrame: Decodable {
     let signature: String?
 
     var isSigned: Bool { signature != nil }
+    var signatureBytes: [UInt8]? { signature.map(SignedFrame.hex) }
 
     var bytes: [UInt8] {
         stride(from: 0, to: frame.count, by: 2).map {
@@ -23,6 +25,12 @@ struct TraceFrame: Decodable {
             return UInt8(frame[i ..< j], radix: 16)!
         }
     }
+}
+
+/// A P-256 public key, as the two field elements — enough to verify a raw `r‖s` signature.
+struct TraceSigningKey: Decodable {
+    let x: String
+    let y: String
 }
 
 /// One recorded request/response pair.
@@ -49,12 +57,13 @@ struct SessionTrace: Decodable {
     let name: String
     let mode: String
     let exchanges: [TraceExchange]
+    let signingKey: TraceSigningKey?
 
     // `protocol` is a Swift keyword, so the field is renamed rather than back-ticked everywhere.
     let protocolName: String
 
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, name, mode, exchanges
+        case schemaVersion, name, mode, exchanges, signingKey
         case protocolName = "protocol"
     }
 
@@ -106,6 +115,22 @@ final class TraceReplay: V2GByteStream {
 
     var complete: Bool { replayed == trace.exchanges.count }
 
+    private var cachedSigningKey: P256.Signing.PublicKey?
+
+    /// The corpus public key, built once. Verification needs a key from outside the frame — taking
+    /// one from the message itself would accept anything a port cared to sign with.
+    private func signingKey() throws -> P256.Signing.PublicKey {
+        if let cachedSigningKey { return cachedSigningKey }
+        guard let key = trace.signingKey else {
+            throw TraceMismatch(description:
+                "trace '\(trace.name)' carries a signed exchange but no signing key. The C# " +
+                "SessionTrace.Build refuses to produce that, so this file was hand-edited.")
+        }
+        let built = try SignedFrame.publicKey(x: key.x, y: key.y)
+        cachedSigningKey = built
+        return built
+    }
+
     init(_ trace: SessionTrace) {
         self.trace = trace
     }
@@ -135,23 +160,31 @@ final class TraceReplay: V2GByteStream {
             }
 
             let exchange = trace.exchanges[replayed]
-
-            // The C# harness compares a signed frame by substituting the recorded signature and
-            // verifying the produced one on its own. Doing that here needs a decode/re-encode path
-            // and an ECDSA verify; until it exists, refusing is the only honest option — comparing
-            // the bytes as they stand would fail on the 64 signature bytes and say nothing.
-            guard !exchange.request.isSigned else {
-                throw TraceMismatch(description:
-                    "exchange \(replayed) (\(exchange.request.message)) in trace '\(trace.name)' is " +
-                    "signed, and this harness cannot compare signed frames yet. The Swift EVCC does " +
-                    "not do Plug & Charge either, so no test should be loading this trace.")
-            }
-
             let expected = exchange.request.bytes
-            guard frame == expected else {
+
+            // A signed frame cannot be compared as bytes — ECDSA's nonce is random. SignedFrame
+            // explains the substitution; the short of it is that the signature value is the only
+            // random part, so putting the recorded one back makes everything else comparable
+            // exactly, and the produced one is checked on its own below.
+            let comparable = try exchange.request.signatureBytes.map {
+                try SignedFrame.withSignatureValue(frame, $0)
+            } ?? frame
+
+            guard comparable == expected else {
                 throw TraceMismatch(description:
                     "exchange \(replayed) (\(exchange.request.message)) differs from the trace " +
-                    "'\(trace.name)':\n" + Self.diff(expected, frame))
+                    "'\(trace.name)'" +
+                    (exchange.request.isSigned ? " (compared with the recorded signature substituted)" : "") +
+                    ":\n" + Self.diff(expected, comparable))
+            }
+
+            if exchange.request.isSigned,
+               !SignedFrame.verifies(frame, with: try signingKey()) {
+                throw TraceMismatch(description:
+                    "exchange \(replayed) (\(exchange.request.message)) matches the trace once its " +
+                    "signature is substituted, but the signature it actually produced does not verify " +
+                    "against the corpus key. The message is right and the signing is not — a wrong " +
+                    "key, wrong octets, or a wrong signature encoding.")
             }
 
             readable += exchange.response.bytes

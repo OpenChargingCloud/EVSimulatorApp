@@ -59,6 +59,13 @@ open class Evcc20Base {
     /// The session id in effect, station-assigned.
     public var sessionId: [UInt8] { sessionCtx.sessionId }
 
+    /// Contract credentials. When set and the station offers PnC with a challenge, the session
+    /// authorizes with a signed AuthorizationReq instead of EIM.
+    public var pnc: PncEvccOptions?
+
+    /// How this session authorized: `"eim"`, or `"pnc-signed"`.
+    public private(set) var authorizationMode = "eim"
+
     public init(_ stream: V2GTPStream, clock: @escaping () -> UInt64,
                 pollDelay: @escaping (UInt64) -> Void = { _ in }) {
         self.stream = stream
@@ -104,16 +111,18 @@ open class Evcc20Base {
         // SECC strictly rejects a mismatched session id where our loopback one did not.
         sessionCtx.sessionId = setupRes.header.sessionID
 
-        let _: AuthorizationSetupRes = try exchange(.iso20CommonMessages,
+        let authSetup: AuthorizationSetupRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(AuthorizationSetupReq(header: sessionCtx.toCommonHeader())))
 
-        // EIM — see the type comment on Plug & Charge.
+        // Plug & Charge only if we have credentials AND the station offers it with a challenge;
+        // anything else falls back to EIM. Built once — the challenge does not change across polls,
+        // so re-signing per poll would only burn entropy. The *header* is still rebuilt every time,
+        // because -20 timestamps it; getting that split backwards is invisible until bytes are
+        // checked.
+        let buildAuthorizationReq = try makeAuthorizationReqBuilder(authSetup)
+
         while true {
-            let request = AuthorizationReq(header: sessionCtx.toCommonHeader(),
-                                           selectedAuthorizationService: .EIM,
-                                           eIM_AReqAuthorizationMode: EIM_AReqAuthorizationModeType())
-            let res: AuthorizationRes = try exchange(.iso20CommonMessages,
-                                                     CommonMessagesCodec.encode(request))
+            let res: AuthorizationRes = try exchange(.iso20CommonMessages, buildAuthorizationReq())
             if res.eVSEProcessing == .Finished { break }
             pollDelay(Self.pollIntervalMs)
         }
@@ -178,6 +187,41 @@ open class Evcc20Base {
         let _: SessionStopRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(SessionStopReq(header: sessionCtx.toCommonHeader(),
                                                       chargingSession: stopMode)))
+    }
+
+    private func makeAuthorizationReqBuilder(_ authSetup: AuthorizationSetupRes) throws -> () -> [UInt8] {
+
+        if let credentials = pnc,
+           authSetup.authorizationServices.contains(.PnC),
+           let pncSetup = authSetup.pnC_ASResAuthorizationMode {
+
+            let pncMode = PnC_AReqAuthorizationModeType(
+                id: "id1",
+                genChallenge: pncSetup.genChallenge,
+                contractCertificateChain: ContractCertificateChainType(
+                    certificate: credentials.contractCertificate,
+                    subCertificates: SubCertificatesType(certificate: credentials.subCertificates)))
+
+            let signature = try XmlDsigInterop.sign20(
+                "id1", CommonMessagesCodec.encodeFragment_PnC_AReqAuthorizationMode(pncMode),
+                credentials.contractKey)
+
+            authorizationMode = "pnc-signed"
+
+            return { [sessionCtx] in
+                var header = sessionCtx.toCommonHeader()
+                header.signature = signature
+                return CommonMessagesCodec.encode(AuthorizationReq(
+                    header: header, selectedAuthorizationService: .PnC,
+                    pnC_AReqAuthorizationMode: pncMode))
+            }
+        }
+
+        return { [sessionCtx] in
+            CommonMessagesCodec.encode(AuthorizationReq(
+                header: sessionCtx.toCommonHeader(), selectedAuthorizationService: .EIM,
+                eIM_AReqAuthorizationMode: EIM_AReqAuthorizationModeType()))
+        }
     }
 
     /// Sends one already-encoded request and awaits its reply. The undiscriminated pair, because the

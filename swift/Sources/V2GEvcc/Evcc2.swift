@@ -58,6 +58,17 @@ public final class Evcc2 {
     /// How the session ends: `.Terminate` (default) or `.Pause`.
     public var stopMode: ChargingSession = .Terminate
 
+    /// Contract credentials. When set and the station offers Contract, the session runs Plug & Charge
+    /// instead of external payment.
+    public var pnc: PncEvccOptions?
+
+    /// How this session authorized: `"eim"`, or `"pnc-signed"` after a signed AuthorizationReq.
+    public private(set) var authorizationMode = "eim"
+
+    /// How many signed MeteringReceiptReq this session sent. Contract only — an EIM station never
+    /// asks, so a non-zero count is also the clearest single sign that PnC really ran.
+    public private(set) var meteringReceiptsSent = 0
+
     /// The station's SessionSetup verdict.
     public private(set) var sessionSetupCode: ResponseCode?
 
@@ -81,18 +92,41 @@ public final class Evcc2 {
             eVCCID: [0xAB, 0xCD, 0xEF, 0x01, 0x02, 0x03]))
         sessionSetupCode = setup.responseCode
 
-        let _: ServiceDiscoveryResType = try send(ServiceDiscoveryReqType())
+        let discovery: ServiceDiscoveryResType = try send(ServiceDiscoveryReqType())
 
-        // EIM only — see the type comment on Plug & Charge.
+        // Plug & Charge only if we have credentials AND the station offers it; otherwise EIM.
+        let credentials = pnc
+        let contract = credentials != nil
+            && discovery.paymentOptionList.paymentOption.contains(.Contract)
+
         let _: PaymentServiceSelectionResType = try send(PaymentServiceSelectionReqType(
-            selectedPaymentOption: .ExternalPayment,
+            selectedPaymentOption: contract ? .Contract : .ExternalPayment,
             selectedServiceList: SelectedServiceListType(selectedService: [
                 SelectedServiceType(serviceID: 1)
             ])))
 
         // ── AUTH (poll until authorised) ───────────────────────────────────
+        // Contract: PaymentDetails first (chain in, GenChallenge out), then a signed AuthorizationReq
+        // echoing the challenge. Signed once — the challenge does not change across polls.
+        var authRequest = AuthorizationReqType()
+        var authSignature: SignatureType?
+
+        if let credentials, contract {
+            let details: PaymentDetailsResType = try send(PaymentDetailsReqType(
+                eMAID: credentials.emaid,
+                contractSignatureCertChain: CertificateChainType(
+                    certificate: credentials.contractCertificate,
+                    subCertificates: SubCertificatesType(certificate: credentials.subCertificates))))
+
+            authRequest = AuthorizationReqType(id: "id1", genChallenge: details.genChallenge)
+            authSignature = try XmlDsigInterop.sign2(
+                "id1", Iso15118_2Codec.encodeFragment_AuthorizationReq(authRequest),
+                credentials.contractKey)
+            authorizationMode = "pnc-signed"
+        }
+
         while true {
-            let res: AuthorizationResType = try send(AuthorizationReqType())
+            let res: AuthorizationResType = try send(authRequest, authSignature)
             if res.eVSEProcessing == .Finished { break }
             pollDelay(Self.pollIntervalMs)
         }
@@ -117,12 +151,20 @@ public final class Evcc2 {
         var renegotiated = false
         for _ in 0 ..< Self.chargeCycles {
 
+            // A Contract station may demand a receipt in its status response — answer with a signed
+            // MeteringReceiptReq echoing its MeterInfo, as a real EV does.
             let notification: EVSENotification
             if mode == .dc {
                 let res: CurrentDemandResType = try send(Self.currentDemand())
+                if res.receiptRequired == true, let meterInfo = res.meterInfo {
+                    try sendMeteringReceipt(meterInfo, res.sAScheduleTupleID)
+                }
                 notification = res.dC_EVSEStatus.eVSENotification
             } else {
                 let res: ChargingStatusResType = try send(ChargingStatusReqType())
+                if res.receiptRequired == true, let meterInfo = res.meterInfo {
+                    try sendMeteringReceipt(meterInfo, res.sAScheduleTupleID)
+                }
                 notification = res.aC_EVSEStatus.eVSENotification
             }
 
@@ -203,9 +245,23 @@ public final class Evcc2 {
         return sum / Double(entries.count)
     }
 
-    private func send<T>(_ requestBody: BodyBaseType) throws -> T {
+    /// Signs and sends one MeteringReceiptReq for the station's MeterInfo.
+    private func sendMeteringReceipt(_ meterInfo: MeterInfoType, _ saScheduleTupleId: UInt8?) throws {
 
-        let header  = MessageHeaderType(sessionID: sessionId)
+        guard let credentials = pnc else { return }
+
+        let receipt = MeteringReceiptReqType(id: "id2", sessionID: sessionId,
+                                             sAScheduleTupleID: saScheduleTupleId, meterInfo: meterInfo)
+        let signature = try XmlDsigInterop.sign2(
+            "id2", Iso15118_2Codec.encodeFragment_MeteringReceiptReq(receipt), credentials.contractKey)
+
+        let _: MeteringReceiptResType = try send(receipt, signature)
+        meteringReceiptsSent += 1
+    }
+
+    private func send<T>(_ requestBody: BodyBaseType, _ signature: SignatureType? = nil) throws -> T {
+
+        let header  = MessageHeaderType(sessionID: sessionId, signature: signature)
         let request = V2G_Message(header: header, body: BodyType(bodyElement: requestBody))
 
         try stream.writeFrame(.iso15118_2, Iso15118_2Codec.encode(request))

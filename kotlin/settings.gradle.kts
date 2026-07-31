@@ -5,6 +5,12 @@ include("exi-appprotocol")
 include("exi-iso2")
 include("exi-iso20-common")
 
+// The standalone W3C XMLDSig grammar. Not a message set: it exists only to reproduce the EXI
+// fragment encoding of a SignedInfo built over xmldsig-core-schema.xsd *alone*, which is what
+// Josev/EXIficient actually signs — distinct from the combined fragment grammar the -2 and -20
+// codecs use for everything else.
+include("exi-xmldsig")
+
 include("exi-iso20-ac")
 include("exi-iso20-dc")
 include("exi-iso20-wpt")
