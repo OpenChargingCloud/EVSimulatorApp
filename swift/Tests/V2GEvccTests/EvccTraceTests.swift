@@ -131,6 +131,32 @@ final class EvccTraceTests: XCTestCase {
         }
     }
 
+    /// A signed trace is refused, not mis-compared.
+    ///
+    /// The corpus now contains Plug & Charge sessions whose requests carry an ECDSA signature. Those
+    /// are not byte-comparable — the nonce is random — and the C# harness handles them by
+    /// substituting the recorded signature and verifying the produced one separately. This harness
+    /// does neither yet, and the failure mode worth guarding is the quiet one: comparing such a frame
+    /// as-is fails on 64 bytes of signature and reads like a state-machine bug.
+    ///
+    /// It also marks the boundary. The day somebody ports Plug & Charge to Swift without extending
+    /// the harness, this is what tells them.
+    func testASignedTraceIsRefusedRatherThanMiscompared() throws {
+
+        let trace  = try SessionTrace.load("iso20-dc-pnc")
+        let replay = TraceReplay(trace)
+
+        let signedAt = try XCTUnwrap(trace.exchanges.firstIndex { $0.request.isSigned },
+                                     "the PnC trace records no signed request — then this guards nothing")
+
+        // Replay the unsigned prefix by hand, then hit the signed one.
+        for i in 0 ..< signedAt { try replay.write(trace.exchanges[i].request.bytes) }
+
+        XCTAssertThrowsError(try replay.write(trace.exchanges[signedAt].request.bytes)) { error in
+            XCTAssertTrue(String(describing: error).contains("signed"), String(describing: error))
+        }
+    }
+
     /// A session that ends early is the other way a replay passes without meaning anything.
     func testAnEarlyEndingSessionIsNotComplete() throws {
         let trace  = try SessionTrace.load("iso2-ac-eim")

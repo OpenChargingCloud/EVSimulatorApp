@@ -58,9 +58,15 @@ Two things it does not give you, both worth knowing before trusting it:
 * **It cannot catch a bug the C# EVCC has too.** C# is a defensible reference because it is the
   implementation that earned the live-interop conformance fixes against Josev — "agrees with the one
   that has actually talked to somebody else" is a weaker claim than conformance, and the honest one.
-* **The corpus is EIM.** Plug & Charge, contract provisioning, signed metering receipts and tariff
+* **This port is EIM.** Plug & Charge, contract provisioning, signed metering receipts and tariff
   verification are *not ported*, and are named as missing in the type comments rather than quietly
-  absent. ECDSA signing is randomised, so a signed request cannot be compared byte for byte at all.
+  absent.
+
+  The **corpus** is no longer EIM-only, though: since schema 2 it carries two Plug & Charge sessions,
+  compared by substituting the recorded signature and verifying the produced one separately (see
+  `SignedFrame.cs`). This harness does not do that yet and **refuses** a signed frame rather than
+  comparing bytes that cannot match — `testASignedTraceIsRefusedRatherThanMiscompared` pins the
+  refusal, and is what will tell whoever ports Plug & Charge that the harness needs extending too.
 
 Verified by mutation, four of them, all caught:
 

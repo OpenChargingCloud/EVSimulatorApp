@@ -7,8 +7,17 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 
-/** One recorded frame: the whole thing, header included. [message] is a label for failure text. */
-class TraceFrame(val message: String, val bytes: ByteArray)
+/**
+ * One recorded frame: the whole thing, header included. [message] is a label for failure text.
+ *
+ * [signature] is the raw `r‖s` value the frame carried, when it carried one. Its presence means the
+ * frame is **not** byte-comparable as it stands — ECDSA's nonce is random — and the C# side compares
+ * it by substituting the recorded value and verifying the produced one separately (`SignedFrame.cs`).
+ * This harness does not do that yet, and refuses such a frame rather than pretending.
+ */
+class TraceFrame(val message: String, val bytes: ByteArray, val signature: String?) {
+    val isSigned: Boolean get() = signature != null
+}
 
 /** One recorded request/response pair. */
 class TraceExchange(val index: Int, val request: TraceFrame, val response: TraceFrame)
@@ -26,7 +35,10 @@ class SessionTrace(val name: String, val protocol: String, val mode: String,
 
     companion object {
 
-        private const val SCHEMA_VERSION = 1
+        // 2 since 2026-07-31, when frames gained an optional signature. The bump is deliberate even
+        // though the change is additive: a reader that silently ignored the new field would compare a
+        // signed frame as though its bytes were deterministic and fail for the wrong reason.
+        private const val SCHEMA_VERSION = 2
 
         fun load(name: String): SessionTrace {
 
@@ -47,7 +59,9 @@ class SessionTrace(val name: String, val protocol: String, val mode: String,
 
             val exchanges = root.getAsJsonArray("exchanges").map { it.asJsonObject }.map { e ->
                 fun frame(side: String) = e.getAsJsonObject(side).let {
-                    TraceFrame(it.get("message").asString, hex(it.get("frame").asString))
+                    val signature = it.get("signature")
+                    TraceFrame(it.get("message").asString, hex(it.get("frame").asString),
+                               if (signature == null || signature.isJsonNull) null else signature.asString)
                 }
                 TraceExchange(e.get("index").asInt, frame("request"), frame("response"))
             }
@@ -134,6 +148,17 @@ class TraceReplay(private val trace: SessionTrace) {
                     "${trace.exchanges.size}. The port charges on past where the recording ends.")
 
             val exchange = trace.exchanges[replayed]
+
+            // The C# harness compares a signed frame by substituting the recorded signature and
+            // verifying the produced one on its own. Doing that here needs a decode/re-encode path
+            // and an ECDSA verify; until it exists, refusing is the only honest option — comparing
+            // the bytes as they stand would fail on the 64 signature bytes and say nothing.
+            if (exchange.request.isSigned)
+                throw TraceMismatch(
+                    "exchange $replayed (${exchange.request.message}) in trace '${trace.name}' is " +
+                    "signed, and this harness cannot compare signed frames yet. The Kotlin EVCC does " +
+                    "not do Plug & Charge either, so no test should be loading this trace.")
+
             if (!frame.contentEquals(exchange.request.bytes))
                 throw TraceMismatch(
                     "exchange $replayed (${exchange.request.message}) differs from the trace " +

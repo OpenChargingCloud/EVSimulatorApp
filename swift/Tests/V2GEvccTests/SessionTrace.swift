@@ -3,10 +3,18 @@ import V2GTP
 @testable import V2GEvcc
 
 /// One recorded frame: the whole thing, header included. `message` is a label for failure text.
+///
+/// `signature` is the raw `r‖s` value the frame carried, when it carried one. Its presence means the
+/// frame is **not** byte-comparable as it stands — ECDSA's nonce is random — and the C# side compares
+/// it by substituting the recorded value and verifying the produced one separately (`SignedFrame.cs`).
+/// This harness does not do that yet, and refuses such a frame rather than pretending.
 struct TraceFrame: Decodable {
     let payloadType: String
     let message: String
     let frame: String
+    let signature: String?
+
+    var isSigned: Bool { signature != nil }
 
     var bytes: [UInt8] {
         stride(from: 0, to: frame.count, by: 2).map {
@@ -32,7 +40,10 @@ struct TraceExchange: Decodable {
 /// prove. In short: they pin this port to what the C# EVCC does, and cannot catch a bug it has too.
 struct SessionTrace: Decodable {
 
-    static let schemaVersion = 1
+    // 2 since 2026-07-31, when frames gained an optional signature. The bump is deliberate even
+    // though the change is additive: a reader that silently ignored the new field would compare a
+    // signed frame as though its bytes were deterministic and fail for the wrong reason.
+    static let schemaVersion = 2
 
     let schemaVersion: Int
     let name: String
@@ -124,6 +135,18 @@ final class TraceReplay: V2GByteStream {
             }
 
             let exchange = trace.exchanges[replayed]
+
+            // The C# harness compares a signed frame by substituting the recorded signature and
+            // verifying the produced one on its own. Doing that here needs a decode/re-encode path
+            // and an ECDSA verify; until it exists, refusing is the only honest option — comparing
+            // the bytes as they stand would fail on the 64 signature bytes and say nothing.
+            guard !exchange.request.isSigned else {
+                throw TraceMismatch(description:
+                    "exchange \(replayed) (\(exchange.request.message)) in trace '\(trace.name)' is " +
+                    "signed, and this harness cannot compare signed frames yet. The Swift EVCC does " +
+                    "not do Plug & Charge either, so no test should be loading this trace.")
+            }
+
             let expected = exchange.request.bytes
             guard frame == expected else {
                 throw TraceMismatch(description:

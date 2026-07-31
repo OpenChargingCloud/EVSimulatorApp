@@ -19,7 +19,7 @@ The decisive finding is that the submodules under `libs/` are not partial buildi
 Together they are **a complete, externally-validated ISO 15118 stack, a security-research
 toolkit, and a standardised dynamic-QR mechanism**:
 
-- **`Vanaheimr.V2G.Exi`** — both protocols feature-complete at session level, 884 green tests,
+- **`Vanaheimr.V2G.Exi`** — both protocols feature-complete at session level, 892 green tests,
   byte-exact against libcbv2g, cross-checked against EXIficient, and live-interop-proven against
   Josev in both directions including Plug & Charge, contract provisioning, pause/resume,
   renegotiation and signed tariffs. ~122k lines of generated codec, ~2.7k lines of state
@@ -1027,11 +1027,39 @@ and Kotlin for `import … as`, so both read as if the duplication were a naming
 not: they are three self-contained schemas that happen to embed identical types, and `SessionContext`
 exists in all three back ends precisely because of it. Swift simply refuses to let it go unsaid.
 
-Still open: **the signature work** — Plug & Charge, contract provisioning, signed metering receipts,
-tariff and price-schedule verification — which is not merely unported but *uncheckable* as things
-stand, because the corpus is EIM and a randomised ECDSA signature cannot be compared byte for byte at
-all. That needs a signature-aware comparison before any of it should be written. Pause/resume needs a
-trace that pauses and rejoins.
+**The signature-aware comparison exists now (2026-07-31), and the "uncheckable" half of this item is
+retired.** It used to read: *the signature work is not merely unported but uncheckable, because the
+corpus is EIM and a randomised ECDSA signature cannot be compared byte for byte at all.* The first
+clause still holds; the second was a real obstacle and is gone.
+
+The way through was to stop treating a signed frame as opaque. **Only the signature value is
+random.** The body is deterministic and so is `SignedInfo`, which holds a SHA-256 digest of the signed
+element — a function of the message. So a signed frame is deterministic apart from 64 bytes whose
+position the codec knows and a byte comparison does not. The comparison therefore decodes the frame a
+port produced, substitutes the *recorded* signature value, re-encodes and compares bytes exactly as
+before; then verifies the port's *own* signature against its own `SignedInfo` with the corpus public
+key. Everything except those 64 bytes is still checked exactly — including `SignedInfo`, therefore
+the digest, therefore **which octets were signed**, which is the part that actually goes wrong in a
+port. The substitution leans on decode-then-re-encode reproducing the original bytes, which is not a
+new assumption: it is the round-trip property the vector corpus already pins.
+
+Schema 2 of the trace format carries this. Two PnC sessions joined the corpus (`iso2-ac-pnc`, three
+signed requests between them; `iso20-dc-pnc`), and reproducibility needed a third pinned thing beyond
+`FixedSessionId`/`FixedGenChallenge`: **the contract certificate as a checked-in file**, because it
+travels inside the request and cannot be regenerated from the fixed key — a self-signed certificate is
+itself ECDSA-signed, so its bytes differ on every creation. Pinning only the key would have left a
+corpus that changes in the middle of a message body and reads like a state-machine bug.
+
+Verified by mutation, and each half caught by the mechanism meant for it: signing with a different key
+passes the byte comparison and fails verification; digesting one byte less of the fragment fails the
+byte comparison at offset 190, inside `DigestValue`. What it does *not* check is that ECDSA is
+correct — verification uses the library that signed — and that question lives with the RFC 8032
+vectors, not here.
+
+Still open: the signature work itself in Kotlin and Swift. Their harnesses now **refuse** a signed
+trace with a clear message rather than mis-comparing it, and each has a test pinning that refusal — so
+the day somebody ports Plug & Charge without extending the harness, they are told. Pause/resume still
+needs a trace that pauses and rejoins.
 
 Three corrections to this item's premises, two from A1/A2/A6 and one from A4 itself:
 
