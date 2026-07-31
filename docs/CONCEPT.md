@@ -1014,12 +1014,44 @@ under AC and 129/8 under DC. One shared helper would sign octets no peer asked f
 that verifies locally and nowhere else. Hence five near-identical copies in each back end, which
 looks like duplication and is not.
 
-**A3 — JSON-LD serializer, generated (1–1.5 weeks, §4.4).** Second emitter pass producing the
+**A3 — JSON-LD serializer, generated (1–1.5 weeks, §4.4).** 🟡 **the C# half landed 2026-07-31.**
+Second emitter pass producing the
 JSON-LD (de)serializer from the same type graph, for **-2 and -20 alike**; naming rules +
 `@context` as emitter configuration. Validation is the round-trip property test
 (`EXI → JSON → EXI` byte-identical over the vector corpus) plus cross-language agreement once a
 second backend exists. *Shorter than the first draft's estimate: reusing the hand-written WWCP
 model — and hand-building a -2 one — is no longer in scope.*
+
+> **Done in C#, 2026-07-31: emitter, oracle, and the corpus the other two languages will be held
+> to.** Every message set now has `<Set>CodecJson.ToJSON`/`.ParseJSON`, emitted from the same
+> `SchemaPlan` in the same pass as the wire codec — not as a second emitter, because two emitters
+> would leave a seam where someone regenerates one and not the other, and §4.4's requirement is that
+> no such seam exist. `EXI → JSON → EXI` reproduces the original bytes for all 163 vectors across
+> nine message sets, -2 and -20 alike, exactly as this item asked. Kotlin and Swift are not done.
+>
+> **The finding is that the promised check is blind in a way §4.4 did not anticipate.** The round
+> trip cannot see *names*: rename every property in the emitter and it stays green, because the
+> serializer and the parser rename together. Measured rather than assumed — swapping the naming rule
+> for a naïve lower-the-first-character one turned `evseStatus` into `eVSEStatus` in every message of
+> every set, and all 163 tests passed. §4.4 does name the cure — cross-language agreement — but
+> defers it to "once a second backend exists", which would have left property names, the part of this
+> format anything outside the repository actually reads, unpinned for as long as that took. So the
+> document corpus (`Vectors/JsonLd.documents.json`, every vector as text) was written now, with one
+> back end, and it is what the Kotlin and Swift emitters will be checked against.
+>
+> **And one decision no round trip in C# can ever check.** 64-bit integers cross as JSON *strings*.
+> JSON has no integers, only doubles, and this bridge ends in JavaScript, which rounds silently above
+> 2^53 — a range ISO 15118 reaches, since `X509SerialNumber` is an `xs:long`. Written as a number it
+> would round-trip perfectly in every test here and fail only on a phone, as a certificate that does
+> not verify. §5's shape again, from a third side: the oracle is tolerant of "whatever C# can
+> represent", and what that tolerance hides is every consumer that can represent less.
+>
+> Two things fell out on the way. `TryEncodeAny` was added to the generated codec — `DecodeAny`
+> always returned an `object` and nothing accepted one back, which is why `Secc20Ac` and `Secc20Dc`
+> each hand-wrote that switch. And `JsonPrimitives` reads numbers through their text rather than
+> `GetValue<T>`, because `GetValue<byte>` succeeds on a node parsed from JSON and throws on one built
+> in memory — a difference invisible to everything that arrives over the bridge, and therefore
+> invisible until a test assembled a message by hand.
 
 **A4 — EVCC state machines (2–3 weeks, Kotlin).** ✅ **done in Kotlin *and* Swift, EIM (2026-07-31)**
 — both in a day, against an estimate of 2–3 weeks for one of them. Ported `Evcc2` +
