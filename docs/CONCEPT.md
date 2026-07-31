@@ -987,7 +987,7 @@ list bounds read from the wrong plan object — surfaced as a loud failure rathe
 
 ### Track A — Native stack port
 
-Status at 2026-07-30: **A1, A2 and A6 done; A3, A4, A5 not started.** The codec half of the port
+Status at 2026-07-31: **A1–A4 and A6 done; A5's runtime is in, its emitter is not.** The codec half of the port
 is finished in two languages; nothing above the codec exists in either.
 
 **A1 — Kotlin codec, full (2–3 weeks).** ✅ **done (2026-07-29).** All -2 + -20 (CommonMessages/
@@ -1170,9 +1170,28 @@ Three corrections to this item's premises, two from A1/A2/A6 and one from A4 its
   B0's Pi remains the better check and is not replaced by this. What changed is that A4 no longer
   waits on it.
 
-**A5 — TypeScriptEmitter (2–3 weeks).** ⬜ **not started; now the last back end** (§2, revised
-order). For Chargy, the WebView inspector, and as a cross-check of the Kotlin/Swift codecs.
-WebCrypto covers P-256/P-521; Ed448 and keystore signing cross the bridge.
+**A5 — TypeScriptEmitter (2–3 weeks).** 🟡 **started 2026-07-31: the runtime is in and verified,
+the emitter is not.** For Chargy, the WebView inspector, and as a cross-check of the Kotlin/Swift
+codecs. WebCrypto covers P-256/P-521; Ed448 and keystore signing cross the bridge.
+
+> `typescript/src/runtime/` ports C#'s `Exi/` and is held to `Primitives.vectors.json`, cbV2G's own
+> output. **It needs no install step, and that turned out to be a design constraint rather than a
+> convenience**: Node ≥ 22.6 runs TypeScript by *stripping* types, so the generated codec will need
+> no compiler, no bundler and no `node_modules` — but only erasable syntax is permitted, which rules
+> out `enum`, parameter properties and `namespace`. Enumerations become frozen const objects with a
+> name table, which is what the JSON-LD form wanted anyway. A codec that runs from source in any
+> WebView is one somebody will actually put in a WebView.
+>
+> Three decisions JavaScript forced that the other three back ends never faced. `bigint` for the EXI
+> Unsigned Integer and Integer and nothing else, since `number` is a double and rounds above 2^53.
+> Code points rather than code units, since a JavaScript string is UTF-16 and U+1F600 is two units
+> but one value — the corpus carries an astral vector whose note reads *"this is what catches a
+> code-unit-wise encoder"*, and writing the obvious `value.length`/`charCodeAt` version fails that
+> vector and no other. And `value * 2 + bit` in `readBits` rather than `value << 1 | bit`, because
+> JavaScript's bitwise operators are defined on signed 32-bit integers and a 32-bit read built with
+> shifts comes back negative.
+>
+> The `TypeScriptCodecEmitter` is the bulk of this item and is not started.
 
 **A6 — SwiftEmitter (2–3 weeks).** ✅ **done (2026-07-30)**, and out of order — it ran second, not
 last (§2). 89,670 lines across 669 files; 1,855 lines of emitter. Everything -2 uses is modelled
