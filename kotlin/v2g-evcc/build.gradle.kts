@@ -1,0 +1,14 @@
+dependencies {
+    implementation(project(":exi-runtime"))
+    implementation(project(":exi-appprotocol"))
+    implementation(project(":exi-iso2"))
+    implementation(project(":exi-iso20-common"))
+    implementation(project(":exi-iso20-ac"))
+    implementation(project(":exi-iso20-dc"))
+    implementation(project(":v2g-tp"))
+    implementation(project(":v2g-dispatch"))
+
+    testImplementation(kotlin("test"))
+    // Reads the session-trace corpus the C# side records, verbatim, so the two cannot drift.
+    testImplementation("com.google.code.gson:gson:2.11.0")
+}

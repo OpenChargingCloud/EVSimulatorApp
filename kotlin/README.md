@@ -25,6 +25,8 @@ DEX file's 64k method limit all at once), and made the smallest schema change re
 | `exi-iso20-acdersae` | Generated ISO 15118-20 AC_DER_SAE codec + vector test. Same. |
 | `v2g-tp` | Hand-written `V2GTP` — the 8-byte transfer-protocol header. No dependencies at all. |
 | `v2g-dispatch` | Hand-written `MessageSet` / `V2GTPDispatcher` — payload type ↔ message set. Depends on every codec module. |
+| `v2g-metering` | Verifies a station's signed meter reading. Held to the corpus the C# side generates, not to its own output. |
+| `v2g-evcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
 
 ```bash
 gradle -p kotlin test --rerun-tasks
@@ -180,6 +182,59 @@ codec therefore cannot pass: pointing AC at DC's type fails that test and the bi
 `V2GTPTest` pins the eight header bytes literally, to the same array the C# `V2GTPFrameTests` pins;
 flipping the byte order on both the write and the read side — which a round trip cannot see — fails
 it.
+
+## The EVCC state machine — and how a state machine gets checked at all
+
+`v2g-evcc` is the vehicle side of an ISO 15118-2 session: `V2GTPStream` (framing over a JVM stream
+pair), `SapHandshake`, and `Evcc2` itself. It is hand-written, ported from the C# `Evcc2`.
+
+Every gate above compares *bytes for a message*. A state machine has no such corpus — there is no
+reference EVCC, and the question is not what one message encodes to but **which messages, in what
+order, carrying what**. "It ran to completion" answers none of that: a session that skips a phase, or
+sends the wrong charging profile, completes just as happily.
+
+So the check is the same construction one layer up. The C# side records whole sessions frame by frame
+into `Vectors/Session.*.trace.json` — SAP handshake to SessionStop — and `Evcc2TraceTest` replays the
+recorded *responses* into this implementation and requires the *requests* it emits to be byte-identical,
+V2GTP headers included. Read the corpus out of the submodule, exactly as `v2g-metering` reads the meter
+vectors; the file is the only reason to believe the two agree.
+
+Two things this does not give you, both worth knowing before trusting it:
+
+* **It cannot catch a bug the C# EVCC has too.** C# is a defensible reference because it is the
+  implementation that earned the live-interop conformance fixes against Josev — "agrees with the one
+  that has actually talked to somebody else" is a weaker claim than conformance, and the honest one.
+* **The corpus is EIM.** Plug & Charge, signed metering receipts and tariff-signature verification are
+  *not ported*, and are named as missing in the class comment rather than quietly absent. ECDSA signing
+  is randomised, so a signed request cannot be compared byte for byte at all; that needs a
+  signature-aware comparison first, and writing crypto with no oracle is the one thing this repository
+  keeps concluding it should not do.
+
+The replay harness carries its own negative tests (`anAlteredRequestIsRejected`,
+`anEarlyEndingSessionIsNotComplete`), because a comparison that silently compares nothing passes every
+run. Beyond that both ports were checked by mutation:
+
+| Mutation | Caught at |
+|---|---|
+| -2: one byte of the EVCCID | exchange 1 |
+| -2: one charging cycle fewer | exchange 9 (AC), 11 (DC) — the same two places as in C# |
+| -20: `"EVCC01"` → `"EVCC02"` | exchange 1 |
+| -20: the AC charge-parameter discovery sent on the **DC** message set | exchange 7, **byte 3** |
+| -20: the pinned clock moved by one second | every -20 test |
+
+The last two are what the -20 corpus catches and the -2 one cannot.
+
+A -20 session crosses between three self-contained message sets — CommonMessages for setup,
+authorization, service negotiation, schedule exchange and power delivery; AC or DC for the
+charge-parameter discovery, the charge loop, and DC's cable check, pre-charge and welding detection.
+They are separate grammars with separate V2GTP payload types, so muddling two of them is a
+frame-header bug, caught before the EXI body is even reached. Worth knowing how *narrow* that is:
+0x8003 (AC) and 0x8004 (DC) share their high byte, so the entire distinction between two message sets
+is seven bits apart on the wire.
+
+And -20 puts a **timestamp in every message header**, which is why `SessionContext` takes a clock
+instead of reading one: move it by a single second and not one frame matches. That is also why the
+corpus pins `FixedSessionId` and `FixedGenChallenge` on the C# recording side — see `SessionTrace.cs`.
 
 ## How these codecs are checked
 

@@ -19,7 +19,7 @@ The decisive finding is that the submodules under `libs/` are not partial buildi
 Together they are **a complete, externally-validated ISO 15118 stack, a security-research
 toolkit, and a standardised dynamic-QR mechanism**:
 
-- **`Vanaheimr.V2G.Exi`** — both protocols feature-complete at session level, 866 green tests,
+- **`Vanaheimr.V2G.Exi`** — both protocols feature-complete at session level, 884 green tests,
   byte-exact against libcbv2g, cross-checked against EXIficient, and live-interop-proven against
   Josev in both directions including Plug & Charge, contract provisioning, pause/resume,
   renegotiation and signed tariffs. ~122k lines of generated codec, ~2.7k lines of state
@@ -996,18 +996,60 @@ JSON-LD (de)serializer from the same type graph, for **-2 and -20 alike**; namin
 second backend exists. *Shorter than the first draft's estimate: reusing the hand-written WWCP
 model — and hand-building a -2 one — is no longer in scope.*
 
-**A4 — EVCC state machines, Kotlin (2–3 weeks).** ⬜ **not started — now the critical path.** Port
-`Evcc2` + `Evcc20*` (~1,100 LOC). SDP is optional (§3.2); V2GTP framing per §8. TLS/crypto modes
-per §3.3 (relaxed-mode first).
+**A4 — EVCC state machines, Kotlin (2–3 weeks).** ✅ **done for Kotlin, EIM (2026-07-31)** — and in a
+day rather than the 2–3 weeks estimated. Ported `Evcc2` + `Evcc20Base`/`Ac`/`Dc` (~890 LOC, not the
+~1,100 first estimated). SDP is optional (§3.2); V2GTP framing per §8. TLS/crypto modes per §3.3
+remain unported along with the rest of the signature work.
 
-Two corrections to this item's premises, both from A1/A2/A6:
+The `v2g-evcc` module: `V2GTPStream` framing, the SAP handshake, `SessionContext`, and both state
+machines for AC and DC. All four recorded sessions replay byte for byte.
+
+**Why it took a day and not three weeks**, because the estimate was not merely pessimistic — it was
+aimed at the wrong risk. The plan expected A4 to be where "the ~15 live-interop conformance fixes
+actually live", and it is: dynamic service selection, the mandatory EVPowerProfile,
+MaximumSupportingPoints ≥ 12, adopting the station's SessionID. But those were already *found*, and
+each survives in the C# source as a comment saying which live run caught it. Porting a hard-won fix
+is not the same work as earning it. What remained was mechanical, and the corpus made it checkable in
+minutes rather than at the next interop event. The same correction the A2 entry records, one layer up.
+
+Checked by mutation, not by greenness — five mutations across both protocols, all caught; the table
+is in `kotlin/README.md`. Two of them are only possible against -20: sending an AC request on the DC
+message set (caught at byte 3 of the frame header — 0x8003 and 0x8004 share their high byte, so two
+whole grammars are seven bits apart), and moving the pinned clock by one second, which breaks every
+frame because -20 timestamps every header.
+
+Still open: **both halves in Swift**, which nothing has started and B1's iOS side depends on; and
+**the signature work** — Plug & Charge, contract provisioning, signed metering receipts, tariff and
+price-schedule verification — which is not merely unported but *uncheckable* as things stand, because
+the corpus is EIM and a randomised ECDSA signature cannot be compared byte for byte at all. That one
+needs a signature-aware comparison before any of it should be written.
+
+Three corrections to this item's premises, two from A1/A2/A6 and one from A4 itself:
 
 - **It needs doing twice**, once per back end, and the plan only ever scheduled the Kotlin half.
   A Swift A4 is unscheduled work that B1's iOS half depends on.
 - **This is where the ~15 live-interop conformance fixes actually live** (§1.3), not in the codec.
-  The codec port had a byte-exact oracle; A4 has none — there is no vector corpus for *behaviour*.
-  Realistically its check is B0's Pi: run the ported EVCC against the C# SECC and compare against
-  what the C# EVCC does. That argues for B0 landing before A4 rather than merely in parallel.
+- **~~A4 has no oracle~~ — it has one now (2026-07-31).** This item used to read: *"The codec port had
+  a byte-exact oracle; A4 has none — there is no vector corpus for behaviour. Realistically its check
+  is B0's Pi … That argues for B0 landing before A4."* With B0's hardware deferred, that reasoning
+  would have deferred every check on A4 along with it — so the substitute was built instead, and it
+  is the same construction one layer up. `Vectors/Session.*.trace.json` holds four whole sessions
+  (-2 and -20, AC and DC, EIM) recorded frame by frame from the SupportedAppProtocol handshake to
+  SessionStop. A port replays the recorded responses and must emit byte-identical requests, V2GTP
+  headers included. The C# EVCC replays its own recording as a gate — circular as a correctness
+  check, and not there for that: it proves the corpus is *replayable at all*, which is much cheaper
+  to discover here than from a fresh Kotlin port also under suspicion.
+
+  What it does and does not prove is worth keeping straight: it pins a port to what the C# EVCC
+  does, and cannot catch a bug the C# EVCC has too. C# is a defensible reference because it is the
+  implementation that earned the live-interop fixes against Josev — "agrees with the implementation
+  that has actually talked to somebody else" is a weaker claim than conformance, and the honest one.
+  Reproducibility needed two seams (`FixedSessionId`, `FixedGenChallenge`): both values are random
+  by default and both ride in every session, so without pinning them a regeneration's diff is total
+  and therefore unreviewable.
+
+  B0's Pi remains the better check and is not replaced by this. What changed is that A4 no longer
+  waits on it.
 
 **A5 — TypeScriptEmitter (2–3 weeks).** ⬜ **not started; now the last back end** (§2, revised
 order). For Chargy, the WebView inspector, and as a cross-check of the Kotlin/Swift codecs.
@@ -1092,12 +1134,37 @@ by reading — verified by mutation, since a green suite proves nothing about a 
 anyway. **The lesson to keep: "documented" and "covered" are different words, and the gap between
 them does not close by being described accurately.**
 
+**A fifth instance, and this one found a live defect (2026-07-31).** Building the trace corpus meant
+recording the same session twice and diffing — and the two recordings differed. Not in the requests:
+in one byte of a `ServiceDiscoveryRes`, in its low six bits. `BitWriter` wrote only the bits a
+message occupies, so the unused bits of the final, partial byte kept whatever the destination buffer
+held before. Sessions reuse one send buffer, so that is the **previous message**: up to seven bits
+of it went on the wire every time. It was visible at all only because the message one earlier was an
+`AuthorizationSetupRes` carrying a random GenChallenge; with a deterministic predecessor the same
+bits would have leaked silently and identically forever. In a PnC session the predecessor is a
+contract chain or a signature.
+
+Both established gates were looking straight at it and could not see it, for reasons that generalise:
+**a round trip never reads padding**, so encoder and decoder agreed perfectly; and **the vector corpus
+encodes each message into a fresh, therefore zeroed, array**, so the recorded bytes are exactly the
+ones a clean buffer produces and every vector stayed green. Two independent checks, one blind spot,
+sitting precisely where they overlap — the same shape as the two bugs the cross-emitter comparison
+found, and the reason to keep adding checks that are *unlike* the ones already there rather than more
+of the same. C# and Kotlin were affected and are fixed; **Swift never was**, because its writer
+appends a zero byte as it grows. Three ports of one design, and the one that diverged was the one
+that turned out to be right.
+
+The lesson that generalises past this bug: **a check that compares an implementation only against
+itself, or against inputs it also controls, is blind exactly where those two overlap.** Recording
+real sessions was not designed to find encoder bugs. It found one on its first run, because it was
+the first check whose inputs came from somewhere the encoder did not choose.
+
 ### Track B — App & Pi
 
 **B0 — RPi SECC + dynamic pairing QR (5–7 days, start immediately, no Track-A dependency).**
 
 > **Started 2026-07-30. Everything except the hardware itself is done**, and lives in `pairing/`
-> (which also gives the parent repository its first solution). 106 tests there, plus the
+> (which also gives the parent repository its first solution). 118 tests there, plus the
 > submodule's own.
 >
 > **The format and the check.** The **v1 payload format** with its parser, warning classification
