@@ -19,6 +19,7 @@ hand-written; every codec module is emitted from the XSDs and checked in.
 | `ExiXmlDsig` | Generated standalone W3C XMLDSig codec. Not a message set — it exists only to produce the octets a Plug & Charge signature is actually over. |
 | `V2GKeystore` | Private keys and what may honestly be claimed about them (§3.4). No certificates, no EXI. |
 | `V2GCertificates` | X.509 for the app: reading, the MO root store, chain validation. The only target that knows `swift-certificates` exists. |
+| *(test-only)* `JsonLdAgreementTests` | The JSON-LD documents this back end produces, against the ones C# produces. |
 | `V2GPairing` | The scanned pairing code: payload format, warning classification, TOTP. No dependencies at all — it runs before any session exists. |
 | `V2GEvcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM **and** Plug & Charge) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
 
@@ -542,3 +543,31 @@ get wrong in ways C# and Kotlin do not:
 * **The constant-time comparison against an empty comparand.** C#'s `b[i % Math.Max(b.Length, 1)]`
   throws in that case and Swift's traps, and a generated code is never empty — which is a reason it
   has not happened, not a reason it cannot.
+
+
+## The JSON-LD form
+
+Every codec target carries a second generated (de)serializer beside its wire codec:
+`<Set>CodecJson.toJSON(Any)` and `.parseJSON(JsonValue)`, emitted from the same schema plan in the
+same pass, and held to `JsonLd.documents.json` character for character. The long version is in
+`kotlin/README.md`; three things differ here.
+
+**Everything throws.** Swift has no unchecked exceptions, so serializing throws as well as parsing —
+`toJSON` ends in a dispatch that can fail on a type from another message set, and that has to be
+declared all the way up.
+
+**Initialisers take labels**, so the parser emits `X(header: …, eVCCID: …)`. The labels are the Swift
+property names, which are *not* the JSON property names: one is `eVCCID`, the other `evccid`. Keeping
+them apart is why the naming rule derives from the schema plan rather than from a language.
+
+**The JSON tree is hand-written**, in `ExiRuntime`. `JSONSerialization` reads an object into an
+unordered `Dictionary`, and member order is part of a format that is compared as text.
+
+One trap worth recording, found by every document failing at offset 1 with "an object key must be a
+string": `" \t\r\n".contains(c)` does not test for whitespace. A `Character` is a grapheme cluster,
+so CR+LF in that literal combine into a single character — the string holds three, and a lone newline
+is not one of them. The whitespace set is a `Set<Character>`.
+
+WPT is absent for the reason it has no codec target either: the back end refuses
+`WPT_LF_TransmitterDataType`, whose `maxOccurs=255`-with-a-follower shape has no working reference
+encoder.

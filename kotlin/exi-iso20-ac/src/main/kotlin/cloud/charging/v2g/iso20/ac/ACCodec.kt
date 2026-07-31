@@ -73,6 +73,20 @@ object ACCodec {
         return buf.copyOf(1 + w.bytesWritten)
     }
 
+    /** Encodes any document element of this message set, dispatching on its runtime type. */
+    fun encodeAny(msg: Any): ByteArray =
+        when (msg) {
+            is AC_ChargeLoopReq -> encode(msg)
+            is AC_ChargeLoopRes -> encode(msg)
+            is AC_ChargeParameterDiscoveryReq -> encode(msg)
+            is AC_ChargeParameterDiscoveryRes -> encode(msg)
+            is AC_CPDReqEnergyTransferMode -> encode(msg)
+            is AC_CPDResEnergyTransferMode -> encode(msg)
+
+            else -> throw IllegalArgumentException(
+                "${msg::class.simpleName} is not a document element of this message set.")
+        }
+
     fun decodeAny(src: ByteArray): Any {
         require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
         val r = BitReader(src, 1)

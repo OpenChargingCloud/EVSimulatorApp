@@ -293,6 +293,42 @@ object CommonMessagesCodec {
         return buf.copyOf(1 + w.bytesWritten)
     }
 
+    /** Encodes any document element of this message set, dispatching on its runtime type. */
+    fun encodeAny(msg: Any): ByteArray =
+        when (msg) {
+            is AuthorizationReq -> encode(msg)
+            is AuthorizationRes -> encode(msg)
+            is AuthorizationSetupReq -> encode(msg)
+            is AuthorizationSetupRes -> encode(msg)
+            is CertificateInstallationReq -> encode(msg)
+            is CertificateInstallationRes -> encode(msg)
+            is MeteringConfirmationReq -> encode(msg)
+            is MeteringConfirmationRes -> encode(msg)
+            is PowerDeliveryReq -> encode(msg)
+            is PowerDeliveryRes -> encode(msg)
+            is ScheduleExchangeReq -> encode(msg)
+            is ScheduleExchangeRes -> encode(msg)
+            is ServiceDetailReq -> encode(msg)
+            is ServiceDetailRes -> encode(msg)
+            is ServiceDiscoveryReq -> encode(msg)
+            is ServiceDiscoveryRes -> encode(msg)
+            is ServiceSelectionReq -> encode(msg)
+            is ServiceSelectionRes -> encode(msg)
+            is SessionSetupReq -> encode(msg)
+            is SessionSetupRes -> encode(msg)
+            is SessionStopReq -> encode(msg)
+            is SessionStopRes -> encode(msg)
+            is VehicleCheckInReq -> encode(msg)
+            is VehicleCheckInRes -> encode(msg)
+            is VehicleCheckOutReq -> encode(msg)
+            is VehicleCheckOutRes -> encode(msg)
+            is SignedInstallationData -> encode(msg)
+            is SignedMeteringData -> encode(msg)
+
+            else -> throw IllegalArgumentException(
+                "${msg::class.simpleName} is not a document element of this message set.")
+        }
+
     fun decodeAny(src: ByteArray): Any {
         require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
         val r = BitReader(src, 1)

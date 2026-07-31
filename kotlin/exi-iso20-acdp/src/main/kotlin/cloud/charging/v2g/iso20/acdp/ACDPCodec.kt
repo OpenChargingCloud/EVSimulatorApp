@@ -93,6 +93,22 @@ object ACDPCodec {
         return buf.copyOf(1 + w.bytesWritten)
     }
 
+    /** Encodes any document element of this message set, dispatching on its runtime type. */
+    fun encodeAny(msg: Any): ByteArray =
+        when (msg) {
+            is ACDP_ConnectReq -> encode(msg)
+            is ACDP_DisconnectReq -> encode(msg)
+            is ACDP_ConnectRes -> encode(msg)
+            is ACDP_DisconnectRes -> encode(msg)
+            is ACDP_SystemStatusReq -> encode(msg)
+            is ACDP_SystemStatusRes -> encode(msg)
+            is ACDP_VehiclePositioningReq -> encode(msg)
+            is ACDP_VehiclePositioningRes -> encode(msg)
+
+            else -> throw IllegalArgumentException(
+                "${msg::class.simpleName} is not a document element of this message set.")
+        }
+
     fun decodeAny(src: ByteArray): Any {
         require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
         val r = BitReader(src, 1)

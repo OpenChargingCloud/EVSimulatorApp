@@ -29,6 +29,7 @@ DEX file's 64k method limit all at once), and made the smallest schema change re
 | `v2g-keystore` | Private keys and what may honestly be claimed about them (§3.4). No certificates, no EXI. |
 | `v2g-certificates` | X.509 for the app: reading, the MO root store, chain validation over the JVM's own PKIX. No EXI anywhere. |
 | `exi-xmldsig` | Generated standalone W3C XMLDSig codec. Not a message set — it exists only to produce the octets a Plug & Charge signature is actually over. |
+| `jsonld-agreement` | Test-only: the JSON-LD documents this back end produces, against the ones C# produces. |
 | `v2g-pairing` | The scanned pairing code: payload format, warning classification, TOTP. No EXI and no dependencies — it runs before any session exists. |
 | `v2g-evcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM **and** Plug & Charge) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
 
@@ -598,3 +599,30 @@ rotating code.
 The verifier's corpus is a *script* rather than a set of cases, because the verifier is stateful and
 replay is only visible as a sequence. It ends four slots later, where the spent cache has been swept
 and the same code comes back as `Unknown` — bounded, and visibly so.
+
+
+## The JSON-LD form
+
+Every codec module carries a second generated (de)serializer beside its wire codec:
+`<Set>CodecJson.toJson(Any)` and `.parseJson(JsonValue)`, emitted from the same schema plan in the
+same pass. `docs/CONCEPT.md` §4.4 asks for exactly that — one type graph, one pass, no seam at which
+one could be regenerated and the other not.
+
+`jsonld-agreement` holds it to `JsonLd.documents.json`, the documents the C# back end produces, and
+compares **text**. That is the check that matters, and the C# round trip is not: `EXI → JSON → EXI`
+is blind to what the mapping is *called*, because the serializer and the parser rename together.
+Measured rather than assumed — swapping the naming rule for a naïve lower-the-first-character one
+turned `evseStatus` into `eVSEStatus` in every message of every set and left all 163 round-trip tests
+green.
+
+So the JSON property name comes from the *plan's* field name, never from Kotlin's spelling: the
+accessor is `msg.eVCCID` and the property is `evccid`. `JsonNaming` sits in the generator's
+language-neutral layer for that reason.
+
+The JSON tree in `exi-runtime` is hand-written, with insertion order preserved. Comparing documents
+as text makes order, escaping and number formatting part of the format, and delegating them to a JSON
+library would leave the three-way agreement resting on library versions.
+
+The codec modules export `exi-runtime` as `api` now rather than `implementation`: the wire codec never
+leaked a runtime type — `encode` returns a `ByteArray` and `decodeAny` an `Any` — and the JSON pass is
+the first thing to put one in a public signature.

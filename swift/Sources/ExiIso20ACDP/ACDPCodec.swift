@@ -80,6 +80,21 @@ public enum ACDPCodec {
         return w.bytes
     }
 
+    /// Encodes any document element of this message set, dispatching on its runtime type.
+    public static func encodeAny(_ msg: Any) throws -> [UInt8] {
+        switch msg {
+        case let m as ACDP_ConnectReq: return encode(m)
+        case let m as ACDP_DisconnectReq: return encode(m)
+        case let m as ACDP_ConnectRes: return encode(m)
+        case let m as ACDP_DisconnectRes: return encode(m)
+        case let m as ACDP_SystemStatusReq: return encode(m)
+        case let m as ACDP_SystemStatusRes: return encode(m)
+        case let m as ACDP_VehiclePositioningReq: return encode(m)
+        case let m as ACDP_VehiclePositioningRes: return encode(m)
+        default: throw ExiError.invalidHeader
+        }
+    }
+
     public static func decodeAny(_ src: [UInt8]) throws -> Any {
         guard src.first == exiHeader else { throw ExiError.invalidHeader }
         let r = BitReader(src, offset: 1)

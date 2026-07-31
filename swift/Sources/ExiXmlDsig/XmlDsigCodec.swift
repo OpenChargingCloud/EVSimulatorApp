@@ -8,6 +8,13 @@ public enum XmlDsigCodec {
 
     public static let exiHeader: UInt8 = 0x80
 
+    /// Encodes any document element of this message set, dispatching on its runtime type.
+    public static func encodeAny(_ msg: Any) throws -> [UInt8] {
+        switch msg {
+        default: throw ExiError.invalidHeader
+        }
+    }
+
     public static func decodeAny(_ src: [UInt8]) throws -> Any {
         guard src.first == exiHeader else { throw ExiError.invalidHeader }
         let r = BitReader(src, offset: 1)

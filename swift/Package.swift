@@ -159,6 +159,14 @@ let package = Package(
         .target(name: "V2GPairing"),
         .testTarget(name: "V2GPairingTests", dependencies: ["V2GPairing"]),
 
+        // Test-only: the JSON-LD documents this back end produces, against the ones C# produces.
+        // Its own test target because the property is about ALL message sets at once, and no
+        // existing target sees more than its own.
+        .testTarget(name: "JsonLdAgreementTests", dependencies: [
+            "ExiRuntime", "ExiAppProtocol", "ExiIso2", "ExiIso20Common",
+            "ExiIso20AC", "ExiIso20DC", "ExiIso20ACDP", "ExiIso20AcDerIec", "ExiIso20AcDerSae",
+        ]),
+
         .target(name: "V2GEvcc", dependencies: [
             "V2GTP", "V2GDispatch", "ExiAppProtocol", "ExiIso2", "ExiIso20Common",
             "ExiIso20AC", "ExiIso20DC", "ExiXmlDsig", "V2GCertificates", "V2GKeystore",

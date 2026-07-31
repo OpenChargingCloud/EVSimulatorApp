@@ -1,5 +1,9 @@
 dependencies {
-    implementation(project(":exi-runtime"))
+    // `api`, not `implementation`: the generated JSON-LD serializer returns a JsonObject, so
+    // exi-runtime is part of this module's public surface now. The wire codec alone never leaked a
+    // runtime type — encode returns a ByteArray and decodeAny an Any — which is why this was
+    // `implementation` until the JSON pass existed.
+    api(project(":exi-runtime"))
     // The -20 signature suite includes Ed448 (RFC 8032), which the JDK does not implement at
     // all — no provider, no algorithm name. Same reason as in exi-iso20-common.
     api("org.bouncycastle:bcprov-jdk18on:1.78.1")

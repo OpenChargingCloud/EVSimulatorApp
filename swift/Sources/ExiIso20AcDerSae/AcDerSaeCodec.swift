@@ -71,6 +71,20 @@ public enum AcDerSaeCodec {
         return w.bytes
     }
 
+    /// Encodes any document element of this message set, dispatching on its runtime type.
+    public static func encodeAny(_ msg: Any) throws -> [UInt8] {
+        switch msg {
+        case let m as AC_ChargeLoopReq: return encode(m)
+        case let m as AC_ChargeLoopRes: return encode(m)
+        case let m as AC_ChargeParameterDiscoveryReq: return encode(m)
+        case let m as AC_ChargeParameterDiscoveryRes: return encode(m)
+        case let m as AC_CPDReqEnergyTransferMode: return encode(m)
+        case let m as AC_CPDResEnergyTransferMode: return encode(m)
+        case let m as FrequencyDroop: return encode(m)
+        default: throw ExiError.invalidHeader
+        }
+    }
+
     public static func decodeAny(_ src: [UInt8]) throws -> Any {
         guard src.first == exiHeader else { throw ExiError.invalidHeader }
         let r = BitReader(src, offset: 1)

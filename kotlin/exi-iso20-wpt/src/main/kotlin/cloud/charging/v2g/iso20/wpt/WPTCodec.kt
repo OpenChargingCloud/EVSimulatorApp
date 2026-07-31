@@ -133,6 +133,26 @@ object WPTCodec {
         return buf.copyOf(1 + w.bytesWritten)
     }
 
+    /** Encodes any document element of this message set, dispatching on its runtime type. */
+    fun encodeAny(msg: Any): ByteArray =
+        when (msg) {
+            is WPT_ChargeLoopReq -> encode(msg)
+            is WPT_ChargeLoopRes -> encode(msg)
+            is WPT_ChargeParameterDiscoveryReq -> encode(msg)
+            is WPT_ChargeParameterDiscoveryRes -> encode(msg)
+            is WPT_AlignmentCheckReq -> encode(msg)
+            is WPT_AlignmentCheckRes -> encode(msg)
+            is WPT_FinePositioningReq -> encode(msg)
+            is WPT_FinePositioningRes -> encode(msg)
+            is WPT_FinePositioningSetupReq -> encode(msg)
+            is WPT_FinePositioningSetupRes -> encode(msg)
+            is WPT_PairingReq -> encode(msg)
+            is WPT_PairingRes -> encode(msg)
+
+            else -> throw IllegalArgumentException(
+                "${msg::class.simpleName} is not a document element of this message set.")
+        }
+
     fun decodeAny(src: ByteArray): Any {
         require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
         val r = BitReader(src, 1)

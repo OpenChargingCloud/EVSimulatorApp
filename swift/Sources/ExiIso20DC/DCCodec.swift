@@ -116,6 +116,25 @@ public enum DCCodec {
         return w.bytes
     }
 
+    /// Encodes any document element of this message set, dispatching on its runtime type.
+    public static func encodeAny(_ msg: Any) throws -> [UInt8] {
+        switch msg {
+        case let m as DC_ChargeLoopReq: return encode(m)
+        case let m as DC_ChargeLoopRes: return encode(m)
+        case let m as DC_ChargeParameterDiscoveryReq: return encode(m)
+        case let m as DC_ChargeParameterDiscoveryRes: return encode(m)
+        case let m as DC_CableCheckReq: return encode(m)
+        case let m as DC_CableCheckRes: return encode(m)
+        case let m as DC_PreChargeReq: return encode(m)
+        case let m as DC_PreChargeRes: return encode(m)
+        case let m as DC_WeldingDetectionReq: return encode(m)
+        case let m as DC_WeldingDetectionRes: return encode(m)
+        case let m as DC_CPDReqEnergyTransferMode: return encode(m)
+        case let m as DC_CPDResEnergyTransferMode: return encode(m)
+        default: throw ExiError.invalidHeader
+        }
+    }
+
     public static func decodeAny(_ src: [UInt8]) throws -> Any {
         guard src.first == exiHeader else { throw ExiError.invalidHeader }
         let r = BitReader(src, offset: 1)

@@ -30,4 +30,6 @@ include("v2g-keystore")
 // The scanned pairing code: payload format, warning classification, TOTP. No EXI — it is what
 // stands in for plug-in, SLAC and SDP, and it happens before any session exists.
 include("v2g-pairing")
+// Test-only: the JSON-LD documents this back end produces, against the ones C# produces.
+include("jsonld-agreement")
 include("v2g-evcc")

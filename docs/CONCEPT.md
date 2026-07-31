@@ -1014,8 +1014,8 @@ under AC and 129/8 under DC. One shared helper would sign octets no peer asked f
 that verifies locally and nowhere else. Hence five near-identical copies in each back end, which
 looks like duplication and is not.
 
-**A3 — JSON-LD serializer, generated (1–1.5 weeks, §4.4).** 🟡 **the C# half landed 2026-07-31.**
-Second emitter pass producing the
+**A3 — JSON-LD serializer, generated (1–1.5 weeks, §4.4).** ✅ **done in all three back ends,
+2026-07-31.** Second emitter pass producing the
 JSON-LD (de)serializer from the same type graph, for **-2 and -20 alike**; naming rules +
 `@context` as emitter configuration. Validation is the round-trip property test
 (`EXI → JSON → EXI` byte-identical over the vector corpus) plus cross-language agreement once a

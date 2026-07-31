@@ -133,6 +133,26 @@ object DCCodec {
         return buf.copyOf(1 + w.bytesWritten)
     }
 
+    /** Encodes any document element of this message set, dispatching on its runtime type. */
+    fun encodeAny(msg: Any): ByteArray =
+        when (msg) {
+            is DC_ChargeLoopReq -> encode(msg)
+            is DC_ChargeLoopRes -> encode(msg)
+            is DC_ChargeParameterDiscoveryReq -> encode(msg)
+            is DC_ChargeParameterDiscoveryRes -> encode(msg)
+            is DC_CableCheckReq -> encode(msg)
+            is DC_CableCheckRes -> encode(msg)
+            is DC_PreChargeReq -> encode(msg)
+            is DC_PreChargeRes -> encode(msg)
+            is DC_WeldingDetectionReq -> encode(msg)
+            is DC_WeldingDetectionRes -> encode(msg)
+            is DC_CPDReqEnergyTransferMode -> encode(msg)
+            is DC_CPDResEnergyTransferMode -> encode(msg)
+
+            else -> throw IllegalArgumentException(
+                "${msg::class.simpleName} is not a document element of this message set.")
+        }
+
     fun decodeAny(src: ByteArray): Any {
         require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
         val r = BitReader(src, 1)

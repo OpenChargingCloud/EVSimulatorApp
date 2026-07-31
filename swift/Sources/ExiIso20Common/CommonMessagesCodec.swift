@@ -260,6 +260,41 @@ public enum CommonMessagesCodec {
         return w.bytes
     }
 
+    /// Encodes any document element of this message set, dispatching on its runtime type.
+    public static func encodeAny(_ msg: Any) throws -> [UInt8] {
+        switch msg {
+        case let m as AuthorizationReq: return encode(m)
+        case let m as AuthorizationRes: return encode(m)
+        case let m as AuthorizationSetupReq: return encode(m)
+        case let m as AuthorizationSetupRes: return encode(m)
+        case let m as CertificateInstallationReq: return encode(m)
+        case let m as CertificateInstallationRes: return encode(m)
+        case let m as MeteringConfirmationReq: return encode(m)
+        case let m as MeteringConfirmationRes: return encode(m)
+        case let m as PowerDeliveryReq: return encode(m)
+        case let m as PowerDeliveryRes: return encode(m)
+        case let m as ScheduleExchangeReq: return encode(m)
+        case let m as ScheduleExchangeRes: return encode(m)
+        case let m as ServiceDetailReq: return encode(m)
+        case let m as ServiceDetailRes: return encode(m)
+        case let m as ServiceDiscoveryReq: return encode(m)
+        case let m as ServiceDiscoveryRes: return encode(m)
+        case let m as ServiceSelectionReq: return encode(m)
+        case let m as ServiceSelectionRes: return encode(m)
+        case let m as SessionSetupReq: return encode(m)
+        case let m as SessionSetupRes: return encode(m)
+        case let m as SessionStopReq: return encode(m)
+        case let m as SessionStopRes: return encode(m)
+        case let m as VehicleCheckInReq: return encode(m)
+        case let m as VehicleCheckInRes: return encode(m)
+        case let m as VehicleCheckOutReq: return encode(m)
+        case let m as VehicleCheckOutRes: return encode(m)
+        case let m as SignedInstallationData: return encode(m)
+        case let m as SignedMeteringData: return encode(m)
+        default: throw ExiError.invalidHeader
+        }
+    }
+
     public static func decodeAny(_ src: [UInt8]) throws -> Any {
         guard src.first == exiHeader else { throw ExiError.invalidHeader }
         let r = BitReader(src, offset: 1)
