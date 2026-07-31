@@ -244,8 +244,8 @@ final class V2GTrustStoreTests: XCTestCase {
     /// The fingerprint is what a user compares by eye, so its shape is part of the interface.
     func testTheFingerprintIsGroupedUppercaseHex() throws {
         let printed = V2GFingerprint(of: try root(commonName: "MO Root A").der).description
-        XCTAssertEqual(printed.count, 32 * 2 + 15, "32 bytes as pairs, 15 separators")
-        XCTAssertEqual(printed.filter { $0 == ":" }.count, 15)
+        XCTAssertEqual(printed.count, 32 * 2 + 31, "32 bytes, one per group, 31 separators")
+        XCTAssertEqual(printed.filter { $0 == ":" }.count, 31)
         XCTAssertTrue(printed.allSatisfy { $0.isHexDigit || $0 == ":" })
         XCTAssertEqual(printed.uppercased(), printed)
     }

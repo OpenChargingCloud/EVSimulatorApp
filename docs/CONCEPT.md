@@ -1349,10 +1349,16 @@ leaf match the ISO 15118 profile** (ours, and PKIX has no view). A contract cert
 them together would tell a user "invalid" about a chain that is valid and merely wrong — the same
 distinction `pairing/README.md` already draws for the QR payload.
 
+**Kotlin followed the same day** (`v2g-certificates`), and needed no library: the JVM brings X.509 and
+a PKIX `CertPathValidator`, so it sits where C# sits and only Swift needed a dependency. Both are held
+to the same corpus, which is what makes "the two agree" a measurement. Writing the second half earned
+its keep immediately by catching an inconsistency in the first: Swift printed the root fingerprint two
+bytes per separator where Kotlin printed one, and that string exists precisely to be compared by eye
+against one printed elsewhere. Swift was the odd one out and is fixed.
+
 Still open here: **revocation** (ISO 15118-20 staples OCSP into the TLS handshake — the transport's
 business, and nothing checks a contract certificate against a CRL), the keystore and the §3.4
-asymmetry, CSR generation, and Kotlin, which has neither store nor validator because the requirement
-came from the app rather than the state machine.
+asymmetry, and CSR generation.
 
 **B3 — Signed metering + session UI (1.5–2 weeks).** Per §4.2: -2 `MeteringReceiptReq`, -20
 `MeteringConfirmationReq`, the signing-detail view, the EV's own meter model, receipt

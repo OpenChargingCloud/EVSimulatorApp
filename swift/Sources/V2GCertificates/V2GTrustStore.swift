@@ -17,13 +17,15 @@ public struct V2GFingerprint: Hashable, Sendable, CustomStringConvertible {
         self.bytes = Array(SHA256.hash(data: Data(der)))
     }
 
-    /// Uppercase hex in colon-separated pairs — the form fingerprints are usually published and
-    /// compared in, and grouped because humans compare it by eye.
+    /// Uppercase hex, one byte per colon-separated group — the conventional form, and the one a
+    /// user will find wherever they got the fingerprint to compare against.
+    ///
+    /// An earlier draft grouped two bytes per separator. Nothing broke, because nothing else read
+    /// it — which is exactly the problem: the whole purpose of this string is to be compared by eye
+    /// with one printed somewhere else, so an unconventional grouping defeats it silently. Caught by
+    /// writing the Kotlin half, which had grouped it the usual way.
     public var description: String {
-        stride(from: 0, to: bytes.count, by: 2).map {
-            bytes[$0 ..< min($0 + 2, bytes.count)]
-                .map { String(format: "%02X", $0) }.joined()
-        }.joined(separator: ":")
+        bytes.map { String(format: "%02X", $0) }.joined(separator: ":")
     }
 }
 

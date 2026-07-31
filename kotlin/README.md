@@ -26,6 +26,7 @@ DEX file's 64k method limit all at once), and made the smallest schema change re
 | `v2g-tp` | Hand-written `V2GTP` — the 8-byte transfer-protocol header. No dependencies at all. |
 | `v2g-dispatch` | Hand-written `MessageSet` / `V2GTPDispatcher` — payload type ↔ message set. Depends on every codec module. |
 | `v2g-metering` | Verifies a station's signed meter reading. Held to the corpus the C# side generates, not to its own output. |
+| `v2g-certificates` | X.509 for the app: reading, the MO root store, chain validation over the JVM's own PKIX. No EXI anywhere. |
 | `exi-xmldsig` | Generated standalone W3C XMLDSig codec. Not a message set — it exists only to produce the octets a Plug & Charge signature is actually over. |
 | `v2g-evcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM **and** Plug & Charge) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
 
@@ -256,6 +257,52 @@ see and is worth writing down:
 by C# over C#'s octets, so it verifies here only if the two encoders agree. Confirmed by mutation —
 corrupting only the standalone mapping leaves both Plug & Charge replay tests green and fails exactly
 that one test, in Kotlin and Swift alike.
+
+## Certificates: reading, trusting, validating
+
+`v2g-certificates` is the app's X.509 — the Kotlin half of Swift's `V2GCertificates`, and the one
+module here with no EXI in it at all. The JVM brings its own X.509 and PKIX, so unlike Swift it needs
+no library: `java.security.cert` is what C# gets from `System.Security.Cryptography.X509Certificates`.
+
+**The eMAID rule.** `eMAIDType` is 14–15 characters (`V2G_CI_MsgDataTypes.xsd`) and was enforced
+nowhere — the generated codec does not apply string-length facets, so a 19-character Common Name
+travelled in this repository's own recorded Plug & Charge session, accepted by all three back ends,
+until Swift got a reader that checked it. `Evcc2` checks it before the session opens and no longer
+parses the subject by hand; one reader for the whole app is the point of this module.
+
+**The trust store.** MO roots, taken by QR scan, TOFU-style with a confirmation. Five verdicts:
+
+| Verdict | When |
+|---|---|
+| `AlreadyTrusted` | byte-identical |
+| `New` | no stored root with this subject |
+| `Renewal` | same subject **and same key** |
+| `VouchedByTrustedRoot` | signed by a stored root, signature checked |
+| `ReplacementUnderKnownName` | same subject, different key, nobody vouches |
+
+Only the **fingerprint** binds — a root's subject is written by whoever made it. Vouching is the
+friendly rotation, a CA introducing its successor with the key it still holds, and it is not proof:
+whoever holds a compromised key vouches exactly as well, because cryptographically it is the same act.
+
+The four candidates come from the shared corpus rather than being built here, since what is under
+test is the *relationship* between two certificates and three languages constructing their own would
+be three languages agreeing with themselves. Writing this half caught a real inconsistency: Swift
+grouped the fingerprint two bytes per separator and Kotlin one, and the whole purpose of that string
+is to be compared by eye against one printed somewhere else. Swift was the odd one and is fixed.
+
+**Chain validation** keeps two questions apart. *Is the chain sound* — path, signatures, dates, CA
+flags — is RFC 5280's, answered by the JVM's `CertPathValidator`, with one right answer. *Does the
+leaf match the ISO 15118 profile* is ours, and PKIX has no view: a contract certificate carrying
+`serverAuth` builds a perfect path and is simply a credential that could also impersonate a station.
+Reported, not rejected.
+
+Held to `Vectors/Certificate.chain.vectors.json` from `WWCP_ISO15118_PKI`'s evil-certificate factory,
+which exists to defeat validators that stop at the path maths. A bundle whose certificates do not
+link up is refused outright with no findings: the order states *which* certificate is being
+presented, and nothing said about a guessed leaf is worth saying.
+
+Not done: revocation. ISO 15118-20 staples OCSP into the TLS handshake, which is the transport's
+business, and nothing here checks a contract certificate against a CRL.
 
 ## How these codecs are checked
 
