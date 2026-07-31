@@ -17,6 +17,7 @@ hand-written; every codec module is emitted from the XSDs and checked in.
 | `V2GDispatch` | Hand-written `MessageSet` / `V2GTPDispatcher` — payload type ↔ message set. Depends on every codec target. |
 | `V2GMetering` | Verifies a station's signed meter reading. Held to the corpus the C# side generates, not to its own output. |
 | `ExiXmlDsig` | Generated standalone W3C XMLDSig codec. Not a message set — it exists only to produce the octets a Plug & Charge signature is actually over. |
+| `V2GKeystore` | Private keys and what may honestly be claimed about them (§3.4). No certificates, no EXI. |
 | `V2GCertificates` | X.509 for the app: reading, the MO root store, chain validation. The only target that knows `swift-certificates` exists. |
 | `V2GEvcc` | Hand-written EVCC state machines (ISO 15118-2 **and** -20, AC and DC, EIM **and** Plug & Charge) + `V2GTPStream` framing + the SAP handshake. Held to recorded sessions — see below. |
 
@@ -178,6 +179,42 @@ Not done, and named rather than assumed: **revocation**. ISO 15118-20 staples OC
 handshake, which is the transport's business, and nothing here checks a contract certificate against
 a CRL. Kotlin has neither store nor validator — the requirement came from the app, not the state
 machine.
+
+### Keys, and what may honestly be claimed about them
+
+``V2GKeystore`` is the key half of the wallet. It holds no certificates and no EXI: a key is a key
+whatever it ends up signing, and the module deciding how a key is protected should not also be the
+one parsing untrusted input.
+
+`docs/CONCEPT.md` §3.4 gives the constraint — the iOS Secure Enclave holds P-256 and nothing else,
+Android's StrongBox/TEE P-256 and RSA — so a -2 contract key can be hardware-backed and a -20 one
+cannot, on either platform. That table is the easy half.
+
+**The hard half is that a secure-element key has no bytes to hand over.** Both `PncEvccOptions` used
+to take a raw private key, which ruled out hardware backing for *every* credential regardless of
+curve. Signing now goes through a `V2GSigner` — "give me a signature", not "give me the key" — which
+is the part §3.4 means by designing around the asymmetry "from the start rather than discovering it
+at the first keygen": the curve table can be added later, this interface cannot.
+
+Protection is a value rather than an implementation detail, so it can be displayed, asserted, and got
+wrong loudly. What the tests pin:
+
+* only P-256 can be hardware-backed, and a -20 curve is refused **even on a device that has a secure
+  element** — with a reason naming the curve, because a disabled control explains nothing;
+* "no secure element on this device" and "this curve, never" are different sentences, since one is
+  about today and the other is forever;
+* a software signer cannot describe itself as hardware-backed, and the reason given is that it *holds
+  bytes* — not the curve, since P-256 can live in an enclave and simply not in an object handed one;
+* software disclosures never claim hardware protection, asserted on the literal string. Both now open
+  with the word "software": an earlier version said only "not by separate hardware", which is
+  accurate and leaves the reader to work out the consequence — and §3.4's whole point is that a user
+  should not have to.
+
+Gating on **use** rather than storage is a separate flag and reads as an extra sentence, because a
+key can be biometrically gated and still be software.
+
+Not done: the platform binding itself — Keychain and Android Keystore need a device. The model above
+admits them; nothing here pretends they exist.
 
 WPT is a *recognised* payload type with no Swift codec behind it, and the dispatcher says so rather
 than reporting an unknown type — which would suggest the frame was malformed.

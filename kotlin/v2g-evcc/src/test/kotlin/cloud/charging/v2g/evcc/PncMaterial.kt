@@ -5,6 +5,9 @@ import java.io.File
 import java.math.BigInteger
 import java.security.AlgorithmParameters
 import java.security.KeyFactory
+import cloud.charging.v2g.certificates.V2GCertificate
+import cloud.charging.v2g.keystore.InMemoryP256Signer
+import cloud.charging.v2g.keystore.V2GSigner
 import java.security.PrivateKey
 import java.security.spec.ECGenParameterSpec
 import java.security.spec.ECParameterSpec
@@ -48,8 +51,14 @@ internal object PncMaterial {
             ECPrivateKeySpec(BigInteger(1, hex(material.get("privateKeyD").asString)), parameters))
     }
 
+    /** The corpus key as a signer. Software and in memory, and it says so — the same arrangement
+     *  §3.4 asks for, working identically for test material and a real credential. */
+    val signer: V2GSigner by lazy {
+        InMemoryP256Signer(key, V2GCertificate(certificate).publicKeyDer)
+    }
+
     val options: PncEvccOptions
-        get() = PncEvccOptions(certificate, listOf(certificate), key)
+        get() = PncEvccOptions(certificate, listOf(certificate), signer)
 
     private fun hex(s: String) = ByteArray(s.length / 2) {
         s.substring(it * 2, it * 2 + 2).toInt(16).toByte()

@@ -5,6 +5,7 @@ import ExiIso2
 import ExiIso20Common
 import ExiXmlDsig
 import V2GCertificates
+import V2GKeystore
 
 /// Contract credentials that switch an EVCC from EIM to **Plug & Charge**. `nil` (the default) keeps
 /// the session on external payment.
@@ -16,7 +17,12 @@ public struct PncEvccOptions {
 
     public let contractCertificate: [UInt8]
     public let subCertificates: [[UInt8]]
-    public let contractKey: P256.Signing.PrivateKey
+    /// Signs, and need not be readable.
+    ///
+    /// A `V2GSigner` rather than a private key because a secure-element key **has no bytes to hand
+    /// over** — see `docs/CONCEPT.md` §3.4. Taking a key here would have ruled out hardware backing
+    /// for every credential, whatever its curve, and that is not a thing one retrofits cheaply.
+    public let contractKey: any V2GSigner
 
     /// The eMAID this credential can present in -2's PaymentDetails, read from the contract
     /// certificate's Common Name — as C# and Kotlin both do. `nil` when the Common Name cannot be
@@ -35,7 +41,7 @@ public struct PncEvccOptions {
 
     /// - Throws: if the contract certificate will not parse at all.
     public init(contractCertificate: [UInt8], subCertificates: [[UInt8]],
-                contractKey: P256.Signing.PrivateKey) throws {
+                contractKey: any V2GSigner) throws {
 
         self.emaid = try V2GCertificate(der: contractCertificate).emaid
         self.contractCertificate = contractCertificate
@@ -70,7 +76,7 @@ enum XmlDsigInterop {
     // ── ISO 15118-2 ───────────────────────────────────────────────────────
 
     static func sign2(_ referenceId: String, _ signedElementFragment: [UInt8],
-                      _ contractKey: P256.Signing.PrivateKey) throws -> ExiIso2.SignatureType {
+                      _ contractKey: any V2GSigner) throws -> ExiIso2.SignatureType {
 
         let signedInfo = ExiIso2.SignedInfoType(
             canonicalizationMethod: ExiIso2.CanonicalizationMethodType(algorithm: canonicalizationExi),
@@ -117,7 +123,7 @@ enum XmlDsigInterop {
     // ── ISO 15118-20 CommonMessages ───────────────────────────────────────
 
     static func sign20(_ referenceId: String, _ signedElementFragment: [UInt8],
-                       _ contractKey: P256.Signing.PrivateKey) throws -> ExiIso20Common.SignatureType {
+                       _ contractKey: any V2GSigner) throws -> ExiIso20Common.SignatureType {
 
         let signedInfo = ExiIso20Common.SignedInfoType(
             canonicalizationMethod: ExiIso20Common.CanonicalizationMethodType(algorithm: canonicalizationExi),
@@ -162,10 +168,11 @@ enum XmlDsigInterop {
 
     // ── the crypto, such as it is ─────────────────────────────────────────
 
-    /// Raw `r‖s`, which is what CryptoKit's `rawRepresentation` already is — no DER anywhere, and the
-    /// field is 64 bytes so a DER signature would not fit even by accident.
-    private static func sign(_ octets: [UInt8], _ key: P256.Signing.PrivateKey) throws -> [UInt8] {
-        Array(try key.signature(for: Data(octets)).rawRepresentation)
+    /// Raw `r‖s` — no DER anywhere, and the field is sized to the curve so a DER signature would not
+    /// fit even by accident. Which key does the work, and whether its bytes exist at all, is the
+    /// signer's business and not this file's.
+    private static func sign(_ octets: [UInt8], _ key: any V2GSigner) throws -> [UInt8] {
+        try key.signature(over: octets)
     }
 
     static func verify(_ octets: [UInt8], _ signatureValue: [UInt8],

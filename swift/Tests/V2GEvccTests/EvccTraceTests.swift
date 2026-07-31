@@ -196,7 +196,7 @@ final class EvccTraceTests: XCTestCase {
         let credential = try PncEvccOptions(
             contractCertificate: PncMaterial.certificateWithUnusableEmaid,
             subCertificates: [PncMaterial.certificateWithUnusableEmaid],
-            contractKey: PncMaterial.key)
+            contractKey: PncMaterial.signer)
         XCTAssertNil(credential.emaid, "a 19-character Common Name is not an eMAID")
 
         evcc.pnc = credential

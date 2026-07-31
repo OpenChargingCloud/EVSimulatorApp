@@ -443,6 +443,31 @@ as software keys in Keychain / EncryptedSharedPreferences, ideally with biometri
 than discovering it at the first P-521 keygen. Be explicit about it in the UI — a simulator
 that quietly pretends its keys are hardware-protected is worse than one that says they aren't.
 
+**Addressed 2026-07-31, and the table turned out to be the easy half.** `V2GKeystore` (Swift) and
+`v2g-keystore` (Kotlin) make the protection level a *value* — displayable, assertable, and wrong
+loudly rather than quietly. What the checks pin: only P-256 may claim hardware; a -20 curve is
+refused it even on a device that has a secure element, with a reason naming the curve; "no element on
+this device" and "this curve, never" are different sentences; and a software disclosure never claims
+hardware protection, asserted on the literal string.
+
+The harder half was not the curves. **A secure-element key has no bytes to hand over**, and both
+ports' `PncEvccOptions` took a raw private key — which ruled out hardware backing for *every*
+credential, whatever its curve. Signing now goes through a signer interface: "give me a signature",
+not "give me the key". That is what this note means by designing around the asymmetry "from the start
+rather than discovering it at the first P-521 keygen" — the curve table can be retrofitted, that
+interface cannot. The session-trace corpus was the safety net for the change: not one byte moved, in
+either language.
+
+Two things the work corrected in itself, both worth keeping. The in-memory signer first refused
+hardware with *"P-256 cannot be hardware-backed"*, which is false and points at the wrong thing — the
+reason is that the object holds bytes, and P-256 in an enclave is precisely the case that works. And
+the software disclosure said only "not by separate hardware", leaving the reader to draw the
+conclusion; both software cases now open with the word "software", since that is what someone
+scanning a list of keys is looking for.
+
+Still absent, and named rather than implied: the platform binding itself. Keychain and Android
+Keystore need a device; the model admits them and nothing pretends they are there.
+
 Note this hardware/software split is **orthogonal** to the CryptoKit/BC software-crypto split in
 §3.3: CryptoKit can *operate on* a software P-521 key held in the Keychain; the Secure Enclave
 limitation is only about which keys get *hardware* protection. Software P-521/Ed448 keys are fine
@@ -1356,9 +1381,12 @@ its keep immediately by catching an inconsistency in the first: Swift printed th
 bytes per separator where Kotlin printed one, and that string exists precisely to be compared by eye
 against one printed elsewhere. Swift was the odd one out and is fixed.
 
+**The keystore and the §3.4 asymmetry followed** (2026-07-31) — see §3.4, which now records what was
+built and the two corrections the work made to itself.
+
 Still open here: **revocation** (ISO 15118-20 staples OCSP into the TLS handshake — the transport's
-business, and nothing checks a contract certificate against a CRL), the keystore and the §3.4
-asymmetry, and CSR generation.
+business, and nothing checks a contract certificate against a CRL), **the platform key binding**
+(Keychain, Android Keystore — both need a device), and **CSR generation**.
 
 **B3 — Signed metering + session UI (1.5–2 weeks).** Per §4.2: -2 `MeteringReceiptReq`, -20
 `MeteringConfirmationReq`, the signing-detail view, the EV's own meter model, receipt

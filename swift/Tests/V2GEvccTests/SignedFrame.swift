@@ -5,6 +5,7 @@ import ExiIso2
 import ExiIso20Common
 import V2GDispatch
 import V2GTP
+import V2GKeystore
 @testable import V2GEvcc
 
 /// The Swift half of the signature-aware comparison, mirroring `SignedFrame.cs`.
@@ -138,6 +139,10 @@ enum PncMaterial {
         try! P256.Signing.PrivateKey(rawRepresentation: Data(SignedFrame.hex(material.privateKeyD)))
     }
 
+    /// The corpus key as a signer. Software and in memory, and it says so — which is the whole
+    /// arrangement §3.4 asks for, working the same way for test material as for a real credential.
+    static var signer: InMemoryP256Signer { try! InMemoryP256Signer(key) }
+
     /// The eMAID the certificate carries. Not passed in any more — `PncEvccOptions` reads it from
     /// the certificate, as C# and Kotlin do. Kept here only so a test can say what it expects.
     static let expectedEmaid = "DE8AA1A2B3C4D5"
@@ -145,7 +150,7 @@ enum PncMaterial {
     static var options: PncEvccOptions {
         get throws {
             try PncEvccOptions(contractCertificate: certificate, subCertificates: [certificate],
-                               contractKey: key)
+                               contractKey: signer)
         }
     }
 }

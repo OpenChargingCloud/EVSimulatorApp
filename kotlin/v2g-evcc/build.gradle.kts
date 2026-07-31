@@ -9,6 +9,8 @@ dependencies {
     implementation(project(":exi-xmldsig"))
     // The eMAID comes out of the contract certificate; one reader for it, not two.
     implementation(project(":v2g-certificates"))
+    // Signing goes through a signer, never a raw key — a secure-element key has no bytes to hand over.
+    implementation(project(":v2g-keystore"))
     implementation(project(":v2g-tp"))
     implementation(project(":v2g-dispatch"))
 

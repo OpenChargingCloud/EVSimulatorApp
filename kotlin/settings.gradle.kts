@@ -24,4 +24,7 @@ include("v2g-metering")
 // X.509 for the app: reading, the MO root store, chain validation. No EXI anywhere — it is the
 // wallet's half, not the codec's, and the JVM brings its own X.509 and PKIX.
 include("v2g-certificates")
+// Private keys, and what may honestly be claimed about them (docs/CONCEPT.md §3.4). No certificates
+// and no EXI: a key is a key whatever it ends up signing.
+include("v2g-keystore")
 include("v2g-evcc")

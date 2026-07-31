@@ -1,10 +1,10 @@
 package cloud.charging.v2g.evcc
 
 import java.security.MessageDigest
-import java.security.PrivateKey
 import java.security.PublicKey
 import java.security.Signature
 
+import cloud.charging.v2g.keystore.V2GSigner
 import cloud.charging.v2g.xmldsig.XmlDsigCodec
 import cloud.charging.v2g.xmldsig.CanonicalizationMethodType as XCanonicalizationMethodType
 import cloud.charging.v2g.xmldsig.DigestMethodType as XDigestMethodType
@@ -65,7 +65,7 @@ internal object XmlDsigInterop {
     private const val JCA_P1363 = "SHA256withECDSAinP1363Format"
 
     /** Signs one -2 element: digests its fragment, assembles SignedInfo, signs the standalone form. */
-    fun sign2(referenceId: String, signedElementFragment: ByteArray, contractKey: PrivateKey): I2SignatureType {
+    fun sign2(referenceId: String, signedElementFragment: ByteArray, contractKey: V2GSigner): I2SignatureType {
 
         val signedInfo = I2SignedInfoType(
             id = null,
@@ -87,7 +87,7 @@ internal object XmlDsigInterop {
 
     /** The -20 CommonMessages counterpart. Five near-identical copies of this exist in the C# side,
      *  one per message set, for the reason the class comment gives — this port needs one so far. */
-    fun sign20(referenceId: String, signedElementFragment: ByteArray, contractKey: PrivateKey): CSignatureType {
+    fun sign20(referenceId: String, signedElementFragment: ByteArray, contractKey: V2GSigner): CSignatureType {
 
         val signedInfo = CSignedInfoType(
             id = null,
@@ -154,11 +154,9 @@ internal object XmlDsigInterop {
 
     private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
 
-    private fun signRaw(octets: ByteArray, key: PrivateKey) =
-        Signature.getInstance(JCA_P1363).apply {
-            initSign(key)
-            update(octets)
-        }.sign()
+    /** Which key does the work, and whether its bytes exist at all, is the signer's business and
+     *  not this file's — see `V2GSigner` on why that shape is what leaves hardware backing possible. */
+    private fun signRaw(octets: ByteArray, key: V2GSigner) = key.signature(octets)
 }
 
 
@@ -168,11 +166,13 @@ internal object XmlDsigInterop {
  *
  * @param contractCertificate the contract leaf certificate, DER
  * @param subCertificates the MO sub-CA certificates, DER, leaf-issuer first
- * @param contractKey the contract leaf's private key — P-256, since the interop form's raw `r‖s`
- *   signature field is 64 bytes
+ * @param contractKey a signer for the contract leaf — P-256, since the interop form's raw `r‖s`
+ *   field is 64 bytes. A [V2GSigner] rather than a `PrivateKey` because a secure-element key **has
+ *   no bytes to hand over** (`docs/CONCEPT.md` §3.4); taking a key here would have ruled out
+ *   hardware backing for every credential, whatever its curve.
  */
 class PncEvccOptions(
     val contractCertificate: ByteArray,
     val subCertificates: List<ByteArray>,
-    val contractKey: PrivateKey,
+    val contractKey: V2GSigner,
 )

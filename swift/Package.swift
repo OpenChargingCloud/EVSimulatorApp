@@ -31,6 +31,7 @@ let package = Package(
         .library(name: "V2GDispatch", targets: ["V2GDispatch"]),
         .library(name: "ExiXmlDsig", targets: ["ExiXmlDsig"]),
         .library(name: "V2GCertificates", targets: ["V2GCertificates"]),
+        .library(name: "V2GKeystore", targets: ["V2GKeystore"]),
         .library(name: "V2GEvcc", targets: ["V2GEvcc"]),
     ],
     dependencies: [
@@ -141,9 +142,15 @@ let package = Package(
         ]),
         .testTarget(name: "V2GCertificatesTests", dependencies: ["V2GCertificates"]),
 
+        // Private keys, and what may honestly be claimed about them (docs/CONCEPT.md §3.4). No
+        // certificates and no EXI: a key is a key whatever it ends up signing, and the module that
+        // decides how a key is protected should not also be the one parsing untrusted input.
+        .target(name: "V2GKeystore"),
+        .testTarget(name: "V2GKeystoreTests", dependencies: ["V2GKeystore"]),
+
         .target(name: "V2GEvcc", dependencies: [
             "V2GTP", "V2GDispatch", "ExiAppProtocol", "ExiIso2", "ExiIso20Common",
-            "ExiIso20AC", "ExiIso20DC", "ExiXmlDsig", "V2GCertificates",
+            "ExiIso20AC", "ExiIso20DC", "ExiXmlDsig", "V2GCertificates", "V2GKeystore",
         ]),
         .testTarget(name: "V2GEvccTests", dependencies: ["V2GEvcc"]),
     ]

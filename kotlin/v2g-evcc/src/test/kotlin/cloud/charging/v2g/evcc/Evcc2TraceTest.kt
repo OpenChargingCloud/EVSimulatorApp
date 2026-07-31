@@ -157,7 +157,7 @@ class Evcc2TraceTest {
 
         evcc.pnc = PncEvccOptions(PncMaterial.certificateWithUnusableEmaid,
                                   listOf(PncMaterial.certificateWithUnusableEmaid),
-                                  PncMaterial.key)
+                                  PncMaterial.signer)
 
         val aborted = assertFailsWith<SessionAborted> { evcc.run() }
         assertTrue(aborted.message!!.contains("14 or 15"), aborted.message!!)
