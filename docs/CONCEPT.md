@@ -1587,6 +1587,54 @@ phone; scanning a screenshot from two minutes ago is rejected.
 > What is left of B1 is packaging (`capacitor.config.json`, the generated `android/` and `ios/`
 > projects) and the exit criterion's own words: a real phone, and the Pi.
 
+> **The shell, 2026-08-01.** `shell/` is the Capacitor project: `webDir` at `../app`, the plugin as a
+> file dependency, and the two generated native projects. **Both produce an artifact** —
+> `app-debug.apk` and an iOS simulator bundle — neither yet run on a device.
+>
+> **Two builds compiled the Android plugin module, on two different toolchains, and only the app
+> noticed.** The module declared AGP 9.3.1 for its standalone build, because the Homebrew Gradle on
+> this machine is 9.6.1 and refuses AGP 8; the generated app pins AGP 8.13 and Gradle 8.14.3. Included
+> in the app, the module's `plugins { id(...) version ... }` is an error outright — a version cannot
+> be checked against a plugin the build did not resolve. The fix is what real Capacitor plugins do:
+> **no versions in `build.gradle.kts`**, versions in the standalone `settings.gradle.kts`, and the
+> app's own Gradle wrapper copied next to the module so both contexts run the same toolchain rather
+> than agreeing by coincidence. AGP 9 also brings its own Kotlin and AGP 8 does not, so the app's
+> buildscript carries `kotlin-gradle-plugin` — which is the version the module now compiles under.
+>
+> Two smaller things the app build found that the standalone one could not: `android.useAndroidX=true`
+> was never declared (AGP 9 defaults it on, so the module had passed without ever saying so), and the
+> composite substitution for `v2g-bridge`/`v2g-session` lives in the module's own settings file, which
+> an application never reads — `includeBuild('../../kotlin')` had to be said again in the app's.
+>
+> **The iOS floor moved down, and that is a constraint rather than a preference.** `cap sync` writes
+> `ios/App/CapApp-SPM/Package.swift` with `platforms: [.iOS(.v15)]`, marks it DO NOT MODIFY and
+> rewrites it every sync. A package that asks for more cannot be a Capacitor plugin's dependency at
+> all — so `swift/Package.swift` is iOS 15 now, not 16. Nothing needed the 16: swift-certificates
+> declares no floor of its own, and the newest platform API the package uses is
+> `SecTrustCopyCertificateChain`.
+>
+> **So the answer to "three build targets?" is: two, plus a web app that runs.** Android and iOS are
+> real targets. `app/` opens in any browser and does everything except open a session — the plugin is
+> absent and it says so. A Capacitor *web implementation* would need the EVCC state machines in
+> TypeScript, which do not exist; only the codec is ported.
+>
+> **What a WebSocket transport would and would not buy.** A browser cannot open a TCP socket, but it
+> can open a WebSocket — so a `WebSocketV2GTransport` on the EVCC side and a WS listener on the C#
+> SECC (or a WebSocket-to-TCP bridge in front of an unmodified one) would give the web target a
+> transport. Three things follow, and the third is the one that decides how it may be used:
+> - **The framing gets simpler, not harder.** WebSocket delivers whole messages, and V2GTP already
+>   carries its own 8-byte length header, so one binary message = one frame. The `V2GByteStream` /
+>   `InputStream` seam the live runner already has is where it plugs in.
+> - **The session still needs the state machines.** `Evcc2` and `Evcc20*` are the largest hand-written
+>   piece in the repository and exist in three languages, not four. A web implementation without them
+>   could only replay traces — which is still useful for the inspector and for Chargy, and is a much
+>   smaller job.
+> - **It is not ISO 15118 on the wire, and a browser cannot pin.** V2GTP-over-WebSocket is a
+>   development and inspection transport; conformance evidence it is not. And `wss://` is validated by
+>   the browser's own trust store, with no way for JavaScript to see the chain — so the pairing code's
+>   `root` fingerprint, which the native transports enforce where the socket opens, cannot be enforced
+>   there at all. A web target would have to say so on the sheet rather than quietly drop the check.
+
 > **Pairing ported to Kotlin and Swift, 2026-07-31.** `v2g-pairing` and `V2GPairing` carry the
 > payload parser, the warning classification and both halves of the TOTP — generator and verifier —
 > against two corpora the C# side generates (`Pairing.payload.vectors.json`, 22 cases;

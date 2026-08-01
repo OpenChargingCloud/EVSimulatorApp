@@ -1,0 +1,38 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+
+    // Here rather than in variables.gradle: that file is applied after this block, so a version
+    // defined there is not in scope where the classpath below needs it.
+    ext.kotlinVersion = '2.1.0'
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'com.google.gms:google-services:4.4.4'
+
+        // The EvSimulator plugin's Android half is Kotlin, and AGP 8 has no Kotlin of its own — so
+        // the compiler has to be on the buildscript classpath of whichever build compiles it. The
+        // plugin module itself names no version, because inside this build it cannot.
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+apply from: "variables.gradle"
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

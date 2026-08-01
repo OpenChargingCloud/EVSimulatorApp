@@ -7,10 +7,12 @@ module against the real Capacitor framework.**
 
 ```
 capacitor/
+  Package.swift the SwiftPM manifest. At the package root because that is where `cap sync`
+                looks; the sources it points at stay under ios/
   src/          the TypeScript adapter — registerPlugin, and the difference between the
                 contract and what the bridge really carries
   android/      an Android library module (com.capacitorjs:core 8.5.0)
-  ios/          a SwiftPM package (capacitor-swift-pm 8.5.0)
+  ios/          the native half's sources (capacitor-swift-pm 8.5.0)
 ```
 
 ## Run
@@ -20,12 +22,21 @@ cd capacitor && npm install && npm test
 ```
 
 ```bash
-cd capacitor/android && ANDROID_HOME=~/Library/Android/sdk gradle testDebugUnitTest
+cd capacitor/android && ANDROID_HOME=~/Library/Android/sdk ./gradlew testDebugUnitTest
 ```
 
 ```bash
-cd capacitor/ios && xcodebuild -scheme EvSimulatorPlugin -destination 'generic/platform=iOS Simulator' build
+cd capacitor && xcodebuild -scheme OpenChargingCloudCapacitorEvSimulator \
+                 -destination 'generic/platform=iOS Simulator' build
 ```
+
+(The scheme is the package's product name, which `cap sync` derives from the npm package name and
+writes into the app's generated `CapApp-SPM/Package.swift` — there is nowhere to tell it otherwise.
+The target, the class and `jsName` are unaffected.)
+
+The Android module ships its own Gradle wrapper — the **same** one `shell/android` uses. Two builds
+compile this module (standalone, and inside the app), and they had drifted onto different Android
+Gradle Plugin versions before that wrapper existed; agreeing by coincidence is not agreeing.
 
 Each needs its own toolchain, which is why none of them is part of `kotlin/`, `swift/` or
 `typescript/`. Those three still build and test with nothing but a JDK, a Swift toolchain and Node —

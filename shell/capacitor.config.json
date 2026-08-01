@@ -1,0 +1,11 @@
+{
+  "appId": "cloud.charging.evsim.app",
+  "appName": "EV Simulator",
+  "webDir": "../app",
+  "android": {
+    "allowMixedContent": false
+  },
+  "ios": {
+    "contentInset": "always"
+  }
+}

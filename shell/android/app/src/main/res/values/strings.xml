@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">EV Simulator</string>
+    <string name="title_activity_main">EV Simulator</string>
+    <string name="package_name">cloud.charging.evsim.app</string>
+    <string name="custom_url_scheme">cloud.charging.evsim.app</string>
+</resources>

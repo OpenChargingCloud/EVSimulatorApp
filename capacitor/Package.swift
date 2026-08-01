@@ -11,19 +11,22 @@ import PackageDescription
 //
 //     xcodebuild -scheme EvSimulatorPlugin -destination 'generic/platform=iOS Simulator' build
 //
+// The package and its product are named after the npm package, in PascalCase, because that is the
+// name `cap sync` writes into the app's generated CapApp-SPM/Package.swift — it derives it from
+// `@open-charging-cloud/capacitor-ev-simulator` and there is nowhere to tell it otherwise. The
+// target, the class and `jsName` are unaffected.
 let package = Package(
-    name: "EvSimulatorPlugin",
+    name: "OpenChargingCloudCapacitorEvSimulator",
     platforms: [
-        // Capacitor 8's own floor is iOS 14; the V2G package's is iOS 16, and the higher of two
-        // floors is the floor.
-        .iOS(.v16),
+        // The same floor the generated app declares. See swift/Package.swift for why it is 15.
+        .iOS(.v15),
     ],
     products: [
-        .library(name: "EvSimulatorPlugin", targets: ["EvSimulatorPlugin"]),
+        .library(name: "OpenChargingCloudCapacitorEvSimulator", targets: ["EvSimulatorPlugin"]),
     ],
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.5.0"),
-        .package(path: "../../swift"),
+        .package(path: "../swift"),
     ],
     targets: [
         .target(
@@ -45,6 +48,9 @@ let package = Package(
                 // build uses is the application's decision (see EvSimulatorPlugin.runner).
                 .product(name: "V2GSession", package: "swift"),
             ],
+            // The sources stay under ios/, where a Capacitor plugin keeps its native half; only the
+            // manifest has to sit at the package root, because that is where `cap sync` looks for it.
+            path: "ios/Sources/EvSimulatorPlugin",
             // Swift 5 language mode, for this target only.
             //
             // `CAPPlugin` is an Objective-C class from a binary framework and is not `Sendable`, so

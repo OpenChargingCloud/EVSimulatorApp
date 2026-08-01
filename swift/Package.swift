@@ -11,8 +11,13 @@ import PackageDescription
 let package = Package(
     name: "V2GExi",
     platforms: [
-        // The codec itself is platform-free; these floors exist because the app target is iOS.
-        .iOS(.v16),
+        // The codec itself is platform-free; these floors exist because the app target is iOS, and
+        // 15 is Capacitor's own floor — the app project's generated `CapApp-SPM/Package.swift` says
+        // `.iOS(.v15)`, is marked DO NOT MODIFY, and is rewritten on every `cap sync`. A package
+        // that asked for more could not be a Capacitor plugin's dependency at all. Nothing here
+        // needs more: swift-certificates declares no floor of its own, and the newest platform API
+        // this package uses is `SecTrustCopyCertificateChain`, which is iOS 15.
+        .iOS(.v15),
         .macOS(.v13),
     ],
     products: [

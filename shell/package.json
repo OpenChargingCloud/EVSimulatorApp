@@ -1,0 +1,22 @@
+{
+  "name": "@open-charging-cloud/ev-simulator-shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The Capacitor project: the web application in app/, the plugin in capacitor/, and the two native app projects they are built into.",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "sync": "cap sync",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@open-charging-cloud/capacitor-ev-simulator": "file:../capacitor"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0"
+  }
+}
