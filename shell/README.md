@@ -65,10 +65,16 @@ platform API it uses is `SecTrustCopyCertificateChain`, which is iOS 15.
 the warnings, the refusals, the manual form. What does not is a session — `Capacitor.Plugins
 .EvSimulator` is absent, and the app says so rather than failing quietly.
 
-A Capacitor *web implementation* of the plugin is possible in principle and would need two things
-this repository does not have: the EVCC state machines in TypeScript (only the codec is ported), and
-a transport a browser can open. See `docs/CONCEPT.md` B1 for what a WebSocket transport would and
-would not buy.
+There **is** a Capacitor web implementation now — `capacitor/src/web.ts` — and it replays a recorded
+session rather than opening one: the same traces the four back ends are held to, producing the events
+`Vectors/Bridge.events.json` pins. It refuses anything but ISO 15118-2, because only those codecs are
+generated for TypeScript.
+
+What it still cannot do is drive a *live* session, and that needs two things this repository does not
+have: the EVCC state machines in TypeScript (only the codec is ported) and a transport a browser can
+open — `tools/EVSimulatorApp.WsBridge` is the second of those. See `docs/CONCEPT.md` B1.
+
+Reaching it from `app/` needs a bundler, because the codec is TypeScript and a browser loads `.js`.
 
 ## A note on the npm advisory
 

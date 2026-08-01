@@ -28,6 +28,13 @@ toolchain happens to exist, and run unaltered by both Node and the WebView.
 stripping step before a WebView can load it. Nothing here imports it: an event already arrives as
 JSON-LD, so the inspector has no decoding to do.)
 
+**That is also why this application cannot use the plugin's web implementation.**
+`capacitor/src/web.ts` replays a recorded session in a browser, and it is real — the same traces the
+four back ends are held to, producing the events `Vectors/Bridge.events.json` pins. But it imports
+the TypeScript codec, so reaching it from here needs a bundler, which is the one thing this directory
+does not have. The trade is deliberate and it is the whole trade: no build step here, no live event
+stream here. A host that already bundles — Chargy, or a dev server in front of `shell/` — gets both.
+
 ## Where the decisions are
 
 | | |
@@ -81,6 +88,5 @@ is why the whole of this application's judgement is testable without a camera.
 
 ## Still to do
 
-The shell app itself: `capacitor.config.json` with `webDir: "app"`, and the generated `android/` and
-`ios/` projects that embed this and the plugin. That is packaging, and it wants a device to be worth
-doing.
+A live event stream in the plain-browser path, which means either a bundler here or a stripped copy
+of the codec. Everything else this application does already works without one.

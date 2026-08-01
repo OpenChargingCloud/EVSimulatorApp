@@ -1666,6 +1666,37 @@ phone; scanning a screenshot from two minutes ago is rejected.
 > without `--root` is refused at startup: a TLS session nobody validated is a plaintext session with
 > extra steps.
 >
+> **The web implementation, 2026-08-01.** `registerPlugin` now carries a `web:` implementation, so
+> Capacitor routes the three commands to `capacitor/src/web.ts` when there is no native side. It
+> **replays a recorded session**: `typescript/src/bridge/replay.ts` is a fourth port of
+> `SessionEventStream`, and `replay.test.ts` requires it to produce exactly what
+> `Vectors/Bridge.events.json` pins — every ISO 15118-2 session, event for event, timings included.
+> So the browser's stream is not a fixture: every message carries the JSON-LD this back end's codec
+> produced from the recorded frame, with the raw frame beside it, and the inspector's self-check
+> passes there exactly as it does on a phone.
+>
+> **Two refusals rather than a degraded session.** A configuration with no bundled recording, and any
+> protocol but `iso15118-2` — the generator has emitted the SAP and -2 codecs for TypeScript and not
+> the -20 sets, so a -20 trace replays as twenty-odd error events naming payload types. `replay`
+> produces exactly that, because a frame a build cannot place becomes an error in *every* back end;
+> the judgement that this is not a session belongs to the plugin, which knows it in advance. Same
+> distinction as `LiveSessionRunner`'s "Plug & Charge without credentials": refuse before the stream
+> starts, when it is knowable.
+>
+> **A -20 session opens with SAP on 0x8001**, the payload type it shares with every -2 message — so
+> "a build without the -20 codecs" is not "no readable frames", and a first draft of that test
+> asserting zero messages was wrong about the protocol rather than about the code.
+>
+> **Stopping ends the stream.** An error event, then `sessionFinished` with `failed` — the existing
+> vocabulary, because a third outcome would be a format change four back ends would have to agree to.
+> A consumer left with no ending would wait for one for ever, which is worse than a session that
+> failed.
+>
+> **What it does not reach is `app/`, and that is the standing trade rather than a gap.** The web
+> implementation imports the TypeScript codec, and a browser loads `.js`; using it needs a bundler,
+> which the app deliberately does not have. No build step there, no live event stream there. A host
+> that already bundles — Chargy, a dev server in front of `shell/` — gets both.
+
 > **And it found something in the ports.** Capping the declared payload length before allocating —
 > obvious in a tool that forwards for strangers — is *not* done by the three session-side
 > `V2GTPStream`s. The header's length is a 32-bit count supplied by the peer, so a station can ask a

@@ -70,4 +70,9 @@ export function adapt(native: EvSimulatorNative): EvSimulatorPlugin {
  * else.
  */
 export const EvSimulator: EvSimulatorPlugin =
-    adapt(registerPlugin<EvSimulatorNative>("EvSimulator"));
+    adapt(registerPlugin<EvSimulatorNative>("EvSimulator", {
+        // In a browser there is no native side, so Capacitor routes the three commands here instead.
+        // It replays a recorded session — see web.ts for what that can and cannot stand in for.
+        // Loaded lazily, so a phone never pays for a codec it does not use.
+        web: () => import("./web.ts").then(m => new m.EvSimulatorWeb()),
+    }));

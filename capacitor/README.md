@@ -125,6 +125,37 @@ Both produce the same events from the same frames. That is checked rather than a
 runner is driven over the recorded frames, delivered by a real loopback listener, and has to produce
 exactly what `Vectors/Bridge.events.json` pins.
 
+## In a browser
+
+`registerPlugin` is given a `web:` implementation, so Capacitor routes the three commands to
+`src/web.ts` when there is no native side. It **replays a recorded session**: the same traces the
+four back ends are held to, turned into events by `typescript/src/bridge/replay.ts` — a fourth port
+of `SessionEventStream`, required by `replay.test.ts` to match `Vectors/Bridge.events.json`
+character for character.
+
+```ts
+import { EvSimulator } from "@open-charging-cloud/capacitor-ev-simulator";
+import { EvSimulatorWeb } from "@open-charging-cloud/capacitor-ev-simulator/src/web.ts";
+
+// The recordings a build ships are a packaging decision, exactly as they are for
+// TraceSessionRunner on the native side. Nothing is fetched: the page's CSP forbids connect-src
+// outright, so a trace arrives as a module.
+EvSimulatorWeb.prototype.traces = () => myBundledTrace;
+```
+
+It cannot open a session and does not pretend to. A browser cannot open a TCP socket, and the EVCC
+state machines exist in three languages rather than four — `tools/EVSimulatorApp.WsBridge` is the
+transport half of that answer, and the state machines are the other half and are not written.
+
+Two refusals rather than a degraded session: a configuration with no bundled recording, and **any
+protocol but `iso15118-2`**. The generator has emitted the SupportedAppProtocol and -2 codecs for
+TypeScript and not yet the -20 sets, so a -20 trace would replay as twenty-odd error events naming
+payload types. `replay` produces exactly that — a frame it cannot place becomes an error, as in every
+back end — and the plugin refuses up front, because "not a session" is knowable in advance.
+
+**Using it needs a bundler.** Not because of Capacitor, but because the codec is TypeScript and a
+browser loads `.js`. See `app/README.md`.
+
 ## The name is repeated three times
 
 `@CapacitorPlugin(name = "EvSimulator")` on Android, `jsName` on iOS, and
