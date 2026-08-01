@@ -280,6 +280,8 @@ public final class Evcc2 {
             throw SessionAborted("expected an ISO 15118-2 reply, got \(set).")
         }
 
+        if let element = reply.body.bodyElement { try refuseOnFailure(element) }
+
         exchanges += 1
         sessionId = reply.header.sessionID   // adopt the station-assigned session id
 
@@ -288,6 +290,37 @@ public final class Evcc2 {
         }
         return body
     }
+
+    /// Ends the session when the station answers with a code from the `FAILED` family.
+    ///
+    /// The -2 half of the gap eVDriveFlow exposed in the -20 EVCC on 2026-08-01
+    /// (`libs/Vanaheimr.V2G.Exi/docs/interop-runs/2026-08-01-edf-iso20-dc-notls/`, finding 3). Same
+    /// hole, and invisible for the same reason: our own SECC never answers FAILED, so the trace corpus —
+    /// this port's whole oracle — contains no such response.
+    ///
+    /// **Why a mirror rather than a switch over the types.** ISO 15118-2 has no common response base;
+    /// every `*ResType` declares its own `responseCode`. A switch would be fail-open — the case nobody
+    /// wrote, or the message added later, goes unchecked, which is the failure this exists to end.
+    /// Reading the stored property by name covers every response type there is and will be; the C# side
+    /// enumerates its generated assembly to prove the property is universal
+    /// (`Evcc2FailureHandlingTests.EveryResponseTypeIsCheckable`), and all three back ends are emitted
+    /// from the same schema plan.
+    ///
+    /// -2 has only two families: four `OK*` values and then `FAILED` onwards, with no `WARNING` — unlike
+    /// -20.
+    internal func refuseOnFailure(_ body: BodyBaseType) throws {
+
+        let code = Mirror(reflecting: body).children
+            .first { $0.label == "responseCode" }?
+            .value as? ResponseCode
+
+        if let code, code.rawValue >= ResponseCode.FAILED.rawValue {
+            throw SessionAborted(
+                "the station answered \(type(of: body)) with \(code); the session ends here.")
+        }
+
+    }
+
 
     // ── request builders ──────────────────────────────────────────────────
 

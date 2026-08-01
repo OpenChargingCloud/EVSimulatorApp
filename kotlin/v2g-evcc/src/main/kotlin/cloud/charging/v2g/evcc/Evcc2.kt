@@ -303,15 +303,51 @@ class Evcc2(
         if (set != MessageSet.Iso15118_2 || message !is V2G_Message)
             throw SessionAborted("expected an ISO 15118-2 reply, got $set.")
 
+        val body = message.body.bodyElement
+        if (body != null) refuseOnFailure(body)
+
         exchanges++
         sessionId = message.header.sessionID   // adopt the station-assigned session id
 
-        val body = message.body.bodyElement
         if (body !is T)
             throw SessionAborted(
                 "expected a ${T::class.simpleName}, got ${body?.let { it::class.simpleName } ?: "an empty body"}.")
 
         return body
+    }
+
+
+    /**
+     * Ends the session when the station answers with a code from the `FAILED` family.
+     *
+     * The -2 half of the gap eVDriveFlow exposed in the -20 EVCC on 2026-08-01
+     * (`libs/Vanaheimr.V2G.Exi/docs/interop-runs/2026-08-01-edf-iso20-dc-notls/`, finding 3). Same
+     * hole, and invisible for the same reason: our own SECC never answers FAILED, so the trace corpus —
+     * this port's whole oracle — contains no such response.
+     *
+     * **Why reflection rather than a `when` over the types.** ISO 15118-2 has no common response base;
+     * every `*ResType` declares its own `responseCode`. A `when` would be fail-open — the branch nobody
+     * wrote, or the message added later, goes unchecked, which is the failure this exists to end. The
+     * getter is read by name, which covers every response type there is and will be; the C# side
+     * enumerates its generated assembly to prove the property is universal
+     * (`Evcc2FailureHandlingTests.EveryResponseTypeIsCheckable`), and all three back ends are emitted
+     * from the same schema plan.
+     *
+     * -2 has only two families: four `OK*` values and then `FAILED` onwards, with no `WARNING` — unlike
+     * -20.
+     */
+    internal fun refuseOnFailure(body: BodyBaseType) {
+
+        val code = try {
+            body.javaClass.getMethod("getResponseCode").invoke(body) as? ResponseCode
+        } catch (_: NoSuchMethodException) {
+            null
+        }
+
+        if (code != null && code.ordinal >= ResponseCode.FAILED.ordinal)
+            throw SessionAborted(
+                "the station answered ${body::class.simpleName} with ${code.name}; the session ends here.")
+
     }
 
 

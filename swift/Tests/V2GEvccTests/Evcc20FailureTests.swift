@@ -17,13 +17,6 @@ import ExiIso20DC
 /// construction, and this file is the station it does not contain.
 
 
-/// A transport that is never used, for the checks that inspect a message and touch no octets.
-private final class SilentTransport: V2GByteStream {
-    func read(maxLength: Int) throws -> [UInt8] { [] }
-    func write(_ bytes: [UInt8]) throws { }
-}
-
-
 final class Evcc20FailureTests: XCTestCase {
 
     private func evcc() -> Evcc20Dc {
