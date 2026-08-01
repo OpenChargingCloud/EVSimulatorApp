@@ -25,20 +25,41 @@ checkable from a README.*
 
 ## tux-evse/iso15118-simulator-rs
 
-A scenario runner with a **web UI** (`devtools`, on `:1234`), exposing ISO messages as JSON RPCs over
-**WebSocket** through the AGL Application Framework Binder. It can act as the EV (injector) or as the
-charger (responder), and both at once. EXI is delegated to a sibling crate,
-[`iso15118-encoders-rs`](https://github.com/tux-evse/iso15118-encoders-rs).
+**Harness: [`libs/Vanaheimr.V2G.Exi/tools/interop-tux-evse/`](../libs/Vanaheimr.V2G.Exi/tools/interop-tux-evse/README.md)**
+— built 2026-08-01, not yet run against them.
 
-**Why this one is the most interesting of the three.** Scenarios are JSON, and its `pcap-iso15118`
+A scenario runner with a **web UI** (`devtools`, injector on `:1234`, responder on `:1235`), exposing
+ISO messages as JSON RPCs over **WebSocket** through the AGL Application Framework Binder. It can act
+as the EV (injector) or as the charger (responder), and both at once. EXI is delegated to a sibling
+crate, [`iso15118-encoders-rs`](https://github.com/tux-evse/iso15118-encoders-rs).
+
+**Correction to this entry's original premise: it is not an independent EXI oracle.** Their encoders
+crate says it "relies on cbexigen iso15118-encoder library for low level EXI binary encoding" —
+cbexigen is the generator behind libcbv2g, which is where our own byte-exact vector corpus comes
+from. So the same caveat this file already records for EVerest's `EvseV2G` applies here: a
+disagreement is **not** an EXI disagreement by construction, it is a state-machine, framing or timing
+one. Josev (EXIficient) remains the only counterparty whose bytes are independent of ours.
+
+**Why it is still the most interesting of the three.** Scenarios are JSON, and its `pcap-iso15118`
 tool generates them **from packet captures**. That is the same idea as our
 `Vectors/Session.*.trace.json` — a recorded session replayed frame by frame — arrived at
 independently. Two recorders that agree on what a session was are worth much more than one, and a
 capture of *our* EVCC against *their* EVSE can be replayed by both sides afterwards.
 
+And because their side is a **replayer rather than a state machine**, a reverse run puts a *real
+car's* messages in front of our station — the shipped scenario is an Audi against an ABB charger —
+rather than our own idea of a car's. That is the half a self-consistent implementation is worst at.
+
 Also: it already answers a WebSocket, so `tools/EVSimulatorApp.WsBridge` is not needed to put a
 browser in front of it — its transport and ours are different answers to the same question, and
 comparing them is cheap.
+
+**How to read a reverse run's verdict.** Their injector compares each response against an `expect`
+block lifted from the capture, and that block holds *the captured charger's* values —
+`"id": "DE*PNX*E12345*1"` is an EVSE ID, not a protocol constant. Against our station those
+comparisons fail on a session that is otherwise perfect, so their pass/fail is not ours;
+`scenario-expectations.py` in the harness lists which expectations are station-specific before the
+run. Their `strong` compaction mode is the one to use against a foreign station.
 
 **What it cannot tell us yet:** -20 and DIN are announced rather than shipped, so it exercises the
 -2 half of our stack only.
@@ -86,11 +107,18 @@ an external SECC (ours) rather than only against its own `EvseV2G`.
 
 ## What to do with a run
 
-Every session against a counterparty should come back as a **trace**, not as a memory. The recorder
-already exists (`Vanaheimr.V2G.Simulation.Tests/Traces/SessionTrace.cs`), the format is the one four
-back ends replay, and `bridge/EVSimulatorApp.Bridge.Tests/Vectors/Bridge.events.json` is generated
-from it. So an interop run is not a one-off: it becomes a corpus entry that all four back ends are
-held to from then on, and the conformance fix it produced cannot silently regress.
+Every session against a counterparty should come back as a **trace**, not as a memory. Since
+2026-08-01 the interop fixtures do this themselves: set `V2G_INTEROP_RECORD=<dir>` and every run
+leaves the raw octets of both directions, a frame log, and — when the session was well-formed enough
+to be one — a `SessionTrace` in the format all four back ends replay
+(`Vanaheimr.V2G.Simulation.Tests/Interop/InteropRecording.cs`). So an interop run is not a one-off:
+it becomes a corpus entry that all four back ends are held to from then on, and the conformance fix
+it produced cannot silently regress.
+
+The bytes are written *before* the trace is attempted, and the trace's refusal is written down rather
+than thrown. The run that fails is the interesting one, and it is exactly the run whose recording a
+strict corpus builder will not accept — a recorder that kept only what it could parse would discard
+the evidence of every disagreement it was built to find.
 
 Both sides are worth recording. Our EVCC against their EVSE tests what we *send*; their EVCC against
 our SECC tests what we *accept*, which is the half a self-consistent implementation is worst at.
