@@ -182,6 +182,40 @@ expensive remaining work in any port is:
 A port therefore does not start from "4,000 lines of generator". It starts from "an entire
 validated stack, minus its validation".
 
+#### Where that validation came from — and the four harnesses (2026-08-01)
+
+Point 3 above needs one more clause: all ~15 fixes came from **one** live peer. Josev is a good
+oracle — its EXI is EXIficient, which shares no lineage with the cbV2G corpus everything here is
+generated against — but one peer is still one peer, and two implementations that agree can only prove
+they agree. Fifteen findings from the first counterparty is a reason to expect more from the second,
+not fewer.
+
+So [`docs/counterparties.md`](counterparties.md) is not a wish list any more: all four now have a
+harness under `libs/Vanaheimr.V2G.Exi/tools/interop-*/`, sharing one vocabulary of environment
+variables, one recorder and eight `[Explicit] [Category("Interop")]` fixtures — four counterparties ×
+two directions. **Three of the four have never been run**; Josev remains the only one with recorded
+sessions. What each *could* prove differs sharply, and the deciding fact is whose EXI it uses:
+
+| | plays | EXI lineage | a disagreement would be |
+|---|---|---|---|
+| Josev | EV + EVSE, -2/-20 | EXIficient — **independent** | either layer (this is where the ~15 came from) |
+| tux-evse | EV + EVSE, -2 | cbexigen — *ours* | never EXI: sequencing, framing, timing |
+| eVDriveFlow | EV + EVSE, **-20 Ed. 1** | OpenEXI — **independent** | either layer; the only -20 peer with both |
+| EVerest | EV + EVSE, DIN/-2/-20 | cbV2G — *ours* (car side: Josev) | station side only; its car is Josev in a wrapper |
+
+**Why this belongs in §1.3 rather than in a tooling note.** Point 3's real problem is not that live
+fixes are hard to find — it is that they are *diffused across the state machines and will not announce
+themselves during a port*. That is now addressed by construction: every interop run can be recorded as
+a `SessionTrace`, which is the same format the trace corpus uses and which **all four back ends
+replay** (§5). A conformance fix earned against a live peer therefore stops being tacit knowledge in
+the C# state machines and becomes a file that Kotlin, Swift and TypeScript are held to from then on —
+and it cannot silently regress in any of them.
+
+That is the only mechanism this project has for stopping point 3 from repeating itself once per port.
+It is also why the recorder writes the raw octets *before* it attempts a trace, and writes down the
+refusal when the trace will not build: the run that fails is the one worth keeping, and it is exactly
+the run a strict corpus builder rejects.
+
 ### 1.4 What is *not* there
 
 - **No `EVSimulatorApp` code yet** — ⚠️ *out of date as of 2026-07-30.* The repo now carries
@@ -1153,7 +1187,10 @@ Three corrections to this item's premises, two from A1/A2/A6 and one from A4 its
   `docs/counterparties.md` names three besides Josev — tux-evse's Rust simulator (EV **and** EVSE,
   scenarios generated from packet captures, over its own WebSocket RPC), EDF's eVDriveFlow (-20 Ed. 1,
   DC BPT, dynamic control, mutual TLS 1.3 — the combination we have the least outside evidence for),
-  and EVerest (DIN/-2 through `EvseV2G` on cbV2G, the car side through `PyEvJosev`).
+  and EVerest (DIN/-2 through `EvseV2G` on cbV2G, -20 through `Evse15118D20`, the car side through
+  `PyEvJosev`). **All four have a harness since 2026-08-01 and three have never been run** — §1.3 has
+  the table of what each could prove, and the reason a run matters to *this* item specifically: a
+  recorded run becomes a trace, and a trace is something all four back ends replay.
 - **~~A4 has no oracle~~ — it has one now (2026-07-31).** This item used to read: *"The codec port had
   a byte-exact oracle; A4 has none — there is no vector corpus for behaviour. Realistically its check
   is B0's Pi … That argues for B0 landing before A4."* With B0's hardware deferred, that reasoning
