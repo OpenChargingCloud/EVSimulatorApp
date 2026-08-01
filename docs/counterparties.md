@@ -61,6 +61,16 @@ comparisons fail on a session that is otherwise perfect, so their pass/fail is n
 `scenario-expectations.py` in the harness lists which expectations are station-specific before the
 run. Their `strong` compaction mode is the one to use against a foreign station.
 
+**The verdict that *is* ours is the flow.** A scenario file is a declared sequence of ISO 15118
+messages taken from a real capture, so the harness reads it as one and compares it against what
+crossed the wire (`V2G_INTEROP_SCENARIO=<file>` → `flow.md`). Order, phases, response codes — the
+layer a corpus of single messages cannot see, and the layer §1.3's conformance fixes live in.
+Consecutive repeats are collapsed on both sides first: a session polls where a compacted scenario
+names the message once, and an uncollapsed diff would bury the real difference under the poll loop.
+Their verb vocabulary is a hand-kept table rather than a snake_case conversion — `payment_selection`
+is `PaymentServiceSelection`, `param_discovery` is `ChargeParameterDiscovery` — because a converter
+would have invented three messages that do not exist and then reported them missing for ever.
+
 **What it cannot tell us yet:** -20 and DIN are announced rather than shipped, so it exercises the
 -2 half of our stack only.
 
