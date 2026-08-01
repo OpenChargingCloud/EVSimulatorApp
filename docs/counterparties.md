@@ -38,7 +38,8 @@ crate says it "relies on cbexigen iso15118-encoder library for low level EXI bin
 cbexigen is the generator behind libcbv2g, which is where our own byte-exact vector corpus comes
 from. So the same caveat this file already records for EVerest's `EvseV2G` applies here: a
 disagreement is **not** an EXI disagreement by construction, it is a state-machine, framing or timing
-one. Josev (EXIficient) remains the only counterparty whose bytes are independent of ours.
+one. The counterparties whose bytes *are* independent of ours are Josev (EXIficient) and eVDriveFlow
+(OpenEXI).
 
 **Why it is still the most interesting of the three.** Scenarios are JSON, and its `pcap-iso15118`
 tool generates them **from packet captures**. That is the same idea as our
@@ -76,9 +77,17 @@ would have invented three messages that do not exist and then reported them miss
 
 ## EDF-Lab/eVDriveFlow
 
+**Harness: [`libs/Vanaheimr.V2G.Exi/tools/interop-evdriveflow/`](../libs/Vanaheimr.V2G.Exi/tools/interop-evdriveflow/README.md)**
+— built 2026-08-01, not yet run against them.
+
 ISO 15118-**20** Edition 1, DC bidirectional power transfer, **dynamic** control mode, **TLS 1.3 with
-mutual authentication** (disableable for testing). Both sides, each with a GUI: the SECC one sets
-departure time and SoC targets, the EVCC one adjusts power during the session.
+mutual authentication** (disableable for testing, via `SECURITY_PROTOCOL` in `shared/global_values.py`).
+Both sides, each with a GUI: the SECC one sets departure time and SoC targets, the EVCC one adjusts
+power during the session. Python + conda, and a **JDK** — because their EXI is **OpenEXI**.
+
+**That JDK is a fact worth its own line: OpenEXI is a third independent EXI lineage**, after our
+cbV2G/cbexigen corpus and Josev's EXIficient. So unlike tux-evse and EVerest, a byte disagreement here
+is a real finding — this counterparty is an oracle at both layers, the codec and the flow.
 
 **Why it matters to us specifically.** This is the only counterparty here that goes straight at the
 combination we have the least outside evidence for: -20 + BPT + dynamic control + mutual TLS 1.3.
@@ -89,9 +98,14 @@ oracle.
 Its dynamic control mode also drives the schedule-renegotiation paths, which our recorded sessions
 touch only where we chose to record them.
 
-**Confirm on first contact:** whether it does Plug & Charge / contract certificates at all — the
-README does not say — and whether the EVCC side can be driven headlessly (`start_ev.py` exists, so
-probably yes) for repeatable runs.
+**Answered since:** headless runs are supported on both sides — `secc/start_evse.py` and
+`evcc/start_ev.py`, alongside the two GUIs — so repeatable runs need no window.
+
+**Confirm on first contact:** whether it does Plug & Charge / contract certificates at all (the
+documentation does not say); which suite and curve its TLS 1.3 actually negotiates; and what
+`virtual_mode = true` in both `.ini` files does to a session against a foreign peer — their
+documentation describes it as simulating the communication card, which makes it the first setting to
+question when nothing connects.
 
 ## EVerest
 
