@@ -1148,6 +1148,12 @@ Three corrections to this item's premises, two from A1/A2/A6 and one from A4 its
 - **It needs doing twice**, once per back end, and the plan only ever scheduled the Kotlin half.
   A Swift A4 is unscheduled work that B1's iOS half depends on.
 - **This is where the ~15 live-interop conformance fixes actually live** (§1.3), not in the codec.
+  Which is why the counterparty list is not a nice-to-have: our corpora cannot see both sides of our
+  own stack agreeing on the same mistake, and a second implementation is the only thing that can.
+  `docs/counterparties.md` names three besides Josev — tux-evse's Rust simulator (EV **and** EVSE,
+  scenarios generated from packet captures, over its own WebSocket RPC), EDF's eVDriveFlow (-20 Ed. 1,
+  DC BPT, dynamic control, mutual TLS 1.3 — the combination we have the least outside evidence for),
+  and EVerest (DIN/-2 through `EvseV2G` on cbV2G, the car side through `PyEvJosev`).
 - **~~A4 has no oracle~~ — it has one now (2026-07-31).** This item used to read: *"The codec port had
   a byte-exact oracle; A4 has none — there is no vector corpus for behaviour. Realistically its check
   is B0's Pi … That argues for B0 landing before A4."* With B0's hardware deferred, that reasoning

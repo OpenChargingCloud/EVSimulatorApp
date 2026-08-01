@@ -66,6 +66,18 @@ public final class V2GTPStream {
             throw SessionAborted("V2GTP frame: bad version/type bytes in the 8-byte header.")
         }
 
+        // Before the allocation, and on the UNSIGNED value. `Int(_:)` on a 64-bit platform widens
+        // rather than wrapping, so Swift is spared the truncation that catches Kotlin's `.toInt()` —
+        // but the 2 GiB allocation is the same, and a reader should not depend on its word size to
+        // be safe. See `V2GTP.maximumPayloadBytes`.
+        guard parsed.payloadLength <= UInt32(V2GTP.maximumPayloadBytes) else {
+            throw SessionAborted(
+                "V2GTP frame: a frame of payload type "
+              + String(format: "0x%04x", parsed.payloadType)
+              + " declares \(parsed.payloadLength) payload byte(s); "
+              + "this reader accepts at most \(V2GTP.maximumPayloadBytes).")
+        }
+
         let payloadLength = Int(parsed.payloadLength)
         let payload = payloadLength > 0
             ? try readExactly(payloadLength,

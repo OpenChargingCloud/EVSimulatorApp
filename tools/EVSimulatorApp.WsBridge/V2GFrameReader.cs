@@ -22,16 +22,14 @@ public sealed class V2GFrameReader(Stream source, int maximumPayloadBytes = V2GF
 {
 
     /// <summary>
-    /// The largest payload this will allocate for.
+    /// The largest payload this will allocate for — the same number the session-side readers use.
     /// </summary>
     /// <remarks>
-    /// The header's length field is a 32-bit count supplied by the peer, so believing it means
-    /// letting whoever is on the other end choose an allocation of up to 4 GiB. ISO 15118 messages
-    /// are hundreds of bytes; a certificate chain in a -20 <c>AuthorizationReq</c> is the largest
-    /// thing that ever crosses and is far under this. A frame that declares more is a peer that is
-    /// broken or hostile, and either way not one to allocate for.
+    /// One value, not four. This bridge had its own copy first, because forwarding for strangers
+    /// makes the question obvious; the three <c>V2GTPStream</c>s did not have the check at all, and
+    /// now share this constant rather than a second opinion about it.
     /// </remarks>
-    public const int DefaultMaximumPayloadBytes = 1 << 20;
+    public const int DefaultMaximumPayloadBytes = V2GTP.MaximumPayloadBytes;
 
 
     /// <summary>

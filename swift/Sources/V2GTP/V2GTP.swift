@@ -39,6 +39,20 @@ public enum V2GTP {
 
     public static let headerSize = 8
 
+    /// The largest payload a reader will allocate for. A **receive** limit, not a wire change.
+    ///
+    /// The header's length is a 32-bit count supplied by the peer, so believing it means letting
+    /// whoever answered the socket choose an allocation of up to 4 GiB — out of one 8-byte frame that
+    /// carries no payload at all. On a phone that is an out-of-memory kill, and the frame that asked
+    /// for it cost the sender nothing.
+    ///
+    /// Nothing legitimate comes close. The largest frame in any recorded session is a -20
+    /// `AuthorizationReq` carrying a contract chain, at **921 bytes**; the largest EXI vector in the
+    /// corpus is 266. A megabyte is three orders of magnitude of headroom, so this refuses only what
+    /// no encoder here can produce. Kept in step with C#'s `V2GTP.MaximumPayloadBytes` and Kotlin's
+    /// `V2GTP.MAXIMUM_PAYLOAD_BYTES`.
+    public static let maximumPayloadBytes = 1 << 20
+
     /// The 8-byte header for a payload of `payloadLength` bytes. Both multi-byte fields are
     /// big-endian, as on the wire.
     ///

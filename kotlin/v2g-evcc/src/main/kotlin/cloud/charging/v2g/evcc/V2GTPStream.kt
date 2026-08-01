@@ -61,6 +61,16 @@ class V2GTPStream(
         val parsed = V2GTP.tryReadHeader(header)
             ?: throw IOException("V2GTP frame: bad version/type bytes in the 8-byte header.")
 
+        // Before the allocation, and on the UNSIGNED value. `.toInt()` is where 0xFFFFFFFF becomes
+        // -1, and a negative length allocates nothing, reads nothing and returns a silently
+        // truncated 7-byte "frame" — a worse outcome than the 2 GiB one that 0x7FFFFFFF asks for,
+        // because nothing about it looks wrong. See V2GTP.MAXIMUM_PAYLOAD_BYTES.
+        if (parsed.payloadLength > V2GTP.MAXIMUM_PAYLOAD_BYTES.toUInt())
+            throw IOException(
+                "V2GTP frame: a frame of payload type 0x%04x declares ${parsed.payloadLength} "
+                    .format(parsed.payloadType.toInt()) +
+                "payload byte(s); this reader accepts at most ${V2GTP.MAXIMUM_PAYLOAD_BYTES}.")
+
         val payloadLength = parsed.payloadLength.toInt()
         val frame = header.copyOf(V2GTP.HEADER_SIZE + payloadLength)
 
