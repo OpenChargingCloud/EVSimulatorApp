@@ -18,7 +18,22 @@ import java.io.OutputStream
  * bidirectional `Stream`, because that is what a JVM socket actually offers. Calls block; the caller
  * decides which thread that happens on (on Android, a `Dispatchers.IO` coroutine).
  */
-class V2GTPStream(private val input: InputStream, private val output: OutputStream) {
+class V2GTPStream(
+    private val input: InputStream,
+    private val output: OutputStream,
+    /**
+     * Called with every complete frame that crosses, and the direction it went (`out` for a frame
+     * this EV sent, `in` for one it received).
+     *
+     * **This is the only place in the stack where a frame is whole.** Above it there are decoded
+     * messages and no bytes; below it there are bytes and no frame boundaries — `readExactly` may
+     * take several reads to fill one, and a tap on the byte stream would have to re-implement the
+     * framing to find out where a frame ends. So the bridge's event stream is fed from here.
+     *
+     * A no-op by default: everything that ran before there was a live runner still runs.
+     */
+    private val onFrame: (ByteArray, UShort, String) -> Unit = { _, _, _ -> },
+) {
 
     /**
      * Reads one frame — the 8-byte header, then exactly as many payload bytes as it declares — and
@@ -53,6 +68,8 @@ class V2GTPStream(private val input: InputStream, private val output: OutputStre
             readExactly(frame, V2GTP.HEADER_SIZE, payloadLength,
                         "connection closed inside a frame declaring $payloadLength payload byte(s)")
 
+        onFrame(frame, parsed.payloadType, "in")
+
         return frame to parsed.payloadType
     }
 
@@ -70,8 +87,14 @@ class V2GTPStream(private val input: InputStream, private val output: OutputStre
     }
 
     private fun writeAll(frame: ByteArray) {
+
         output.write(frame)
         output.flush()
+
+        // The payload type is read back out of the frame that just went, rather than passed down
+        // from the caller: both write paths build the header themselves, and reporting what is
+        // actually on the wire is one fewer thing that can disagree with it.
+        V2GTP.tryReadHeader(frame)?.let { onFrame(frame, it.payloadType, "out") }
     }
 
     private fun readExactly(into: ByteArray, offset: Int, length: Int, whatWentWrong: String) {

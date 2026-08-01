@@ -143,6 +143,48 @@ public class SessionEventStreamTests
 
 
     /// <summary>
+    /// The name in the document is the name the recorder gave.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two independent derivations of one value, required to agree. The recorder reads the decoded
+    /// object's .NET type name; <see cref="MessageSetCodecs.MessageName"/> reads <c>@type</c> out of
+    /// the JSON-LD. They agree because the emitter writes the type name as <c>@type</c> — but that is
+    /// a fact about the emitter, not an identity, and it is the only reason a live session can name a
+    /// message without reflecting over a type in three languages that name types three different
+    /// ways.
+    /// </para>
+    /// <para>
+    /// So it is checked here, over every recorded message: SAP, all of ISO 15118-2 wrapped in
+    /// <c>V2G_Message</c>, and the -20 sets that are not.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public void TheNameInTheDocumentIsTheNameTheRecorderGave()
+    {
+
+        var sessions = JsonNode.Parse(File.ReadAllText(CorpusPath))!["sessions"]!.AsObject();
+        var checked_ = 0;
+
+        foreach (var (name, events) in sessions)
+        {
+            foreach (var evt in events!.AsArray())
+            {
+                var json = evt!.AsObject();
+                if (json["kind"]!.GetValue<string>() != "message") continue;
+
+                Assert.That(MessageSetCodecs.MessageName(json["json"]!.AsObject()),
+                            Is.EqualTo(json["messageName"]!.GetValue<string>()),
+                            $"{name}/{json["seq"]}");
+                checked_++;
+            }
+        }
+
+        Assert.That(checked_, Is.GreaterThan(100), $"only {checked_} messages were checked");
+    }
+
+
+    /// <summary>
     /// The stream is a record, never a channel: no event asks the far side to do anything.
     /// </summary>
     /// <remarks>

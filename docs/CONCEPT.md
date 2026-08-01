@@ -1401,7 +1401,8 @@ runs behind the host on a laptop. Only the words "over WLAN to the Pi" are outst
 are outstanding because of the hardware, not the software.*
 
 **B1 — Capacitor plugin + QR pairing (2–2.5 weeks, needs A1+A4 Kotlin).** 🟡 **the pairing half
-landed 2026-07-31, the plugin itself 2026-08-01.** Wrap the Kotlin (and
+landed 2026-07-31, the plugin and the live runner 2026-08-01 — what is left is the UI and a
+phone.** Wrap the Kotlin (and
 later Swift) stack behind a Capacitor plugin: start/stop, config in, **event stream out** (state
 changes, each message as JSON-LD *and* raw EXI, errors, timings). Threading/lifecycle incl.
 background handling (§3.5). **QR scanner + pairing sheet (§4.5/§4.6)**: camera scan, payload parse
@@ -1492,6 +1493,53 @@ phone; scanning a screenshot from two minutes ago is rejected.
 > real function, and the mutation fails at the first event.
 >
 > Still to do: the live session runner (socket, TLS, `Evcc2`) and the UI.
+
+> **The live session runner, 2026-08-01.** `kotlin/v2g-session` and `swift/Sources/V2GSession`: a
+> socket to a station, the EVCC state machines above it, and a bridge event for every frame that
+> crosses. Both are `SessionRunner`s, so the Capacitor adapter needed no change at all — installing
+> one is a line in the host application.
+>
+> **The claim it makes is that it changes nothing.** `SessionEventStream` has documented, since before
+> a live runner existed, that *"the live runner emits the same events from the same frames; what
+> differs is where the frames come from."* That was an intention with nothing holding it. It is now
+> held: the recorded frames, delivered over TCP by a loopback listener, must produce **exactly** the
+> events `Vectors/Bridge.events.json` pins — property for property, timing included, for all four
+> EIM sessions in both back ends. Nothing in `Evcc2`, `Evcc20*` or `SapHandshake` was touched.
+>
+> **The frame tap goes where a frame is whole.** `V2GTPStream` gained one optional callback, a no-op
+> by default. Above it there are decoded messages and no bytes; below it there are bytes and no frame
+> boundaries — `readExactly` may take several reads to fill one — so a tap anywhere else would have to
+> re-implement the framing to find out where a frame ends.
+>
+> **The measurement worth keeping: the recorded replays are blind to short reads.** The listener
+> answers in three-byte pieces, on purpose. Replacing `readExactly`'s loop with a single `read` — the
+> classic socket bug — leaves **every EVCC trace test green** and fails four of the seven live-runner
+> tests. A `ByteArrayInputStream` always returns everything asked for, so it is the one input that can
+> never take that loop round twice. Six recorded sessions, byte-exact for months, could not see it.
+>
+> **A message names itself.** The recorder labels a frame with the decoded object's .NET *type* name,
+> which a live session cannot reproduce without reflecting over types in three languages that name
+> them three different ways. It does not have to: the JSON-LD emitter writes the type name as
+> `@type`, so the answer is already in the document — `body.bodyElement.@type` for -2, which wraps
+> everything in a `V2G_Message`, and `@type` for the -20 sets and SAP, which do not. Two independent
+> derivations of one value, required to agree over all 196 recorded events.
+>
+> **SAP is told, not guessed.** `0x8001` carries both the handshake and every -2 message, and the
+> dispatcher's rule is that SAP is what comes *first*. The runner drives the handshake, so it is the
+> one place that knows; deciding from the bytes would be a guess, because both grammars decode a
+> 0x8001 payload and the wrong one yields a message that looks fine. Mutating the flag away fails the
+> two -2 sessions and leaves the -20 ones green — which is exactly the blast radius the rule predicts.
+>
+> **TLS trusts one root: the one the code named, if the station sends it.** Not the platform store —
+> a V2G root is not a web CA and is not installed on a phone, so falling back to the system anchors
+> would replace the only applicable opinion with one that cannot apply. No hostname check either: a
+> SECC's certificate carries an EVSE id, not a DNS name. A configuration with no `rootFingerprint`
+> cannot open a TLS session at all; the sheet already reports that as `noTrustAnchor`. And the socket
+> **does** resolve names, which is the opposite of the pairing rule and correct for the same reason
+> the pairing rule exists: `isPrivateTarget` judges a code nobody has agreed to trust yet, while by
+> here a human has read the sheet and said yes.
+>
+> Still to do: the UI, and the exit criterion's own words — a real phone, and the Pi.
 
 > **Pairing ported to Kotlin and Swift, 2026-07-31.** `v2g-pairing` and `V2GPairing` carry the
 > payload parser, the warning classification and both halves of the TOTP — generator and verifier —

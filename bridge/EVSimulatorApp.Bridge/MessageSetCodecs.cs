@@ -62,4 +62,33 @@ public static class MessageSetCodecs
         };
     }
 
+
+    /// <summary>
+    /// The message's name, read out of the document.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The recorder derives this from the decoded object's <em>type</em>, which a live session cannot
+    /// do without reflection in three languages that name types three different ways. It does not
+    /// have to: the JSON-LD emitter writes the type name as <c>@type</c>, so the same answer is
+    /// already in the document, and reading it there is language-neutral.
+    /// </para>
+    /// <para>
+    /// The rule is structural rather than a table. ISO 15118-2 wraps everything in a
+    /// <c>V2G_Message</c>, so the interesting name is the body element's; the -20 sets and the
+    /// SupportedAppProtocol handshake decode straight to the message, so the document is the message.
+    /// <c>SessionEventStreamTests.TheNameInTheDocumentIsTheNameTheRecorderGave</c> holds that claim to
+    /// all 196 recorded events rather than to this paragraph.
+    /// </para>
+    /// </remarks>
+    public static string MessageName(JsonObject json)
+
+        => json["body"] is JsonObject body
+
+               ? body["bodyElement"] is JsonObject element
+                     ? element["@type"]!.GetValue<string>()
+                     : "V2G_Message(empty body)"
+
+               : json["@type"]!.GetValue<string>();
+
 }

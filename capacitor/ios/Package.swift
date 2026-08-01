@@ -39,6 +39,11 @@ let package = Package(
                 // the name in its manifest.
                 .product(name: "ExiRuntime", package: "swift"),
                 .product(name: "V2GBridge",  package: "swift"),
+
+                // The live runner and the socket, so a host application can install one without
+                // depending on the V2G package directly. Nothing here constructs it: which runner a
+                // build uses is the application's decision (see EvSimulatorPlugin.runner).
+                .product(name: "V2GSession", package: "swift"),
             ],
             // Swift 5 language mode, for this target only.
             //

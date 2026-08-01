@@ -88,20 +88,31 @@ design exists to prevent. A flat call would fail on Capacitor's own key, on a ph
 ## Installing a session runner
 
 `start` needs something that turns an approved configuration into events. That is a `SessionRunner`,
-installed by the host application rather than constructed here, because where the frames come from is
-a packaging question:
+installed by the host application rather than constructed here, because which one a build uses is the
+application's decision:
+
+```kotlin
+EvSimulatorPlugin.runner = LiveSessionRunner(connect = { TcpV2GTransport.connect(it) })
+```
+
+```swift
+EvSimulatorPlugin.runner = LiveSessionRunner(connect: { try NetworkV2GTransport.connect($0) })
+```
+
+That is the real thing: a socket to the station, TLS pinned to the root the pairing code named, the
+EVCC state machines above it, and a bridge event for every frame that crosses.
+
+`TraceSessionRunner` is the other one. It replays a recorded session, which makes the whole path —
+from the WebView's command to the events it renders — demonstrable on a phone with no station in the
+room:
 
 ```kotlin
 EvSimulatorPlugin.runner = TraceSessionRunner({ config -> traceAsset(config) })
 ```
 
-```swift
-EvSimulatorPlugin.runner = TraceSessionRunner(trace: { config in traceResource(config) })
-```
-
-`TraceSessionRunner` replays a recorded session, which makes the whole path — from the WebView's
-command to the events it renders — demonstrable on a real phone with no station in the room. The
-live runner, which opens a socket and drives `Evcc2`, is B1's session half and is not here yet.
+Both produce the same events from the same frames. That is checked rather than asserted: the live
+runner is driven over the recorded frames, delivered by a real loopback listener, and has to produce
+exactly what `Vectors/Bridge.events.json` pins.
 
 ## The name is repeated three times
 

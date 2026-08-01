@@ -32,6 +32,11 @@ dependencies {
     // module adds nothing to them. It is transport.
     api("cloud.charging.v2g:v2g-bridge:0.1.0")
 
+    // The live runner and the socket, so a host application can install one without depending on
+    // the Kotlin build directly. Nothing here constructs it: which runner a build uses is the
+    // application's decision (see EvSimulatorPlugin.runner).
+    api("cloud.charging.v2g:v2g-session:0.1.0")
+
     // Spelled out rather than `kotlin("test")`: that helper takes its version from the JetBrains
     // Kotlin plugin, which is not applied here (AGP 9 brings its own), so it would resolve to a
     // coordinate with no version at all.

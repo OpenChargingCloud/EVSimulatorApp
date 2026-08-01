@@ -21,13 +21,25 @@ public enum MessageSetCodecs {
 
     public static func toJSON(frame: [UInt8], payloadType: String,
                               messageName: String) throws -> JsonObject {
+        try toJSON(frame: frame, payloadType: payloadType,
+                   isSap: messageName.hasPrefix("SupportedAppProtocol"))
+    }
+
+    /// The same, told directly whether the frame is a SupportedAppProtocol one.
+    ///
+    /// A live session has no recorded message name to read that off, and it does not need one: the
+    /// dispatcher's rule is that SAP is what comes *first*, and the runner driving the handshake is
+    /// the one place that knows without guessing. Deciding it from the frame's own bytes would be a
+    /// guess — both grammars will decode a 0x8001 payload, and the wrong one produces a message that
+    /// looks plausible.
+    public static func toJSON(frame: [UInt8], payloadType: String,
+                              isSap: Bool) throws -> JsonObject {
 
         guard frame.count > v2gtpHeaderBytes else {
             throw JsonLdError("a V2GTP frame is longer than its \(v2gtpHeaderBytes)-byte header.")
         }
 
         let payload = Array(frame[v2gtpHeaderBytes...])
-        let isSap   = messageName.hasPrefix("SupportedAppProtocol")
 
         switch (payloadType, isSap) {
         case ("0x8001", true):
@@ -43,6 +55,114 @@ public enum MessageSetCodecs {
         default:
             throw JsonLdError("payload type '\(payloadType)' is not a message set this build carries.")
         }
+    }
+
+
+    /// The message's name, read out of the document.
+    ///
+    /// The recorder derives this from the decoded object's *type*, which a live session cannot do
+    /// without reflection in three languages that name types three different ways. It does not have
+    /// to: the JSON-LD emitter writes the type name as `@type`, so the same answer is already in the
+    /// document, and reading it there is language-neutral.
+    ///
+    /// The rule is structural rather than a table. ISO 15118-2 wraps everything in a `V2G_Message`,
+    /// so the interesting name is the body element's; the -20 sets and the SupportedAppProtocol
+    /// handshake decode straight to the message, so the document is the message. C#'s
+    /// `TheNameInTheDocumentIsTheNameTheRecorderGave` holds that claim to all 196 recorded events.
+    public static func messageName(_ json: JsonObject) -> String {
+
+        guard let body = json["body"] as? JsonObject else {
+            return (json["@type"] as? JsonString)?.value ?? "unnamed"
+        }
+
+        guard let element = body["bodyElement"] as? JsonObject else {
+            return "V2G_Message(empty body)"
+        }
+
+        return (element["@type"] as? JsonString)?.value ?? "unnamed"
+    }
+}
+
+
+/// The event stream of a session that is happening now.
+///
+/// ``SessionEventStream`` turns a *recording* into events, all of them at once, because a recording
+/// is over. A live session hands over one frame at a time and does not know how many there will be,
+/// so the stream is driven from outside: ``started(name:protocol:mode:)`` once, ``frame(_:payloadType:direction:isSap:)``
+/// per frame, ``finished()`` at the end.
+///
+/// **The events are the same events.** That is the point of the class existing rather than the runner
+/// assembling them: `LiveSessionRunnerTests` drives this over the recorded frames — through a real
+/// socket — and requires exactly what `Vectors/Bridge.events.json` pins, event for event. What
+/// differs between a replay and a live session is where the frames come from, and nothing else.
+///
+/// Not thread-safe, deliberately: one session, one thread, one caller. The sequence numbers are the
+/// consumer's guarantee that nothing was lost, and a stream two threads could interleave would not
+/// have them.
+public final class LiveEventStream {
+
+    private let monotonicMillis: () -> Int
+
+    private var start  = 0
+    private var seq    = 0
+    private var didFail = false
+
+    /// How many request/response exchanges this session ran, counted as messages sent.
+    public private(set) var exchanges = 0
+
+    public init(monotonicMillis: @escaping () -> Int) {
+        self.monotonicMillis = monotonicMillis
+    }
+
+    /// The session began. Starts the clock, so nothing before this is timed.
+    public func started(name: String, protocolName: String, mode: String) -> BridgeEvent {
+        start = monotonicMillis()
+        defer { seq += 1 }
+        return .sessionStarted(seq: seq, atMillis: monotonicMillis() - start,
+                               name: name, protocolName: protocolName, mode: mode)
+    }
+
+    /// One frame that crossed the wire, as the event a consumer receives.
+    ///
+    /// - Parameter isSap: whether this is a SupportedAppProtocol frame — see ``MessageSetCodecs``.
+    public func frame(_ frame: [UInt8], payloadType: String, direction: String,
+                      isSap: Bool) -> BridgeEvent {
+
+        let at  = monotonicMillis() - start
+        let hex = frame.map { String(format: "%02x", $0) }.joined()
+
+        if direction == "out" { exchanges += 1 }
+
+        defer { seq += 1 }
+
+        do {
+            let json = try MessageSetCodecs.toJSON(frame: frame, payloadType: payloadType, isSap: isSap)
+            return .message(seq: seq, atMillis: at, direction: direction, payloadType: payloadType,
+                            messageName: MessageSetCodecs.messageName(json), exi: hex, json: json)
+        } catch {
+            // The frame goes out with the error. A decode failure whose bytes are not in the stream
+            // is a report nobody can act on.
+            didFail = true
+            return .error(seq: seq, atMillis: at,
+                          detail: "a \(payloadType) frame could not be read: \(error)", exi: hex)
+        }
+    }
+
+    /// Something went wrong that was not a frame — a socket that closed, a state machine that gave up.
+    ///
+    /// An event rather than a thrown error because the stream has already started: a consumer that
+    /// has been receiving events needs to be told this one is the last, and silence leaves it waiting.
+    public func failure(_ detail: String) -> BridgeEvent {
+        didFail = true
+        defer { seq += 1 }
+        return .error(seq: seq, atMillis: monotonicMillis() - start, detail: detail, exi: nil)
+    }
+
+    /// The session ended. `failed` when any error event preceded this one.
+    public func finished() -> BridgeEvent {
+        defer { seq += 1 }
+        return .sessionFinished(seq: seq, atMillis: monotonicMillis() - start,
+                                exchanges: exchanges, outcome: didFail ? "failed" : "completed")
     }
 }
 

@@ -35,6 +35,7 @@ let package = Package(
         .library(name: "V2GPairing",  targets: ["V2GPairing"]),
         .library(name: "V2GBridge",   targets: ["V2GBridge"]),
         .library(name: "V2GEvcc", targets: ["V2GEvcc"]),
+        .library(name: "V2GSession", targets: ["V2GSession"]),
     ],
     dependencies: [
         // The Swift package's first third-party *package* dependency, and a deliberate one.
@@ -172,6 +173,15 @@ let package = Package(
             "V2GPairing",
         ]),
         .testTarget(name: "V2GBridgeTests", dependencies: ["V2GBridge"]),
+
+        // The live session runner: a socket to a station, the state machines above it, and a bridge
+        // event for every frame. Kept out of V2GBridge, which says what an event IS and says so
+        // without the state machines — a live runner living there would drag the whole EVCC stack
+        // into the definition of an event.
+        .target(name: "V2GSession", dependencies: [
+            "V2GBridge", "V2GEvcc", "V2GCertificates",
+        ]),
+        .testTarget(name: "V2GSessionTests", dependencies: ["V2GSession"]),
 
         // Test-only: the JSON-LD documents this back end produces, against the ones C# produces.
         // Its own test target because the property is about ALL message sets at once, and no

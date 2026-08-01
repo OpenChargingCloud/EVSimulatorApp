@@ -24,8 +24,21 @@ public final class V2GTPStream {
 
     private let transport: V2GByteStream
 
-    public init(_ transport: V2GByteStream) {
+    /// Called with every complete frame that crosses, its payload type, and the direction it went
+    /// (`out` for a frame this EV sent, `in` for one it received).
+    ///
+    /// **This is the only place in the stack where a frame is whole.** Above it there are decoded
+    /// messages and no bytes; below it there are bytes and no frame boundaries — `readExactly` may
+    /// take several reads to fill one, and a tap on the byte stream would have to re-implement the
+    /// framing to find out where a frame ends. So the bridge's event stream is fed from here.
+    ///
+    /// A no-op by default: everything that ran before there was a live runner still runs.
+    private let onFrame: ([UInt8], UInt16, String) -> Void
+
+    public init(_ transport: V2GByteStream,
+                onFrame: @escaping ([UInt8], UInt16, String) -> Void = { _, _, _ in }) {
         self.transport = transport
+        self.onFrame   = onFrame
     }
 
     /// Reads one frame — the 8-byte header, then exactly as many payload bytes as it declares — and
@@ -59,19 +72,34 @@ public final class V2GTPStream {
                               "connection closed inside a frame declaring \(payloadLength) payload byte(s)")
             : []
 
-        return (header + payload, parsed.payloadType)
+        let frame = header + payload
+        onFrame(frame, parsed.payloadType, "in")
+
+        return (frame, parsed.payloadType)
     }
 
     /// Wraps an already-EXI-encoded payload with the header for `set` and writes it in one call.
     public func writeFrame(_ set: MessageSet, _ exiPayload: [UInt8]) throws {
-        try transport.write(V2GTPDispatcher.encode(set, exiPayload))
+        try writeAll(V2GTPDispatcher.encode(set, exiPayload))
     }
 
     /// As `writeFrame`, but with the payload type given directly — the SAP path, which has no
     /// `MessageSet` of its own on the wire.
     public func writeRawFrame(payloadType: UInt16, _ exiPayload: [UInt8]) throws {
-        try transport.write(V2GTP.header(payloadType: payloadType,
-                                         payloadLength: UInt32(exiPayload.count)) + exiPayload)
+        try writeAll(V2GTP.header(payloadType: payloadType,
+                                  payloadLength: UInt32(exiPayload.count)) + exiPayload)
+    }
+
+    private func writeAll(_ frame: [UInt8]) throws {
+
+        try transport.write(frame)
+
+        // The payload type is read back out of the frame that just went, rather than passed down
+        // from the caller: both write paths build the header themselves, and reporting what is
+        // actually on the wire is one fewer thing that can disagree with it.
+        if let parsed = V2GTP.readHeader(frame) {
+            onFrame(frame, parsed.payloadType, "out")
+        }
     }
 
     private func readExactly(_ count: Int, _ whatWentWrong: String) throws -> [UInt8] {

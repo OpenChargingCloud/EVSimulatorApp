@@ -35,3 +35,6 @@ include("jsonld-agreement")
 // What a WebView receives while a session runs (§B1).
 include("v2g-bridge")
 include("v2g-evcc")
+// The live session runner: a socket to a station, the state machines above it, and a bridge event
+// for every frame. Kept out of v2g-bridge, which says what an event IS without the state machines.
+include("v2g-session")

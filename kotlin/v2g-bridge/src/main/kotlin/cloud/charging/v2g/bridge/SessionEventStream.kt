@@ -20,14 +20,25 @@ object MessageSetCodecs {
     /** The V2GTP header: version, payload type, and the payload's length. */
     const val V2GTP_HEADER_BYTES = 8
 
-    fun toJson(frame: ByteArray, payloadType: String, messageName: String): JsonObject {
+    fun toJson(frame: ByteArray, payloadType: String, messageName: String): JsonObject =
+        toJson(frame, payloadType, messageName.startsWith("SupportedAppProtocol"))
+
+    /**
+     * The same, told directly whether the frame is a SupportedAppProtocol one.
+     *
+     * A live session has no recorded message name to read that off, and it does not need one: the
+     * dispatcher's rule is that SAP is what comes *first*, and the runner driving the handshake is
+     * the one place that knows without guessing. Deciding it from the frame's own bytes would be a
+     * guess — both grammars will decode a 0x8001 payload, and the wrong one produces a message that
+     * looks plausible.
+     */
+    fun toJson(frame: ByteArray, payloadType: String, isSap: Boolean): JsonObject {
 
         require(frame.size > V2GTP_HEADER_BYTES) {
             "a V2GTP frame is longer than its $V2GTP_HEADER_BYTES-byte header."
         }
 
         val payload = frame.copyOfRange(V2GTP_HEADER_BYTES, frame.size)
-        val isSap = messageName.startsWith("SupportedAppProtocol")
 
         return when {
             payloadType == "0x8001" && isSap ->
@@ -54,6 +65,125 @@ object MessageSetCodecs {
                 "payload type '$payloadType' is not a message set this build carries.")
         }
     }
+
+
+    /**
+     * The message's name, read out of the document.
+     *
+     * The recorder derives this from the decoded object's *type*, which a live session cannot do
+     * without reflection in three languages that name types three different ways. It does not have
+     * to: the JSON-LD emitter writes the type name as `@type`, so the same answer is already in the
+     * document, and reading it there is language-neutral.
+     *
+     * The rule is structural rather than a table. ISO 15118-2 wraps everything in a `V2G_Message`, so
+     * the interesting name is the body element's; the -20 sets and the SupportedAppProtocol handshake
+     * decode straight to the message, so the document is the message. C#'s
+     * `TheNameInTheDocumentIsTheNameTheRecorderGave` holds that claim to all 196 recorded events, and
+     * so does this back end's twin.
+     */
+    fun messageName(json: JsonObject): String {
+
+        val body = json["body"] as? JsonObject
+            ?: return (json["@type"] as JsonString).value
+
+        val element = body["bodyElement"] as? JsonObject
+            ?: return "V2G_Message(empty body)"
+
+        return (element["@type"] as JsonString).value
+    }
+}
+
+
+/**
+ * The event stream of a session that is happening now.
+ *
+ * `SessionEventStream` turns a *recording* into events, all of them at once, because a recording is
+ * over. A live session hands over one frame at a time and does not know how many there will be, so
+ * the stream is driven from outside: [started] once, [frame] per frame, [finished] at the end.
+ *
+ * **The events are the same events.** That is the point of the class existing rather than the runner
+ * assembling them: `LiveSessionRunnerTest` drives this over the recorded frames — through a real
+ * socket — and requires exactly what `Vectors/Bridge.events.json` pins, event for event. What differs
+ * between a replay and a live session is where the frames come from, and nothing else, which is what
+ * `SessionEventStream`'s own documentation has claimed since before there was a live runner.
+ *
+ * Not thread-safe, deliberately: one session, one thread, one caller. The sequence numbers are the
+ * consumer's guarantee that nothing was lost, and a stream two threads could interleave would not
+ * have them.
+ */
+class LiveEventStream(private val monotonicMillis: () -> Long) {
+
+    private var start  = 0L
+    private var seq    = 0
+    private var failed = false
+
+    /** How many request/response exchanges this session ran, counted as messages sent. */
+    var exchanges = 0
+        private set
+
+    /** The session began. Starts the clock, so nothing before this is timed. */
+    fun started(name: String, protocol: String, mode: String): BridgeEvent {
+        start = monotonicMillis()
+        return BridgeEvent.SessionStarted(
+            seq      = seq++,
+            atMillis = monotonicMillis() - start,
+            name     = name,
+            protocol = protocol,
+            mode     = mode)
+    }
+
+    /**
+     * One frame that crossed the wire, as the event a consumer receives.
+     *
+     * @param isSap whether this is a SupportedAppProtocol frame — see [MessageSetCodecs.toJson].
+     */
+    fun frame(frame: ByteArray, payloadType: String, direction: String, isSap: Boolean): BridgeEvent {
+
+        val at  = monotonicMillis() - start
+        val hex = frame.joinToString("") { "%02x".format(it) }
+
+        if (direction == "out") exchanges++
+
+        return try {
+            val json = MessageSetCodecs.toJson(frame, payloadType, isSap)
+            BridgeEvent.Message(
+                seq         = seq++,
+                atMillis    = at,
+                direction   = direction,
+                payloadType = payloadType,
+                messageName = MessageSetCodecs.messageName(json),
+                exi         = hex,
+                json        = json)
+        } catch (e: Exception) {
+            // The frame goes out with the error. A decode failure whose bytes are not in the stream
+            // is a report nobody can act on.
+            failed = true
+            BridgeEvent.Error(
+                seq      = seq++,
+                atMillis = at,
+                detail   = "a $payloadType frame could not be read: ${e.message}",
+                exi      = hex)
+        }
+    }
+
+    /**
+     * Something went wrong that was not a frame — a socket that closed, a state machine that gave up.
+     *
+     * An event rather than an exception because the stream has already started: a consumer that has
+     * been receiving events needs to be told this one is the last, and silence leaves it waiting.
+     */
+    fun failure(detail: String): BridgeEvent {
+        failed = true
+        return BridgeEvent.Error(seq = seq++, atMillis = monotonicMillis() - start, detail = detail)
+    }
+
+    /** The session ended. `failed` when any error event preceded this one. */
+    fun finished(): BridgeEvent =
+        BridgeEvent.SessionFinished(
+            seq       = seq++,
+            atMillis  = monotonicMillis() - start,
+            exchanges = exchanges,
+            outcome   = if (failed) "failed" else "completed")
 }
 
 
