@@ -1,0 +1,26 @@
+{
+  "name": "@open-charging-cloud/capacitor-ev-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The Capacitor adapter: the ISO 15118 session runner's three commands in, its event stream out.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\""
+  },
+  "capacitor": {
+    "ios":     { "src": "ios" },
+    "android": { "src": "android" }
+  },
+  "dependencies": {
+    "@open-charging-cloud/v2g-exi": "file:../typescript"
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/core": "^8.5.0"
+  }
+}

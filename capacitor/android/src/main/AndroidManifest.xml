@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Empty on purpose. The plugin needs no permission of its own: the only one a session requires is
+  INTERNET, and that belongs to the application that decides to ship one, not to a library that
+  could be linked and never used.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />

@@ -1401,7 +1401,7 @@ runs behind the host on a laptop. Only the words "over WLAN to the Pi" are outst
 are outstanding because of the hardware, not the software.*
 
 **B1 — Capacitor plugin + QR pairing (2–2.5 weeks, needs A1+A4 Kotlin).** 🟡 **the pairing half
-landed 2026-07-31.** Wrap the Kotlin (and
+landed 2026-07-31, the plugin itself 2026-08-01.** Wrap the Kotlin (and
 later Swift) stack behind a Capacitor plugin: start/stop, config in, **event stream out** (state
 changes, each message as JSON-LD *and* raw EXI, errors, timings). Threading/lifecycle incl.
 background handling (§3.5). **QR scanner + pairing sheet (§4.5/§4.6)**: camera scan, payload parse
@@ -1444,6 +1444,54 @@ phone; scanning a screenshot from two minutes ago is rejected.
 > same events with different timings — checked by mutation, which fails at the second event.
 >
 > Still to do: the Capacitor adapter itself, and the UI.
+
+> **The Capacitor adapter, 2026-08-01.** `capacitor/` is the plugin package: a TypeScript adapter, an
+> Android library module against `com.capacitorjs:core` 8.5.0, and a SwiftPM package against
+> `capacitor-swift-pm` 8.5.0. All three compile; the first two are unit-tested, the third is built for
+> the iOS simulator, which is as far as a laptop goes.
+>
+> **Three separate builds, and that is the point.** `kotlin/`, `swift/` and `typescript/` still build
+> and test with nothing but a JDK, a Swift toolchain and Node — the same property as *`dotnet test`
+> needs no C toolchain, no Java and no network*. An Android library needs the Android SDK and anything
+> linking Capacitor can only be built for iOS, so both arrive as builds of their own that include the
+> shared sources **from source**. Nothing is published and nothing is copied.
+>
+> **The adapter is transport and nothing else.** These are the only files in the project that no test
+> on a laptop can exercise as they actually run, so anything decided in them is decided where nothing
+> checks it. The session, the event and the configuration all live in `v2g-bridge` / `V2GBridge`.
+>
+> **§5 again, from the transport: an event does not survive being a dictionary.** B1 asks the stream
+> to carry every message as JSON-LD, and `notifyListeners` takes a dictionary — so the obvious adapter
+> hands the document to `org.json` on Android and `JSONSerialization` on iOS. Measured over all 196
+> events of `Vectors/Bridge.events.json`: **196 of 196 changed on each platform, in two different
+> orders.** Both libraries are hash-map backed and neither preserves member order; neither is wrong,
+> because member order is semantically insignificant in JSON. That is exactly the shape §5 keeps
+> producing — a layer tolerant of a legitimate variation, which is therefore blind to what that
+> variation destroys. Here it would have destroyed the one thing the JSON-LD corpus pins: the *text*.
+> `@context` first, `@type` second, properties in schema order, agreed by four back ends and then
+> reshuffled twice on the way to the screen. So the event crosses as the agreed string, and
+> `JSON.parse` — whose key order the specification fixes — rebuilds it. Both measurements are kept as
+> tests rather than as comments, so that the day a platform library does preserve order is a day
+> somebody notices.
+>
+> **The configuration is the first thing that travels *into* the bridge**, and so the first untrusted
+> input the WebView supplies rather than receives. `SessionConfig` parses rather than deserialises,
+> refuses unknown properties (a setting the user approved on the sheet that silently did not happen is
+> the failure this design exists to prevent), and applies B1's private-range restriction where the
+> socket is opened rather than where the sheet was drawn. `Vectors/Bridge.config.json` pins 8 accepted
+> and 22 refused cases across C#, Kotlin and Swift — **including the refusal messages**, because three
+> back ends that say no for three different reasons are three different products. A C# test also reads
+> the property names back out of `typescript/src/bridge/plugin.ts`: the producer and the consumer are
+> never compiled together, and since unknown properties are refused, a front end that renames one does
+> not degrade — it stops starting sessions.
+>
+> **What the mutation pass caught this time.** An earlier Android test asserted that the payload
+> carried the event text unaltered — while building that payload itself, rather than calling the
+> function under test. Replacing `BridgeCodec.payload` with the marshalled-`JSObject` version the
+> whole design rejects left it green. It now replays the traces into real `BridgeEvent`s and calls the
+> real function, and the mutation fails at the first event.
+>
+> Still to do: the live session runner (socket, TLS, `Evcc2`) and the UI.
 
 > **Pairing ported to Kotlin and Swift, 2026-07-31.** `v2g-pairing` and `V2GPairing` carry the
 > payload parser, the warning classification and both halves of the TOTP — generator and verifier —

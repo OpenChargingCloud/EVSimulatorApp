@@ -12,6 +12,15 @@
     the codecs and their generated JSON-LD passes. It does not need the state machines: what produces
     the events is the app's own session runner, and this project only says what an event IS.
   -->
+  <!--
+    The command side of the bridge (SessionConfig) restricts a session to a private-range target, and
+    that rule already exists: it is the same one the confirmation sheet applies to a scanned code.
+    Having a second copy here is how the two would drift apart.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../pairing/EVSimulatorApp.Pairing/EVSimulatorApp.Pairing.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Vanaheimr.V2G.Exi.Iso15118_2.csproj" />
     <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages.csproj" />

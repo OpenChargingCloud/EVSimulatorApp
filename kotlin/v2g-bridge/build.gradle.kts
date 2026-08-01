@@ -9,5 +9,10 @@ dependencies {
     api(project(":exi-iso20-ac"))
     api(project(":exi-iso20-dc"))
 
+    // The command side (SessionConfig) restricts a session to a private-range target, and that rule
+    // already exists: it is the same one the confirmation sheet applies to a scanned code. A second
+    // copy here is how the two would drift apart.
+    api(project(":v2g-pairing"))
+
     testImplementation(kotlin("test"))
 }

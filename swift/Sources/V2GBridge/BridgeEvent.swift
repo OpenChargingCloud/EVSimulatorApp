@@ -45,6 +45,17 @@ public enum BridgeEvent {
         }
     }
 
+    /// Milliseconds since the session started. The C# and Kotlin ports have always exposed this; it
+    /// arrived here when the Capacitor adapter needed to time an event it had to invent.
+    public var atMillis: Int {
+        switch self {
+        case let .sessionStarted(_, atMillis, _, _, _):   return atMillis
+        case let .message(_, atMillis, _, _, _, _, _):    return atMillis
+        case let .sessionFinished(_, atMillis, _, _):     return atMillis
+        case let .error(_, atMillis, _, _):               return atMillis
+        }
+    }
+
     public var kind: String {
         switch self {
         case .sessionStarted:  return "sessionStarted"

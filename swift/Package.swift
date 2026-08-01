@@ -164,8 +164,12 @@ let package = Package(
         // twice — as JSON-LD and as the raw V2GTP frame — so it needs the codecs and their JSON-LD
         // passes, and nothing else: what produces the events is the session runner, and this target
         // only says what an event IS.
+        // V2GPairing is here for the command side: SessionConfig restricts a session to a
+        // private-range target, and that rule already exists — it is the same one the confirmation
+        // sheet applies to a scanned code. A second copy is how the two would drift apart.
         .target(name: "V2GBridge", dependencies: [
             "ExiRuntime", "ExiAppProtocol", "ExiIso2", "ExiIso20Common", "ExiIso20AC", "ExiIso20DC",
+            "V2GPairing",
         ]),
         .testTarget(name: "V2GBridgeTests", dependencies: ["V2GBridge"]),
 

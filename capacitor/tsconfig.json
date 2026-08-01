@@ -1,0 +1,17 @@
+{
+  // The same settings as ../typescript/tsconfig.json, and for the same reason: Node runs these
+  // sources directly by stripping the types, so nothing here may need a build step. That is what
+  // `erasableSyntaxOnly` enforces — no `enum`, no parameter properties, no `namespace`.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

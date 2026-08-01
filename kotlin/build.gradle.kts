@@ -5,6 +5,12 @@ plugins {
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
 
+    // Coordinates, so that `capacitor/android` — a separate build, because it needs the Android SDK
+    // and this one must not — can include this build and have Gradle substitute the modules from
+    // source. Nothing is published anywhere; these are the names the substitution matches on.
+    group   = "cloud.charging.v2g"
+    version = "0.1.0"
+
     repositories { mavenCentral() }
 
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
