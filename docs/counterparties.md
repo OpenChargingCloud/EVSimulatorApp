@@ -15,11 +15,16 @@ both directions including Plug & Charge. The three below extend that from "one l
 *Verified against the repositories on 2026-08-01. Anything marked “confirm on first contact” was not
 checkable from a README.*
 
-| | plays | parts | language | licence |
-|---|---|---|---|---|
-| [tux-evse/iso15118-simulator-rs](https://github.com/tux-evse/iso15118-simulator-rs) | **EV and EVSE** | -2 (−20/DIN announced) | Rust | Apache-2.0 |
-| [EDF-Lab/eVDriveFlow](https://github.com/EDF-Lab/eVDriveFlow) | **EV and EVSE** | **-20 Ed. 1**, DC BPT | Python | MIT |
-| [EVerest](https://github.com/EVerest/everest-core) | **EV and EVSE** | DIN 70121, -2, -20 | C++ / C / Python | Apache-2.0 |
+| | plays | parts | EXI lineage | language | licence |
+|---|---|---|---|---|---|
+| [tux-evse/iso15118-simulator-rs](https://github.com/tux-evse/iso15118-simulator-rs) | **EV and EVSE** | -2 (−20/DIN announced) | cbexigen — *ours* | Rust | Apache-2.0 |
+| [EDF-Lab/eVDriveFlow](https://github.com/EDF-Lab/eVDriveFlow) | **EV and EVSE** | **-20 Ed. 1**, DC BPT | **OpenEXI — independent** | Python | MIT |
+| [EVerest](https://github.com/EVerest/everest-core) | **EV and EVSE** | DIN 70121, -2, -20 | cbV2G — *ours* (car side: Josev) | C++ / C / Python | Apache-2.0 |
+
+All four now have a harness, and none has been run against yet — Josev remains the only counterparty
+with recorded sessions (`libs/Vanaheimr.V2G.Exi/docs/interop-runs/`). The harnesses share one
+vocabulary of environment variables and one recorder; what differs is the bring-up and what each run
+can prove.
 
 ---
 
@@ -109,14 +114,20 @@ question when nothing connects.
 
 ## EVerest
 
-The Linux Foundation Energy stack, and the widest surface of the three:
+**Harness: [`libs/Vanaheimr.V2G.Exi/tools/interop-everest/`](../libs/Vanaheimr.V2G.Exi/tools/interop-everest/README.md)**
+— built 2026-08-01, not yet run against them.
+
+The Linux Foundation Energy stack, and the widest surface of the four:
 
 - `modules/EVSE/EvseV2G` — the charger side for **DIN 70121 and ISO 15118-2** (C, cbV2G underneath).
+- `modules/EVSE/Evse15118D20` — the **ISO 15118-20 charger**. This answers the open question below:
+  [`libiso15118`](https://github.com/EVerest/libiso15118) was archived on 2026-02-26 and folded in
+  here; the SIL configurations that use it are `config/config-sil-dc-d20.yaml` and
+  `config-sil-ac-d20.yaml`.
+- `modules/EVSE/IsoMux` — multiplexes -2 and -20 behind one endpoint, which is the closest thing to a
+  real charger's behaviour.
 - `modules/EV/PyEvJosev` — the **car** side, the Josev-derived Python stack. This is the same
   implementation family our existing interop runs used, now packaged as an EVerest module.
-- ISO 15118-**20** came from [`libiso15118`](https://github.com/EVerest/libiso15118) (C++), which was
-  **archived on 2026-02-26** and folded into `everest-core`. Check where the -20 SECC lives now
-  before planning a run against it.
 
 **Why it matters.** It is the implementation most likely to be on the other end of a real charger, so
 "works against EVerest" is closer to a market claim than to a test result. And because `EvseV2G` sits
@@ -124,8 +135,25 @@ on cbV2G — the same encoder our vector corpus is generated from — a disagree
 EXI disagreement by construction: it is a state-machine or a timing one, which is exactly the class
 our corpora cannot see.
 
-**Confirm on first contact:** whether EVerest's simulation configuration can run `PyEvJosev` against
-an external SECC (ours) rather than only against its own `EvseV2G`.
+**Only one half is new, and it is worth being precise.** Their *charger* is new; their *car* is Josev
+in a different wrapper. So the forward direction is where the findings are, and a green reverse run
+is much less news than it looks — check `docs/interop-runs/2026-07-2*` before calling anything from it
+new. The flow report compares both directions against one of our recorded sessions, and for this
+counterparty it is the **station → EV** half that carries the news.
+
+**Answered since:** `PyEvJosev`'s `device` is documented as "any local interface that has an ipv6
+link-local and a MAC addr", and it finds a station by SDP on it — so it is not bound to EVerest's own
+`EvseV2G`, and a run against our SECC is possible in principle.
+
+**Confirm on first contact:** whether a configuration containing only the EV-side modules can be
+assembled and started on its own. If not, the fallback is to run a full SIL config with `EvseV2G`'s
+`device` pointed at an interface our station is not on. Also note that every `supported_*` key of
+`PyEvJosev` defaults to **false** — a car that announces no protocol negotiates nothing, and the
+symptom is an empty handshake rather than an error.
+
+**Worth coming back for:** `config/config-sil-mcs.yaml`. Our roadmap records MCS (service ids 8/9) as
+implemented but *"untested against a live counterpart"* — this is the first live counterpart in sight
+for it.
 
 ---
 
