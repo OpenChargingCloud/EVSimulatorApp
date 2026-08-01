@@ -13,9 +13,19 @@ cd app && npm test
 python3 -m http.server 4173 --directory app
 ```
 
-No install step and no build step. Opened in a plain browser the application still scans, parses,
-warns and refuses — which is most of what it does — and says plainly that it cannot open a session,
-because the plugin only exists inside the shell.
+```bash
+cd app && npm install && npm run build
+```
+
+**No install step and no build step are needed to run it.** Opened in a plain browser a fresh clone
+still scans, parses, warns and refuses — which is most of what it does — and says plainly that it
+cannot open a session.
+
+`npm run build` is what adds one. esbuild compiles `src/vendor/entry.ts` into
+`vendor/ev-simulator.js` — the plugin, the EXI codec and three recorded ISO 15118-2 sessions — and a
+plain browser then gets a **real event stream**: Capacitor routes the three commands to the web
+implementation, which replays a recording. The bundle is a build output and is not checked in; its
+absence is a state the application handles.
 
 ## Why plain `.js` and not `.ts`
 
@@ -28,12 +38,19 @@ toolchain happens to exist, and run unaltered by both Node and the WebView.
 stripping step before a WebView can load it. Nothing here imports it: an event already arrives as
 JSON-LD, so the inspector has no decoding to do.)
 
-**That is also why this application cannot use the plugin's web implementation.**
-`capacitor/src/web.ts` replays a recorded session in a browser, and it is real — the same traces the
-four back ends are held to, producing the events `Vectors/Bridge.events.json` pins. But it imports
-the TypeScript codec, so reaching it from here needs a bundler, which is the one thing this directory
-does not have. The trade is deliberate and it is the whole trade: no build step here, no live event
-stream here. A host that already bundles — Chargy, or a dev server in front of `shell/` — gets both.
+**One file here is TypeScript, and it is the seam.** `src/vendor/entry.ts` is the only source that
+imports the plugin, and through it the codec. esbuild crosses that boundary once, and every other
+source in `app/` stays plain ES modules that Node runs directly for the tests and a browser runs
+directly without a build.
+
+**There is one contract, deliberately.** `src/ui/plugin.js` returns the *adapted* plugin from the
+bundle and nothing else — not `globalThis.Capacitor.Plugins.EvSimulator`, which is the raw one and a
+different shape: it delivers `{ event: string }` and takes `start({ config })` where the adapted one
+delivers a parsed `BridgeEvent` and takes `start(config)`. Supporting both would have meant a second
+copy of `adapt` here, in another language, for the two to drift apart in. An earlier version did
+exactly that, read `payload.event` off an already-parsed event, and dropped every event of every
+session — silently, because unreadable events are dropped by design. The screen simply stayed
+empty.
 
 ## Where the decisions are
 
@@ -88,5 +105,6 @@ is why the whole of this application's judgement is testable without a camera.
 
 ## Still to do
 
-A live event stream in the plain-browser path, which means either a bundler here or a stripped copy
-of the codec. Everything else this application does already works without one.
+A *live* session in the browser, which is not a bundling problem: it needs the EVCC state machines in
+TypeScript (three languages have them, not four) and a transport a browser can open
+(`tools/EVSimulatorApp.WsBridge` is that half). Until then the browser replays, and the phone runs.

@@ -19,6 +19,11 @@ DerivedData/
 # point of having a lock file at all.
 node_modules/
 
+# The app's session bundle: a build output, not a source. Its absence is a state the application
+# handles — everything before a session works without it — so a fresh clone stays runnable with
+# `python3 -m http.server` and no install at all. `npm run build` in app/ produces it.
+app/vendor/
+
 # .NET
 bin/
 obj/

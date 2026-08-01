@@ -1692,10 +1692,38 @@ phone; scanning a screenshot from two minutes ago is rejected.
 > A consumer left with no ending would wait for one for ever, which is worse than a session that
 > failed.
 >
-> **What it does not reach is `app/`, and that is the standing trade rather than a gap.** The web
-> implementation imports the TypeScript codec, and a browser loads `.js`; using it needs a bundler,
-> which the app deliberately does not have. No build step there, no live event stream there. A host
-> that already bundles — Chargy, a dev server in front of `shell/` — gets both.
+> **And now it reaches `app/`, 2026-08-01.** esbuild compiles `app/src/vendor/entry.ts` — the one
+> TypeScript file in that directory, and the only one that imports the plugin — into
+> `app/vendor/ev-simulator.js`, 458 KB carrying the plugin, the codec and three recorded ISO 15118-2
+> sessions. A plain browser then replays a whole session in the inspector. **Running it without the
+> bundle still works**: everything before a session needs no plugin, so a fresh clone stays runnable
+> with `python3 -m http.server` and no install, and the bundle is a build output rather than a
+> checked-in artifact. One seam crossed once, and every other source stays plain ES modules that Node
+> runs directly.
+>
+> **Two things only the browser found, and both were mine.**
+>
+> *Every event of every session was dropped, silently.* `replay` was driven by `performance.now()`,
+> which returns a float, and `parseBridgeEvent` requires `Number.isSafeInteger(atMillis)` — so the
+> adapter refused the lot, the console filled with "an unreadable event was dropped", and the session
+> screen stayed empty. No exception, no failing test. The reason nothing caught it is the §5 shape
+> once more: the web tests read the payload straight out of `notifyListeners`, the adapter tests fed
+> the adapter corpus events by hand, and **each half was checked against a stand-in for the other**.
+> The missing test — the two composed, as an application composes them — is now the last one in
+> `web.test.ts`.
+>
+> *Two contracts behind one variable.* `plugin.js` also reached for
+> `globalThis.Capacitor.Plugins.EvSimulator` when there was no bundle — but that is the **raw** plugin
+> (`{ event: string }`, `start({ config })`) while the bundle exports the **adapted** one (a parsed
+> `BridgeEvent`, `start(config)`). Supporting both would have meant a second copy of `adapt`, in
+> another language, for the two to drift apart in. There is one contract now, and a build that wants a
+> session builds the bundle — which is what `shell`'s `sync` script runs first.
+>
+> **A third thing the screen showed rather than any assertion:** twenty-six events arriving over
+> visible seconds, every one labelled "0–4 ms". `replay`'s clock measures how long the *decoding*
+> took, which is not a fact about the session; the recording carries no timings at all. Events are
+> stamped at delivery now, so the inspector reports this replay — including the browser's own timer
+> throttling, which is exactly the sort of thing a timing display exists to make visible.
 
 > **And it found something in the ports.** Capping the declared payload length before allocating —
 > obvious in a tool that forwards for strangers — is *not* done by the three session-side

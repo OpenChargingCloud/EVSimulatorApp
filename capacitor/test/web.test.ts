@@ -5,6 +5,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { EvSimulatorWeb } from "../src/web.ts";
+import { adapt } from "../src/index.ts";
+import { parseBridgeEvent } from "@open-charging-cloud/v2g-exi/src/bridge/events.ts";
 import type { SessionTrace } from "@open-charging-cloud/v2g-exi/src/bridge/replay.ts";
 import type { SessionConfig } from "@open-charging-cloud/v2g-exi/src/bridge/plugin.ts";
 
@@ -78,9 +80,13 @@ test("a bundled session arrives as the events the corpus pins", async () => {
         assert.equal(JSON.stringify(got), JSON.stringify(want), `event ${i}`);
     }
 
-    // Monotonic, which is the property `atMillis` actually claims.
+    // Monotonic and integral, which is what `atMillis` actually claims — and both are stamped at
+    // delivery rather than at derivation, so they describe this replay rather than how long the
+    // decoding took. An inspector otherwise labels a session spread over three visible seconds
+    // "0–4 ms" for every event of it.
     const times = received.map(e => e.atMillis);
     assert.deepEqual(times, [...times].sort((a, b) => a - b));
+    assert.ok(times.every(t => Number.isSafeInteger(t)), `${times}`);
 });
 
 
@@ -138,6 +144,47 @@ test("stopping ends the stream rather than leaving it hanging", async () => {
     // And the sequence numbers still run without a gap, so the inspector does not report a loss it
     // did not have.
     assert.deepEqual(received.map(e => e.seq), received.map((_, i) => i));
+});
+
+
+/**
+ * The web implementation and the adapter, composed the way an application composes them.
+ *
+ * **This is the test that was missing, and a browser found what it would have found.** The tests
+ * above read the payload straight out of `notifyListeners`; `adapter.test.ts` feeds the adapter
+ * corpus events by hand. Each half was checked against a stand-in for the other, and the two
+ * together were checked by nothing — so a producer emitting something the consumer refuses was
+ * invisible.
+ *
+ * It was not hypothetical: `replay` was driven by `performance.now()`, which returns a float, and
+ * `parseBridgeEvent` requires `Number.isSafeInteger(atMillis)`. Every event of every session was
+ * dropped by the adapter, the console filled with "an unreadable event was dropped", and the session
+ * screen simply stayed empty — no exception, no failing test, nothing to notice but an inspector
+ * showing nothing.
+ */
+test("every event the web implementation emits is one the adapter accepts", async () => {
+
+    const web = new EvSimulatorWeb();
+    web.traces = () => trace("iso2-ac-eim");
+    web.pace   = 0;
+
+    const received: unknown[] = [];
+    const plugin = adapt(web);
+
+    await plugin.addListener("v2gEvent", event => received.push(event));
+    await plugin.start({ ...CONFIG });
+
+    await settle();
+
+    assert.equal(received.length, corpus["iso2-ac-eim"]!.length,
+                 "the adapter dropped events the web implementation emitted");
+
+    // And every one of them survives the validator on its own, so the count above cannot be a
+    // coincidence of two errors cancelling.
+    for (const event of received) assert.doesNotThrow(() => parseBridgeEvent(event));
+
+    for (const event of received as { atMillis: number }[])
+        assert.ok(Number.isSafeInteger(event.atMillis), `atMillis ${event.atMillis} is not an integer`);
 });
 
 

@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "description": "The Capacitor project: the web application in app/, the plugin in capacitor/, and the two native app projects they are built into.",
-  "engines": { "node": ">=22.6" },
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
-    "sync": "cap sync",
+    "sync": "npm --prefix ../app run build && cap sync",
     "open:android": "cap open android",
     "open:ios": "cap open ios"
   },

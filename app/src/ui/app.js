@@ -2,6 +2,7 @@
 
 import { startScreen, sheetScreen, manualScreen, sessionScreen } from "./screens.js";
 import { scanner } from "./scan.js";
+import { plugin } from "./plugin.js";
 
 /**
  * The wiring: which screen is showing, and what the plugin is doing.
@@ -16,21 +17,6 @@ import { scanner } from "./scan.js";
  * @typedef {import("../sheet.js").SessionConfig} SessionConfig
  * @typedef {import("../session.js").BridgeEvent} BridgeEvent
  */
-
-/**
- * The three commands, and no more.
- *
- * Resolved at run time rather than imported, because the plugin only exists inside the Capacitor
- * shell: opened in a plain browser this application still scans, parses, warns and refuses — which is
- * most of what it does — and says plainly that it cannot connect.
- *
- * @returns {any}
- */
-function plugin() {
-    const capacitor = /** @type {any} */ (globalThis).Capacitor;
-    return capacitor?.Plugins?.EvSimulator ?? null;
-}
-
 
 const root = /** @type {Element} */ (document.getElementById("app"));
 
@@ -67,10 +53,12 @@ function showManual() {
  */
 async function connect(config) {
 
-    const api = plugin();
+    const api = await plugin();
 
     if (api === null) {
-        sheetScreenProblem("This build is running outside the app shell, so it cannot open a session.");
+        sheetScreenProblem(
+            "This build has no session bundle, so it cannot open a session. "
+          + "Run `npm run build` in app/.");
         return;
     }
 
@@ -78,14 +66,11 @@ async function connect(config) {
     const events = [];
 
     try {
-        const handle = await api.addListener("v2gEvent", (/** @type {any} */ payload) => {
-            // The payload is the text the four back ends agree on; see capacitor/src/definitions.ts
-            // for why it crosses as text rather than as an object.
-            try {
-                events.push(JSON.parse(payload.event));
-            } catch {
-                return;                     // an unreadable event is dropped, and the gap will show
-            }
+        // A parsed BridgeEvent, not the text the bridge carries: `plugin()` returns the *adapted*
+        // plugin, which has already unwrapped the payload and validated it. See plugin.js for what
+        // reaching around that cost once.
+        const handle = await api.addListener("v2gEvent", (/** @type {BridgeEvent} */ event) => {
+            events.push(event);
             sessionScreen(root, events, { onStop: stop, onBack: showStart });
         });
 
@@ -107,7 +92,7 @@ async function connect(config) {
 
 async function stop() {
 
-    const api = plugin();
+    const api = await plugin();
 
     if (api !== null && live.sessionId !== null)
         await api.stop({ sessionId: live.sessionId });

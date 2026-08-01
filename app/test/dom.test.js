@@ -20,7 +20,14 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const src  = join(here, "..", "src");
 
-/** Every source file, wherever it sits. */
+/**
+ * Every source file, wherever it sits.
+ *
+ * `.js` only, which scopes the rule to what this application writes: `src/vendor/entry.ts` is the
+ * bundler's entry and touches no DOM, and `vendor/ev-simulator.js` is a build output containing
+ * `@capacitor/core`, which certainly uses the APIs below somewhere and is entitled to. The guarantee
+ * here is about the screens — nothing bundled ever writes to one.
+ */
 function sources(/** @type {string} */ directory) {
     /** @type {string[]} */
     const files = [];

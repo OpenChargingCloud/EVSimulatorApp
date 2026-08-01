@@ -4,8 +4,17 @@
   "private": true,
   "type": "module",
   "description": "The WebView application: scan, confirmation sheet, session inspector (docs/CONCEPT.md B1).",
-  "engines": { "node": ">=22.6" },
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test \"test/*.test.js\"",
+    "build": "esbuild src/vendor/entry.ts --bundle --format=esm --platform=browser --target=es2022 --outfile=vendor/ev-simulator.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "dependencies": {
+    "@open-charging-cloud/capacitor-ev-simulator": "file:../capacitor"
   }
 }

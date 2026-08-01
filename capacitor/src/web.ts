@@ -1,9 +1,24 @@
 import { WebPlugin } from "@capacitor/core";
 
-import { replay, type SessionTrace } from "@open-charging-cloud/v2g-exi/src/bridge/replay.ts";
+import { replay, steppingClock, type SessionTrace }
+    from "@open-charging-cloud/v2g-exi/src/bridge/replay.ts";
 import type { SessionConfig } from "@open-charging-cloud/v2g-exi/src/bridge/plugin.ts";
 
 import type { EvSimulatorNative } from "./definitions.ts";
+
+/**
+ * The recordings a build ships, for the common case where the application never touches the plugin
+ * instance because `registerPlugin` constructs it lazily.
+ *
+ * Set at the bundle's entry point — see `app/src/vendor/entry.ts`, which is where "which sessions
+ * does this build carry" is actually decided. An instance's own {@link EvSimulatorWeb.traces} still
+ * wins, for a host that has one in hand.
+ */
+let bundled: (config: SessionConfig) => SessionTrace | undefined = () => undefined;
+
+export function bundleTraces(source: (config: SessionConfig) => SessionTrace | undefined): void {
+    bundled = source;
+}
 
 /**
  * The plugin, in a browser.
@@ -40,7 +55,7 @@ export class EvSimulatorWeb extends WebPlugin implements EvSimulatorNative {
      * — so a trace has to arrive as a module, not as a request. And *which* recordings a build ships
      * is a packaging decision, exactly as it is for `TraceSessionRunner` on the native side.
      */
-    public traces: (config: SessionConfig) => SessionTrace | undefined = () => undefined;
+    public traces: (config: SessionConfig) => SessionTrace | undefined = config => bundled(config);
 
     /**
      * How long to wait between events, in milliseconds.
@@ -77,8 +92,11 @@ export class EvSimulatorWeb extends WebPlugin implements EvSimulatorNative {
               + `codecs are not generated for TypeScript yet, so a ${config.protocol} session would `
               + `arrive as errors rather than messages.`);
 
-        const events    = replay(trace, () => performance.now());
+        // Derived with the stepping clock, then re-stamped on the way out — see the send loop. What
+        // the derivation took is not a fact about the session, and the replay's own pace is.
+        const events    = replay(trace, steppingClock());
         const sessionId = `web-${this.nextId++}`;
+        const began     = performance.now();
 
         let cancelled = false;
         this.running.set(sessionId, () => { cancelled = true; });
@@ -94,14 +112,14 @@ export class EvSimulatorWeb extends WebPlugin implements EvSimulatorNative {
                     // one for ever, which is worse than a session that failed.
                     this.notifyListeners("v2gEvent", { event: JSON.stringify({
                         seq:      event.seq,
-                        atMillis: Math.round(performance.now()),
+                        atMillis: Math.round(performance.now() - began),
                         kind:     "error",
                         detail:   "the session was stopped.",
                     }) });
 
                     this.notifyListeners("v2gEvent", { event: JSON.stringify({
                         seq:       event.seq + 1,
-                        atMillis:  Math.round(performance.now()),
+                        atMillis:  Math.round(performance.now() - began),
                         kind:      "sessionFinished",
                         exchanges: trace.exchanges.length,
                         outcome:   "failed",
@@ -110,9 +128,18 @@ export class EvSimulatorWeb extends WebPlugin implements EvSimulatorNative {
                     break;
                 }
 
-                // As text, because that is what the bridge carries — see definitions.ts. Here it
-                // costs nothing and keeps one shape rather than two.
-                this.notifyListeners("v2gEvent", { event: JSON.stringify(event) });
+                // Re-stamped at the moment it is delivered. `atMillis` is "milliseconds since the
+                // session started", and for a paced replay that is the delivery offset — the
+                // recording carries no timings of its own, and the ones `replay` derived measure how
+                // long the decoding took, which is not a fact about the session. Left as they were,
+                // an inspector showed twenty-six events spread over three visible seconds and
+                // labelled every one of them "0–4 ms".
+                //
+                // Spread-then-overwrite, so `atMillis` keeps its place in the key order the four
+                // back ends agree on. And rounded, because `parseBridgeEvent` requires an integer —
+                // a float here produced a stream the adapter dropped in its entirety, silently.
+                this.notifyListeners("v2gEvent", { event: JSON.stringify(
+                    { ...event, atMillis: Math.round(performance.now() - began) }) });
 
                 if (this.pace > 0) await new Promise(resume => setTimeout(resume, this.pace));
             }
