@@ -243,8 +243,46 @@ abstract class Evcc20Base(
     protected fun exchangeRaw(expectedSet: MessageSet, payload: ByteArray): Pair<MessageSet, Any> {
         stream.writeFrame(expectedSet, payload)
         val reply = stream.readFrame()
+        refuseOnFailure(reply.second)
         exchanges++
         return reply
+    }
+
+    /**
+     * Ends the session when the station answers with a code from the `FAILED` family.
+     *
+     * **Found live, not by reasoning.** Until 2026-08-01 no -20 EVCC in this repository looked at a
+     * response code at all — `expect` checks the message set and the type, and the cable-check loop
+     * watched only `evseProcessing`. eVDriveFlow answered `DC_CableCheckRes` with `FAILED` and the C#
+     * car went on to PreCharge, PowerDelivery and into the charge loop; this port had the same hole,
+     * and the trace corpus could not show it, because our own SECC never says FAILED.
+     *
+     * `OK*` and `WARNING*` continue — a warning is explicitly the code for "something is off and the
+     * session goes on" — and `FAILED*` terminates. The comparison is on `ordinal` because the
+     * enumeration is ordered by family in the schema (OK, then WARNING, then FAILED), which
+     * `Evcc20FailureTest.theResponseCodeFamiliesAreContiguousAndOrdered` pins.
+     *
+     * Aborts rather than sending SessionStop: a FAILED response is the station saying it is done, and
+     * a further message invites a second error on a session that already has one.
+     */
+    internal fun refuseOnFailure(message: Any) {   // internal: exercised directly by Evcc20FailureTest
+
+        val failure = when (message) {
+            is V2GResponseType ->
+                message.responseCode.takeIf { it.ordinal >= ResponseCode.FAILED.ordinal }?.name
+            is cloud.charging.v2g.iso20.ac.V2GResponseType ->
+                message.responseCode.takeIf {
+                    it.ordinal >= cloud.charging.v2g.iso20.ac.ResponseCode.FAILED.ordinal }?.name
+            is cloud.charging.v2g.iso20.dc.V2GResponseType ->
+                message.responseCode.takeIf {
+                    it.ordinal >= cloud.charging.v2g.iso20.dc.ResponseCode.FAILED.ordinal }?.name
+            else -> null
+        }
+
+        if (failure != null)
+            throw SessionAborted(
+                "the station answered ${message::class.simpleName} with $failure; the session ends here.")
+
     }
 
     private inline fun <reified T : Any> exchange(expectedSet: MessageSet, payload: ByteArray): T {

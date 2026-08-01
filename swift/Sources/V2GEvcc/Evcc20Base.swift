@@ -1,4 +1,6 @@
+import ExiIso20AC
 import ExiIso20Common
+import ExiIso20DC
 import V2GDispatch
 
 /// Asserts that an exchange came back as the message it was supposed to. A free generic function
@@ -54,7 +56,9 @@ open class Evcc20Base {
     public var stopMode: ChargingSession = .Terminate
 
     /// The station's SessionSetup verdict.
-    public private(set) var sessionSetupCode: ResponseCode?
+    // Qualified since this file now also imports the AC and DC message sets, each of which has a
+    // ResponseCode of its own.
+    public private(set) var sessionSetupCode: ExiIso20Common.ResponseCode?
 
     /// The session id in effect, station-assigned.
     public var sessionId: [UInt8] { sessionCtx.sessionId }
@@ -230,8 +234,49 @@ open class Evcc20Base {
                               _ payload: [UInt8]) throws -> (set: MessageSet, message: Any) {
         try stream.writeFrame(expectedSet, payload)
         let reply = try stream.readFrame()
+        try refuseOnFailure(reply.message)
         exchanges += 1
         return reply
+    }
+
+    /// Ends the session when the station answers with a code from the `FAILED` family.
+    ///
+    /// **Found live, not by reasoning.** Until 2026-08-01 no -20 EVCC in this repository looked at a
+    /// response code at all — `expect` checks the message set and the type, and the cable-check loop
+    /// watched only `evseProcessing`. eVDriveFlow answered `DC_CableCheckRes` with `FAILED` and the C#
+    /// car went on to PreCharge, PowerDelivery and into the charge loop; this port had the same hole,
+    /// and the trace corpus could not show it, because our own SECC never says FAILED.
+    ///
+    /// `OK*` and `WARNING*` continue — a warning is explicitly the code for "something is off and the
+    /// session goes on" — and `FAILED*` terminates. The comparison is on the raw value because the
+    /// enumeration is ordered by family in the schema (OK, then WARNING, then FAILED), which
+    /// `Evcc20FailureTests.testResponseCodeFamiliesAreContiguousAndOrdered` pins.
+    ///
+    /// Aborts rather than sending SessionStop: a FAILED response is the station saying it is done, and
+    /// a further message invites a second error on a session that already has one.
+    /// Internal rather than private: exercised directly by `Evcc20FailureTests`.
+    internal func refuseOnFailure(_ message: Any) throws {
+
+        var failure: String?
+
+        if let response = message as? ExiIso20Common.V2GResponseType,
+           response.responseCode.rawValue >= ExiIso20Common.ResponseCode.FAILED.rawValue {
+            failure = String(describing: response.responseCode)
+        }
+        else if let response = message as? ExiIso20AC.V2GResponseType,
+                response.responseCode.rawValue >= ExiIso20AC.ResponseCode.FAILED.rawValue {
+            failure = String(describing: response.responseCode)
+        }
+        else if let response = message as? ExiIso20DC.V2GResponseType,
+                response.responseCode.rawValue >= ExiIso20DC.ResponseCode.FAILED.rawValue {
+            failure = String(describing: response.responseCode)
+        }
+
+        if let failure {
+            throw SessionAborted(
+                "the station answered \(type(of: message)) with \(failure); the session ends here.")
+        }
+
     }
 
     private func exchange<T>(_ expectedSet: MessageSet, _ payload: [UInt8]) throws -> T {
