@@ -1,0 +1,138 @@
+using System.Net;
+using System.Net.Sockets;
+using System.Text.Json.Nodes;
+
+using NUnit.Framework;
+
+namespace EVSimulatorApp.WsBridge.Tests;
+
+/// <summary>
+/// A station that answers exactly what one recorded session recorded, over a real socket.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The C# twin of the ones in <c>kotlin/v2g-session</c> and <c>swift/Tests/V2GSessionTests</c>, and
+/// here for the same reason: it writes each response in <see cref="Fragment"/>-byte pieces, so every
+/// frame arrives across several reads. That is the one thing an in-memory stream can never produce,
+/// and it is exactly what <see cref="V2GFrameReader"/> exists to survive — a bridge that assumed one
+/// read per frame would forward halves of messages to a browser and look fine doing it.
+/// </para>
+/// <para>
+/// It also compares each request against the recording before answering, so a bridge that altered
+/// what passed through it fails here rather than looking like a success.
+/// </para>
+/// <para>
+/// Loopback only, and the port is whatever was free.
+/// </para>
+/// </remarks>
+public sealed class RecordedStation : IAsyncDisposable
+{
+
+    /// <summary>Small enough that every frame in the corpus is split several times.</summary>
+    private const int Fragment = 3;
+
+    private readonly JsonArray   exchanges;
+    private readonly TcpListener listener;
+    private readonly Task        serving;
+    private readonly CancellationTokenSource stopping = new();
+
+    public int     Port      { get; }
+    public string? Complaint { get; private set; }
+    public int     Served    { get; private set; }
+    public int     Exchanges => exchanges.Count;
+
+
+    public RecordedStation(JsonNode trace)
+    {
+
+        exchanges = trace["exchanges"]!.AsArray();
+
+        listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        Port = ((IPEndPoint) listener.LocalEndpoint).Port;
+
+        serving = Task.Run(ServeAsync);
+
+    }
+
+
+    private async Task ServeAsync()
+    {
+
+        try
+        {
+
+            using var client = await listener.AcceptTcpClientAsync(stopping.Token);
+            await using var stream = client.GetStream();
+
+            foreach (var exchange in exchanges)
+            {
+
+                var expected = Convert.FromHexString(exchange!["request"]!["frame"]!.GetValue<string>());
+                var actual   = new byte[expected.Length];
+
+                var read = 0;
+                while (read < actual.Length)
+                {
+                    var n = await stream.ReadAsync(actual.AsMemory(read, actual.Length - read), stopping.Token);
+                    if (n == 0) return;                    // the client hung up; Served says how far
+                    read += n;
+                }
+
+                if (!actual.AsSpan().SequenceEqual(expected))
+                {
+                    Complaint = $"exchange {Served}: got {Convert.ToHexString(actual).ToLowerInvariant()}, "
+                              + $"the recording has {Convert.ToHexString(expected).ToLowerInvariant()}";
+                    return;
+                }
+
+                var response = exchange["response"];
+                if (response is null) return;
+
+                var frame = Convert.FromHexString(response["frame"]!.GetValue<string>());
+
+                // In pieces, on purpose — see the type comment.
+                for (var at = 0; at < frame.Length; at += Fragment)
+                {
+                    await stream.WriteAsync(frame.AsMemory(at, Math.Min(Fragment, frame.Length - at)),
+                                            stopping.Token);
+                    await stream.FlushAsync(stopping.Token);
+                }
+
+                Served++;
+
+            }
+
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception e) { Complaint ??= $"the station stopped: {e.Message}"; }
+
+    }
+
+
+    public async ValueTask DisposeAsync()
+    {
+        await stopping.CancelAsync();
+        listener.Stop();
+        try { await serving; } catch { /* stopping */ }
+        stopping.Dispose();
+    }
+
+
+    /// <summary>One recorded session, from the corpus the simulation tests generate.</summary>
+    public static JsonNode Load(string name)
+    {
+
+        var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "libs/Vanaheimr.V2G.Exi")))
+            directory = directory.Parent;
+
+        var path = Path.Combine(directory?.FullName ?? throw new DirectoryNotFoundException("repository root"),
+                                "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors",
+                                $"Session.{name}.trace.json");
+
+        return JsonNode.Parse(File.ReadAllText(path))!;
+
+    }
+
+}

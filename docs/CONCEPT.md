@@ -1635,6 +1635,38 @@ phone; scanning a screenshot from two minutes ago is rejected.
 >   `root` fingerprint, which the native transports enforce where the socket opens, cannot be enforced
 >   there at all. A web target would have to say so on the sheet rather than quietly drop the check.
 
+> **The bridge, 2026-08-01.** `tools/EVSimulatorApp.WsBridge` — `ev-ws-bridge` — is the WebSocket half
+> of the above, built as a bridge rather than as a listener inside the SECC. The station is
+> unmodified, and what crosses the wire to it is exactly what an EVCC would have sent; a WebSocket
+> listener grafted into a SECC would be a second transport inside the implementation being tested.
+>
+> **Re-framing is the whole content of it.** TCP is a stream and WebSocket is message-framed, so the
+> station→browser direction has to find frame boundaries, and the only thing that marks them is
+> V2GTP's own 8-byte header. `BridgeTests` drives all four recorded EIM sessions through the bridge
+> against a station answering **three bytes at a time**, and requires one message per recorded frame.
+> Replacing `V2GFrameReader` with the obvious byte pump keeps every byte intact — the concatenation is
+> identical — and fails all four on the message *count*. "The bytes arrived" was never the property.
+>
+> **A WebSocket server has no same-origin protection**, so the target cannot come straight out of the
+> query string: any page the browser happened to load could then reach anything on the network the
+> bridge stands on. It is subject to the same rule the confirmation sheet applies to a scanned code,
+> and literally the same code — `PairingWarnings.IsPrivateTarget` — with `--allow` to narrow it to
+> exact host/port pairs, loopback binding by default, and every connection logged with its target and
+> `Origin`. A development tool with one lock rather than none, which is what the README says.
+>
+> **`--tls` is where the bridge earns its keep.** The browser cannot honour the pairing code's `root`
+> fingerprint; terminating TLS in a process the operator started puts that check back, with the
+> pinned certificate as the only anchor (`CustomRootTrust`) rather than the platform store. `--tls`
+> without `--root` is refused at startup: a TLS session nobody validated is a plaintext session with
+> extra steps.
+>
+> **And it found something in the ports.** Capping the declared payload length before allocating —
+> obvious in a tool that forwards for strangers — is *not* done by the three session-side
+> `V2GTPStream`s. The header's length is a 32-bit count supplied by the peer, so a station can ask a
+> phone for a 2 GiB allocation with one 8-byte frame, and `0xFFFFFFFF` converts to `-1` and yields a
+> silently truncated frame instead. Filed rather than fixed here; the bridge caps at 1 MiB and names
+> the refusal.
+
 > **Pairing ported to Kotlin and Swift, 2026-07-31.** `v2g-pairing` and `V2GPairing` carry the
 > payload parser, the warning classification and both halves of the TOTP — generator and verifier —
 > against two corpora the C# side generates (`Pairing.payload.vectors.json`, 22 cases;

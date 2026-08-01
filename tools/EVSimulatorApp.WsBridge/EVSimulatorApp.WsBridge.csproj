@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>ev-ws-bridge</AssemblyName>
+    <RootNamespace>EVSimulatorApp.WsBridge</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The private-range rule, so that this and the confirmation sheet apply the same one rather than
+      two copies of it: PairingWarnings.IsPrivateTarget decides what a browser may reach through
+      this bridge, exactly as it decides what a scanned code may offer.
+    -->
+    <ProjectReference Include="../../pairing/EVSimulatorApp.Pairing/EVSimulatorApp.Pairing.csproj" />
+
+    <!-- TcpV2GClient, and with it the TLS profile and the BouncyCastle fallback for platforms whose
+         SslStream cannot do TLS 1.3. Reused rather than reimplemented — the bridge should reach a
+         station exactly the way the reference EVCC reaches one. -->
+    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation/Vanaheimr.V2G.Simulation.csproj" />
+
+    <!-- V2GTP's 8-byte header: the only thing that says where a frame ends. -->
+    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Prototype/Vanaheimr.V2G.Exi.Prototype.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -30,6 +30,10 @@
     <Project Path="bridge/EVSimulatorApp.Bridge.Tests/EVSimulatorApp.Bridge.Tests.csproj" />
     <Project Path="bridge/EVSimulatorApp.Bridge/EVSimulatorApp.Bridge.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/EVSimulatorApp.WsBridge.Tests/EVSimulatorApp.WsBridge.Tests.csproj" />
+    <Project Path="tools/EVSimulatorApp.WsBridge/EVSimulatorApp.WsBridge.csproj" />
+  </Folder>
   <Folder Name="/pairing/">
     <Project Path="pairing/EVSimulatorApp.Pairing.Tests/EVSimulatorApp.Pairing.Tests.csproj" />
     <Project Path="pairing/EVSimulatorApp.Pairing/EVSimulatorApp.Pairing.csproj" />
