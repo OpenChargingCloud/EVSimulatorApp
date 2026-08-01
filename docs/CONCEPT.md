@@ -1541,6 +1541,52 @@ phone; scanning a screenshot from two minutes ago is rejected.
 >
 > Still to do: the UI, and the exit criterion's own words — a real phone, and the Pi.
 
+> **The UI, 2026-08-01.** `app/` is the WebView application: start screen, confirmation sheet,
+> manual-address fallback, session inspector. Plain ES modules with JSDoc types and `// @ts-check` —
+> a WebView loads `.js` and Node strips types, so TypeScript here would have meant the build step
+> this repository has kept out of every back end so far.
+>
+> **The pairing parser is now a fourth port.** `app/src/pairing.js` reads the scanned code and
+> classifies its warnings, held to `Vectors/Pairing.payload.vectors.json` — all 22 cases, refusal
+> texts included, green on the first run. The app parses the code itself rather than asking the
+> native side, because `EvSimulatorPlugin` has exactly three commands by an explicit decision: a
+> fourth command for "parse this" would be the easiest thing in the world to add and the hardest to
+> take back.
+>
+> **The decisions are data and the pixels are not.** `sheetFor(text)` returns what the sheet shows,
+> whether the button is live, and what would be handed to the plugin; `rowsFor(events)` returns the
+> session list. Both are pure, so `npm test` covers the judgement and leaves only the rendering
+> unchecked — the same split as the Capacitor adapter, one layer up.
+>
+> **The `seq` field finally has a reader.** Four back ends document it as being there so that "a
+> consumer that sees a gap has lost events", and until this screen existed *nothing anywhere looked*.
+> A loss on a bridge is silent by construction — the listener is simply not called — so a screen that
+> rendered what it received would show a shorter session with no sign that it was shorter. `rowsFor`
+> emits a row for the hole, and the header says the record is incomplete.
+>
+> **Untrusted input is handled by absence, not by discipline.** Everything on these screens comes
+> from a QR code or from a station. `ui/dom.js` builds elements and sets `textContent`; `dom.test.js`
+> reads every source file and fails if `innerHTML`, `outerHTML`, `insertAdjacentHTML`,
+> `document.write`, `eval` or `new Function` appears anywhere. `index.html` locks the same door from
+> the other side with `default-src 'none'`, `script-src 'self'` and `connect-src 'none'`, and both
+> locks are asserted. Escaping correctly is a discipline, and a discipline is satisfied right up
+> until the day it is not.
+>
+> **Two things the browser found that no test would have.** A text field mirrored into a local
+> variable on `input` has two states that can disagree — and they do, for a paste, an autofill or an
+> Android IME composition, after which the button acts on what was typed *before*. The fields are now
+> the state and are read when used. And a fingerprint squeezed into a right-hand column wraps
+> mid-pair, which is precisely the form nobody can compare with one printed elsewhere; it gets the
+> full width and a monospace face.
+>
+> **The camera is Android-only.** `BarcodeDetector` exists in Android's WebView and not in WKWebView,
+> so on iOS the start screen says so and the code is typed or pasted. A native scanner plugin is a
+> package, a permission and a decision somebody should make deliberately — not one to take in passing.
+> The typed path is the same path, which is why the judgement is testable without a camera at all.
+>
+> What is left of B1 is packaging (`capacitor.config.json`, the generated `android/` and `ios/`
+> projects) and the exit criterion's own words: a real phone, and the Pi.
+
 > **Pairing ported to Kotlin and Swift, 2026-07-31.** `v2g-pairing` and `V2GPairing` carry the
 > payload parser, the warning classification and both halves of the TOTP — generator and verifier —
 > against two corpora the C# side generates (`Pairing.payload.vectors.json`, 22 cases;

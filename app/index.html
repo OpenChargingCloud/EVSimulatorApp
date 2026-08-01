@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <!--
+    A content security policy that forbids the two things this application must never do: load code
+    from anywhere else, and evaluate a string. `script-src 'self'` and the absence of 'unsafe-inline'
+    mean a scanned code cannot become a script even if a renderer somewhere forgot itself — which is
+    a second lock on the door `ui/dom.js` already keeps shut by never using innerHTML.
+
+    `connect-src 'none'`: this page talks to the native side through the Capacitor bridge and to
+    nothing else. A pairing code names a station, and the one thing it must not be able to do is make
+    the phone fetch something.
+  -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:;
+                 media-src 'self' blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+
+  <title>EV Simulator</title>
+  <link rel="stylesheet" href="src/ui/style.css">
+</head>
+<body>
+  <main id="app"></main>
+  <script type="module" src="src/ui/app.js"></script>
+</body>
+</html>

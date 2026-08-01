@@ -1,0 +1,11 @@
+{
+  "name": "@open-charging-cloud/ev-simulator-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The WebView application: scan, confirmation sheet, session inspector (docs/CONCEPT.md B1).",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  }
+}

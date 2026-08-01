@@ -1,0 +1,203 @@
+/*
+  One stylesheet, no framework, no build step.
+
+  The colours are chosen so that a warning is legible as a warning without relying on colour alone —
+  a blocking one is also the only thing on the screen with a heavy left edge, because "red" is not a
+  message a person can read out loud, and a fair number of people cannot see it at all.
+*/
+
+:root {
+    color-scheme: light dark;
+
+    --ink:        #16181d;
+    --ink-soft:   #5b606b;
+    --paper:      #fbfbfc;
+    --card:       #ffffff;
+    --line:       #dfe1e6;
+    --accent:     #0b5cd5;
+    --alarm:      #b3261e;
+    --alarm-soft: #fdeceb;
+    --caution:    #8a5a00;
+    --caution-soft: #fdf3e0;
+    --out:        #0b5cd5;
+    --in:         #0a7d55;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --ink:        #e9eaee;
+        --ink-soft:   #a2a7b3;
+        --paper:      #14161a;
+        --card:       #1c1f25;
+        --line:       #2c3038;
+        --accent:     #6aa6ff;
+        --alarm:      #ff8f86;
+        --alarm-soft: #33191a;
+        --caution:    #f0c169;
+        --caution-soft: #2d2413;
+        --out:        #6aa6ff;
+        --in:         #62c79b;
+    }
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* The notch, and the home indicator. A Connect button under either is a Connect button nobody
+       can press. */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+main { max-width: 40rem; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+
+h1 { font-size: 1.35rem; margin: 0 0 .25rem; letter-spacing: -0.01em; }
+h2 { font-size: .8rem; margin: 1rem 0 .35rem; text-transform: uppercase;
+     letter-spacing: .06em; color: var(--ink-soft); }
+
+.lede { color: var(--ink-soft); margin: .25rem 0 1.25rem; }
+.hint { color: var(--ink-soft); font-size: .9rem; min-height: 1.5em; }
+
+/* ── facts ─────────────────────────────────────────────────────────────────── */
+
+.field {
+    display: flex; gap: 1rem; justify-content: space-between; align-items: baseline;
+    padding: .55rem .75rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-bottom-width: 0;
+}
+.field:first-of-type { border-radius: .5rem .5rem 0 0; }
+.field:last-of-type  { border-radius: 0 0 .5rem .5rem; border-bottom-width: 1px; margin-bottom: 1rem; }
+
+.field .label { color: var(--ink-soft); font-size: .9rem; flex: 0 0 auto; }
+.field .value { text-align: right; word-break: break-word; font-variant-numeric: tabular-nums; }
+
+/* A fingerprint. Its only purpose is to be compared by eye with one printed somewhere else, so it
+   gets the full width and a monospace face: wrapped in a right-hand column it breaks mid-pair, and
+   a fingerprint nobody can follow along is a field that may as well not be there. */
+.field.wide { display: block; }
+.field.wide .label { display: block; margin-bottom: .2rem; }
+.field.wide .value {
+    display: block; text-align: left;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* `anywhere` rather than `break-all`: it prefers the spaces `groupHex` puts between groups and
+       only breaks inside one when a group cannot fit at all. */
+    overflow-wrap: anywhere;
+}
+
+/* ── warnings ──────────────────────────────────────────────────────────────── */
+
+.warning {
+    display: block;
+    margin: 0 0 .4rem;
+    padding: .45rem .65rem;
+    border-radius: .4rem;
+    background: var(--caution-soft);
+    border-left: 3px solid var(--caution);
+}
+.warning .kind { display: block; font-weight: 600; font-size: .95rem; color: var(--caution); }
+.warning .why  { display: block; color: var(--ink); font-size: .85rem; }
+
+/* A blocking warning is the only element on the page with this edge. Weight and position, not
+   colour, because colour alone is not a message. */
+.warning.blocking {
+    background: var(--alarm-soft);
+    border-left-width: 8px;
+    border-left-color: var(--alarm);
+}
+.warning.blocking .kind { color: var(--alarm); }
+
+.problem { color: var(--alarm); margin: .75rem 0; }
+
+/* ── controls ──────────────────────────────────────────────────────────────── */
+
+button {
+    display: block; width: 100%;
+    margin: .5rem 0;
+    padding: .8rem 1rem;
+    font: inherit; font-weight: 600;
+    color: var(--ink);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: .6rem;
+    cursor: pointer;
+    /* A tap target under 44 px is one a thumb misses. */
+    min-height: 2.75rem;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+.choice { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+          padding: .5rem 0; }
+.choice .label { color: var(--ink-soft); font-size: .9rem; }
+
+select, input {
+    font: inherit;
+    color: var(--ink);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: .5rem;
+    padding: .5rem .6rem;
+    min-width: 0;
+    flex: 0 1 60%;
+}
+
+/* The scanned string is the one field that is never short, so it gets the whole width and its label
+   above it rather than beside it. */
+.typed .choice { display: block; }
+.typed .choice .label { display: block; margin-bottom: .25rem; }
+.typed input { width: 100%; flex: none; }
+.typed { margin: .25rem 0 1rem; }
+
+/* ── the session ───────────────────────────────────────────────────────────── */
+
+.events { margin: 1rem 0; }
+
+.row {
+    display: grid;
+    grid-template-columns: 2.5rem 4.5rem 1fr;
+    grid-template-areas: "seq at title" ".  .  subtitle";
+    gap: 0 .6rem;
+    padding: .5rem .6rem;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+}
+.row .seq      { grid-area: seq; color: var(--ink-soft); font-variant-numeric: tabular-nums;
+                 font-size: .85rem; }
+.row .at       { grid-area: at;  color: var(--ink-soft); font-variant-numeric: tabular-nums;
+                 font-size: .85rem; text-align: right; }
+/* min-width: 0 because a grid item's automatic minimum is its content, so a long message name —
+   ChargeParameterDiscoveryResType — pushes the column past the row instead of wrapping inside it. */
+.row .title    { grid-area: title; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.row .subtitle { grid-area: subtitle; color: var(--ink-soft); font-size: .85rem; min-width: 0; }
+
+.row.out      .title { color: var(--out); }
+.row.in       .title { color: var(--in); }
+.row.error    .title { color: var(--alarm); }
+.row.gap             { background: var(--alarm-soft); cursor: default; }
+.row.gap      .title { color: var(--alarm); }
+.row.started  .title,
+.row.finished .title { letter-spacing: -0.01em; }
+
+.opened:not(:empty) {
+    padding: .75rem;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+}
+
+.mono {
+    margin: 0 0 .75rem;
+    padding: .6rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: .4rem;
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Wide content scrolls inside its own box; the page must never scroll sideways. */
+    overflow-x: auto;
+    white-space: pre;
+}
