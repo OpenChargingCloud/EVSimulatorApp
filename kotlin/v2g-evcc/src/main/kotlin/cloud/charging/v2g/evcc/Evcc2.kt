@@ -47,6 +47,10 @@ class Evcc2(
     private val pollDelay: (Long) -> Unit = { Thread.sleep(it) },
 ) {
 
+    /** How long a phase may keep answering `EVSEProcessing = Ongoing` before the session ends —
+     *  60 s, ISO 15118's EVCC ongoing timeout. See [OngoingGuard] for the live run that required it. */
+    var ongoingTimeoutMillis: Long = 60_000
+
     private companion object {
         const val POLL_INTERVAL_MS = 50L
         const val CHARGE_CYCLES    = 3
@@ -143,15 +147,21 @@ class Evcc2(
             authorizationMode = "pnc-signed"
         }
 
-        while (send<AuthorizationResType>(authRequest, authSignature).eVSEProcessing != EVSEProcessing.Finished)
+        val authGuard = OngoingGuard("Authorization", ongoingTimeoutMillis)
+        while (send<AuthorizationResType>(authRequest, authSignature).eVSEProcessing != EVSEProcessing.Finished) {
+            authGuard.tick()
             pollDelay(POLL_INTERVAL_MS)
+        }
 
         // ── CHARGE PARAMETERS (+ DC cable check / pre-charge) ──────────────
         runChargeParameterDiscovery()
 
         if (mode == PowerMode.Dc) {
-            while (send<CableCheckResType>(CableCheckReqType(evStatus())).eVSEProcessing != EVSEProcessing.Finished)
+            val cableGuard = OngoingGuard("CableCheck", ongoingTimeoutMillis)
+            while (send<CableCheckResType>(CableCheckReqType(evStatus())).eVSEProcessing != EVSEProcessing.Finished) {
+                cableGuard.tick()
                 pollDelay(POLL_INTERVAL_MS)
+            }
             send<PreChargeResType>(PreChargeReqType(evStatus(),
                 eVTargetVoltage = volt(400), eVTargetCurrent = amp(2)))
         }

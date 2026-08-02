@@ -78,6 +78,10 @@ public final class Evcc2 {
     private var chosenTupleId: UInt8 = 1
     private var chargingProfile: ChargingProfileType?
 
+    /// How long a phase may keep answering `EVSEProcessing = Ongoing` before the session ends —
+    /// 60 s, ISO 15118's EVCC ongoing timeout. See `OngoingGuard` for the live run that required it.
+    public var ongoingTimeoutMillis: UInt64 = 60_000
+
     public init(_ stream: V2GTPStream, _ mode: PowerMode,
                 pollDelay: @escaping (UInt64) -> Void = { _ in }) {
         self.stream = stream
@@ -134,9 +138,11 @@ public final class Evcc2 {
             authorizationMode = "pnc-signed"
         }
 
+        let authGuard = OngoingGuard("Authorization", limitMillis: ongoingTimeoutMillis)
         while true {
             let res: AuthorizationResType = try send(authRequest, authSignature)
             if res.eVSEProcessing == .Finished { break }
+            try authGuard.tick()
             pollDelay(Self.pollIntervalMs)
         }
 
@@ -144,6 +150,7 @@ public final class Evcc2 {
         try runChargeParameterDiscovery()
 
         if mode == .dc {
+            let cableGuard = OngoingGuard("CableCheck", limitMillis: ongoingTimeoutMillis)
             while true {
                 let res: CableCheckResType = try send(CableCheckReqType(dC_EVStatus: Self.evStatus()))
                 if res.eVSEProcessing == .Finished { break }

@@ -45,6 +45,11 @@ abstract class Evcc20Base(
     protected val pollDelay: (Long) -> Unit,
 ) {
 
+    /** How long a phase may keep answering `EVSEProcessing = Ongoing` before the session ends —
+     *  60 s, ISO 15118's EVCC ongoing timeout. See [OngoingGuard] for the live run that required it. */
+    var ongoingTimeoutMillis: Long = 60_000
+
+
     protected companion object {
         const val POLL_INTERVAL_MS = 50L
         const val CHARGE_CYCLES    = 3
@@ -172,9 +177,11 @@ abstract class Evcc20Base(
         // so re-signing per poll would only burn entropy.
         val buildAuthorizationReq = buildAuthorizationReq(authSetup)
 
+        val authGuard = OngoingGuard("Authorization", ongoingTimeoutMillis)
         while (true) {
             val res = exchange<AuthorizationRes>(MessageSet.Iso20CommonMessages, buildAuthorizationReq())
             if (res.eVSEProcessing == Processing.Finished) break
+            authGuard.tick()
             pollDelay(POLL_INTERVAL_MS)
         }
 

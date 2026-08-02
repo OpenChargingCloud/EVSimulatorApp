@@ -58,6 +58,10 @@ open class Evcc20Base {
     /// The station's SessionSetup verdict.
     // Qualified since this file now also imports the AC and DC message sets, each of which has a
     // ResponseCode of its own.
+    /// How long a phase may keep answering `EVSEProcessing = Ongoing` before the session ends —
+    /// 60 s, ISO 15118's EVCC ongoing timeout. See `OngoingGuard` for the live run that required it.
+    public var ongoingTimeoutMillis: UInt64 = 60_000
+
     public private(set) var sessionSetupCode: ExiIso20Common.ResponseCode?
 
     /// The session id in effect, station-assigned.
@@ -125,9 +129,11 @@ open class Evcc20Base {
         // checked.
         let buildAuthorizationReq = try makeAuthorizationReqBuilder(authSetup)
 
+        let authGuard = OngoingGuard("Authorization", limitMillis: ongoingTimeoutMillis)
         while true {
             let res: AuthorizationRes = try exchange(.iso20CommonMessages, buildAuthorizationReq())
             if res.eVSEProcessing == .Finished { break }
+            try authGuard.tick()
             pollDelay(Self.pollIntervalMs)
         }
 
