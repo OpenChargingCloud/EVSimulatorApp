@@ -19,7 +19,7 @@ checkable from a README.*
 |---|---|---|---|---|---|
 | [tux-evse/iso15118-simulator-rs](https://github.com/tux-evse/iso15118-simulator-rs) | **EV and EVSE** | -2 (−20/DIN announced) | cbexigen — *ours* | Rust | Apache-2.0 |
 | [EDF-Lab/eVDriveFlow](https://github.com/EDF-Lab/eVDriveFlow) | **EV and EVSE** | **-20 Ed. 1**, DC BPT | **OpenEXI — independent** | Python | MIT |
-| [EVerest](https://github.com/EVerest/everest-core) | **EV and EVSE** | DIN 70121, -2, -20 | cbV2G — *ours* (car side: Josev) | C++ / C / Python | Apache-2.0 |
+| [EVerest](https://github.com/EVerest/everest-core) | **EV and EVSE** | DIN 70121, -2, -20 | cbV2G — *ours* — at HEAD; **OpenV2G** in the `:main` demo image, see below (car side: Josev) | C++ / C / Python | Apache-2.0 |
 
 All four now have a harness, and none has been run against yet — Josev remains the only counterparty
 with recorded sessions (`libs/Vanaheimr.V2G.Exi/docs/interop-runs/`). The harnesses share one
@@ -119,7 +119,8 @@ question when nothing connects.
 
 The Linux Foundation Energy stack, and the widest surface of the four:
 
-- `modules/EVSE/EvseV2G` — the charger side for **DIN 70121 and ISO 15118-2** (C, cbV2G underneath).
+- `modules/EVSE/EvseV2G` — the charger side for **DIN 70121 and ISO 15118-2** (C; cbV2G underneath at
+  HEAD, OpenV2G in the demo image).
 - `modules/EVSE/Evse15118D20` — the **ISO 15118-20 charger**. This answers the open question below:
   [`libiso15118`](https://github.com/EVerest/libiso15118) was archived on 2026-02-26 and folded in
   here; the SIL configurations that use it are `config/config-sil-dc-d20.yaml` and
@@ -130,10 +131,18 @@ The Linux Foundation Energy stack, and the widest surface of the four:
   implementation family our existing interop runs used, now packaged as an EVerest module.
 
 **Why it matters.** It is the implementation most likely to be on the other end of a real charger, so
-"works against EVerest" is closer to a market claim than to a test result. And because `EvseV2G` sits
-on cbV2G — the same encoder our vector corpus is generated from — a disagreement there is *not* an
-EXI disagreement by construction: it is a state-machine or a timing one, which is exactly the class
-our corpora cannot see.
+"works against EVerest" is closer to a market claim than to a test result. At `everest-core` HEAD
+`EvseV2G` sits on cbV2G — the same encoder our vector corpus is generated from — so a disagreement
+there would *not* be an EXI disagreement by construction: it would be a state-machine or a timing one,
+which is exactly the class our corpora cannot see.
+
+**But check the image, not the project.** The three runs of 2026-08-02 used
+`ghcr.io/everest/everest-demo/manager:main`, which is **everest-core 2023.10.0** (built 2023-12-05) and
+whose `EvseV2G` links `libopenv2g.so.1` — no libcbv2g in the image at all. OpenV2G is a different
+codebase from cbexigen, so those runs *were* independent-codec results in both directions, which is the
+opposite of what this paragraph predicted. A tag is not a version; pin the digest
+(`manager@sha256:89799fb3…`). Full account in
+[`2026-08-02-everest-iso2-dc-full-charge`](../libs/Vanaheimr.V2G.Exi/docs/interop-runs/2026-08-02-everest-iso2-dc-full-charge/notes.md).
 
 **Only one half is new, and it is worth being precise.** Their *charger* is new; their *car* is Josev
 in a different wrapper. So the forward direction is where the findings are, and a green reverse run
