@@ -5,7 +5,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { rowsFor, detailFor, statusOf, hexLines } from "../src/session.js";
+import { rowsFor, detailFor, statusOf, hexLines,
+         frameFor, timingsFor, signatureFor, exportsFor, ONGOING_BUDGET_MS } from "../src/session.js";
 
 /**
  * The session screen, over the recorded event streams.
@@ -113,13 +114,17 @@ test("an opened message shows both halves — the document and the frame", () =>
 
             if (event.kind !== "message") continue;
 
-            assert.notEqual(detail.json, null, `event ${event.seq}: no document`);
-            assert.notEqual(detail.hex,  null, `event ${event.seq}: no frame`);
+            assert.notEqual(detail.json,  null, `event ${event.seq}: no document`);
+            assert.notEqual(detail.frame, null, `event ${event.seq}: no frame`);
 
             // The claim and its evidence, both readable. A screen that showed only the JSON-LD would
             // be telling the user the bytes are right there without ever showing them.
             assert.ok(/** @type {string} */ (detail.json).includes("\"@type\""));
-            assert.equal(/** @type {string} */ (detail.hex).replace(/[\s]/g, ""), event.exi);
+
+            const frame = /** @type {any} */ (detail.frame);
+            const shown = frame.header.map((/** @type {any} */ f) => f.bytes).join("")
+                        + frame.body.replace(/\s/g, "");
+            assert.equal(shown, event.exi, `event ${event.seq}: the frame shown is not the frame`);
 
             messages++;
         }
@@ -145,4 +150,257 @@ test("an event kind this build does not know is shown, not dropped", () => {
 test("a frame is shown sixteen bytes to the line", () => {
     assert.equal(hexLines("00112233445566778899aabbccddeeff00"),
                  "00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff\n00");
+});
+
+
+// ── the annotated frame ───────────────────────────────────────────────────────────────────────
+
+test("every recorded frame's header reads back as a well-formed V2GTP header", () => {
+
+    let frames = 0;
+
+    for (const [name, events] of Object.entries(sessions)) {
+        for (const event of events) {
+
+            if (event.kind !== "message") continue;
+
+            const frame = frameFor(event.exi);
+
+            assert.deepEqual(frame.problems, [],
+                             `${name} seq ${event.seq}: ${frame.problems.join("; ")}`);
+            assert.equal(frame.header.length, 4);
+            assert.equal(frame.bodyBytes, event.exi.length / 2 - 8);
+
+            // The payload type in the header is the one the event claims — two derivations of one
+            // value, which is the same discipline the bridge applies to a message's name.
+            const shown = /** @type {any} */ (frame.header[2]).value;
+            assert.ok(shown.startsWith(event.payloadType),
+                      `${name} seq ${event.seq}: header says ${shown}, event says ${event.payloadType}`);
+
+            frames++;
+        }
+    }
+
+    assert.ok(frames >= 130, `only ${frames} frames`);
+});
+
+
+test("the header checks bite: a wrong length, a wrong inverse and an unknown type are all named", () => {
+
+    // 8-byte header declaring two payload bytes, and two following. Sound.
+    assert.deepEqual(frameFor("01fe80010000000212ab").problems, []);
+
+    // The declared length disagrees with what is there — the check a stream reader lives or dies by.
+    const short = frameFor("01fe8001000000ff12ab");
+    assert.equal(short.problems.length, 1);
+    assert.match(short.problems[0], /declares 255.*2 byte/);
+
+    // The version's inverse is checked against the version, not against a constant.
+    const inverse = frameFor("01ff80010000000212ab");
+    assert.equal(inverse.problems.length, 1);
+    assert.match(inverse.problems[0], /0xfe/);
+
+    // 0x8009 is not dispatched by anything here.
+    assert.match(frameFor("01fe80090000000212ab").problems[0], /payload type/);
+
+    // Too short to be a frame at all, and said so rather than rendered as one.
+    const stub = frameFor("01fe");
+    assert.equal(stub.header.length, 0);
+    assert.match(stub.problems[0], /shorter than/);
+});
+
+
+// ── timing ────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A poll loop is one phase, however many times it repeats.
+ *
+ * Asserted on a constructed loop rather than on the corpus, and that is the honest way round: these
+ * recordings are loopback sessions against our own SECC, which answers `Finished` at once, so the
+ * longest run in the whole corpus is two. A live station is the opposite — the EVerest -20 DC run
+ * under `docs/interop-runs/` spends 78 of its 100 exchanges in `DC_CableCheck` — and that is the
+ * case this collapsing exists for. Asserting it against the corpus alone would have passed on code
+ * that collapsed nothing.
+ */
+test("consecutive polls of one message collapse into one phase", () => {
+
+    /** @param {number} n */
+    const pollLoop = (n) => {
+        const events = [{ seq: 0, atMillis: 0, kind: "sessionStarted",
+                          name: "x", protocol: "iso15118-20", mode: "dc" }];
+        for (let i = 0; i < n; i++) {
+            events.push({ seq: events.length, atMillis: i * 100, kind: "message", direction: "out",
+                          messageName: "DC_CableCheckReq", payloadType: "0x8004", exi: "01fe80040000000012" });
+            events.push({ seq: events.length, atMillis: i * 100 + 50, kind: "message", direction: "in",
+                          messageName: "DC_CableCheckRes", payloadType: "0x8004", exi: "01fe80040000000012" });
+        }
+        events.push({ seq: events.length, atMillis: n * 100, kind: "message", direction: "out",
+                      messageName: "DC_PreChargeReq", payloadType: "0x8004", exi: "01fe80040000000012" });
+        return events;
+    };
+
+    const timings = timingsFor(pollLoop(78));
+
+    assert.equal(timings.phases.length, 2, "78 polls and a pre-charge are two phases, not 79");
+    assert.equal(timings.phases[0]?.count, 78);
+    assert.equal(timings.phases[0]?.name, "DC_CableCheckReq");
+    assert.equal(timings.phases[1]?.count, 1);
+});
+
+
+test("across the corpus, every request lands in exactly one phase", () => {
+
+    for (const [name, events] of Object.entries(sessions)) {
+
+        const timings = timingsFor(events);
+        const outbound = events.filter(
+            (/** @type {any} */ e) => e.kind === "message" && e.direction === "out");
+
+        assert.ok(timings.phases.length > 0, name);
+        assert.ok(timings.phases.length <= outbound.length, name);
+
+        const counted = timings.phases.reduce(
+            (/** @type {number} */ n, /** @type {any} */ p) => n + p.count, 0);
+        assert.equal(counted, outbound.length,
+                     `${name}: ${counted} requests accounted for, ${outbound.length} sent`);
+
+        for (const phase of timings.phases) {
+            assert.ok(phase.share >= 0 && phase.share <= 1, `${name}: share out of range`);
+            assert.ok(phase.millis >= 0, `${name}: negative duration`);
+        }
+    }
+});
+
+
+test("a poll loop that outstays the Ongoing budget is called out", () => {
+
+    const events = [
+        { seq: 0, atMillis: 0, kind: "sessionStarted", name: "x", protocol: "iso15118-2", mode: "dc" },
+        { seq: 1, atMillis: 0,      kind: "message", direction: "out", messageName: "CableCheckReq",
+          payloadType: "0x8001", exi: "01fe80010000000012" },
+        { seq: 2, atMillis: 90_000, kind: "message", direction: "in",  messageName: "CableCheckRes",
+          payloadType: "0x8001", exi: "01fe80010000000012" },
+    ];
+
+    const timings = timingsFor(events);
+
+    assert.equal(timings.anyOverBudget, true);
+    assert.equal(timings.phases[0]?.overBudget, true);
+    assert.equal(timings.budgetMillis, ONGOING_BUDGET_MS);
+
+    // …and the corpus, whose clock steps a millisecond per reading, is nowhere near it.
+    for (const events of Object.values(sessions))
+        assert.equal(timingsFor(events).anyOverBudget, false);
+});
+
+
+// ── the signature ─────────────────────────────────────────────────────────────────────────────
+
+test("the recorded PnC sessions show a signature, and the EIM ones show none", () => {
+
+    let signed = 0;
+
+    for (const [name, events] of Object.entries(sessions)) {
+        for (const event of events) {
+
+            const view = signatureFor(event);
+            if (!view.present) continue;
+
+            assert.ok(name.includes("pnc"), `${name}: a signature in a session that is not PnC`);
+
+            const labels = view.facts.map((/** @type {any} */ f) => f.label);
+            for (const wanted of ["Signature method", "Covers", "Digest", "Signature"])
+                assert.ok(labels.includes(wanted), `${name} seq ${event.seq}: no "${wanted}"`);
+
+            // The reference points at an element that is really in this message. Everything else on
+            // the screen is the signature's own claim; this is the one part checked.
+            assert.deepEqual(view.problems, [],
+                             `${name} seq ${event.seq}: ${view.problems.join("; ")}`);
+
+            // And the screen says what it did not check, rather than implying it did.
+            assert.ok(view.limits.length > 0);
+
+            signed++;
+        }
+    }
+
+    assert.ok(signed >= 3, `only ${signed} signed messages — the PnC corpus should carry more`);
+    assert.equal(signatureFor(
+        { seq: 0, atMillis: 0, kind: "message", json: { header: {} } }).present, false);
+});
+
+
+test("a signature covering an Id that is not in the message is refused, not decorated", () => {
+
+    // The digest and the algorithms are perfectly well-formed; the reference is not.
+    const event = {
+        seq: 1, atMillis: 0, kind: "message", direction: "out", messageName: "AuthorizationReqType",
+        json: {
+            header: {
+                signature: {
+                    signedInfo: {
+                        signatureMethod: { algorithm: "…#ecdsa-sha256" },
+                        reference: [{ uri: "#id9", digestValue: "00" }],
+                    },
+                    signatureValue: { value: "ab" },
+                },
+            },
+            body: { bodyElement: { "@type": "AuthorizationReqType", id: "id1" } },
+        },
+    };
+
+    const view = signatureFor(event);
+
+    assert.equal(view.present, true);
+    assert.equal(view.problems.length, 1);
+    assert.match(view.problems[0], /#id9/);
+    assert.match(view.problems[0], /id1/);   // …and says what the message does carry
+});
+
+
+// ── export ────────────────────────────────────────────────────────────────────────────────────
+
+test("a session exports as the corpus trace shape, request paired with response", () => {
+
+    for (const [name, events] of Object.entries(sessions)) {
+
+        const bundle = exportsFor(events, name);
+        const trace  = JSON.parse(
+            /** @type {any} */ (bundle.files.find((/** @type {any} */ f) => f.name.endsWith(".trace.json"))).text);
+
+        const outbound = events.filter((/** @type {any} */ e) => e.kind === "message" && e.direction === "out");
+
+        assert.equal(trace.schemaVersion, 2, name);
+        assert.equal(trace.exchanges.length, outbound.length, name);
+
+        for (const exchange of trace.exchanges) {
+            assert.ok(exchange.request.frame.length > 0, name);
+            assert.notEqual(exchange.response, null, `${name}: an unanswered request`);
+        }
+
+        // The first exchange is always the handshake, in every recorded session.
+        assert.match(trace.exchanges[0].request.message, /SupportedAppProtocol/, name);
+    }
+});
+
+
+test("a signed session says its export is not corpus-grade, rather than looking like one", () => {
+
+    const pnc = exportsFor(sessions["iso2-ac-pnc"] ?? [], "iso2-ac-pnc");
+    assert.ok(pnc.caveats.some((/** @type {string} */ c) => c.includes("signed")),
+              "a session with signatures exported silently");
+
+    const eim = exportsFor(sessions["iso2-ac-eim"] ?? [], "iso2-ac-eim");
+    assert.deepEqual(eim.caveats, [], "an EIM session has nothing to warn about");
+});
+
+
+test("a session with holes exports with the holes declared", () => {
+
+    const whole   = sessions["iso2-ac-eim"] ?? [];
+    const missing = whole.filter((/** @type {any} */ _, /** @type {number} */ i) => i !== 4);
+
+    const bundle = exportsFor(missing, "clipped");
+
+    assert.ok(bundle.caveats.some((/** @type {string} */ c) => c.includes("lost")));
 });

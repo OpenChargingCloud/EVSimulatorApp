@@ -2,7 +2,7 @@
 
 import { el, put, clear, field, button, choice, textInput, monospace } from "./dom.js";
 import { sheetFor, configFor, groupHex } from "../sheet.js";
-import { rowsFor, detailFor, statusOf } from "../session.js";
+import { rowsFor, detailFor, statusOf, timingsFor, exportsFor } from "../session.js";
 
 /**
  * The three screens, drawn from the view models next door.
@@ -218,10 +218,52 @@ export function sessionScreen(root, events, handlers) {
         }
     }
 
+    if (!status.running) renderTimings(root, events);
+
+    if (!status.running) renderExports(root, events);
+
     put(root, status.running ? button("Stop", handlers.onStop, { primary: true })
                              : button("Back", handlers.onBack));
 
     return root;
+}
+
+
+/**
+ * The session as files, offered once it is over.
+ *
+ * A download is built here rather than in the view model because it is the one part that touches the
+ * platform: an object URL and a click. What the files *contain*, and what is wrong with them, is
+ * `exportsFor`'s answer and is testable without a browser.
+ *
+ * @param {Element} root
+ * @param {BridgeEvent[]} events
+ */
+function renderExports(root, events) {
+
+    const started = events.find(e => e.kind === "sessionStarted");
+    const name    = String(started?.name ?? "session");
+    const bundle  = exportsFor(events, name);
+
+    put(root, el("h2", "", "Export"));
+
+    for (const caveat of bundle.caveats)
+        put(root, el("p", "problem", caveat));
+
+    for (const file of bundle.files)
+        put(root, button(file.name, () => download(file)));
+
+    return root;
+}
+
+/** @param {{name: string, mime: string, text: string}} file */
+function download(file) {
+    const url  = URL.createObjectURL(new Blob([file.text], { type: file.mime }));
+    const link = el("a", "", "");
+    link.setAttribute("href", url);
+    link.setAttribute("download", file.name);
+    link.dispatchEvent(new MouseEvent("click"));
+    URL.revokeObjectURL(url);
 }
 
 
@@ -235,11 +277,84 @@ function renderDetail(root, event) {
 
     for (const fact of detail.facts) put(root, field(fact.label, fact.value));
 
+    // The signature first when there is one: it is the thing about this message that nobody can
+    // normally see, and burying it under a screen of hex would be an odd way to present it.
+    if (detail.signature.present) {
+
+        put(root, el("h2", "", "Signature"));
+
+        for (const problem of detail.signature.problems)
+            put(root, el("p", "problem", problem));
+
+        for (const fact of detail.signature.facts)
+            put(root, field(fact.label, fact.value, undefined));
+
+        for (const limit of detail.signature.limits)
+            put(root, el("p", "note", limit));
+    }
+
     // Both halves, always. B1 asks the stream to carry every message as JSON-LD *and* as the raw
     // frame; a screen that showed only the readable one would be telling the user the bytes are
     // right there without ever showing them.
     if (detail.json !== null) put(root, el("h2", "", "JSON-LD"), monospace(detail.json));
-    if (detail.hex  !== null) put(root, el("h2", "", "V2GTP frame"), monospace(detail.hex));
+
+    if (detail.frame !== null) {
+
+        put(root, el("h2", "", "V2GTP frame"));
+
+        for (const problem of detail.frame.problems)
+            put(root, el("p", "problem", problem));
+
+        for (const f of detail.frame.header)
+            put(root, field(`${f.label}  ${f.bytes}`, f.value, f.problem === null ? undefined : "problem"));
+
+        put(root, el("h3", "", `EXI payload · ${detail.frame.bodyBytes} byte(s)`),
+                  monospace(detail.frame.body));
+    }
+
+    return root;
+}
+
+
+/**
+ * Where the session spent its time, as bars.
+ *
+ * @param {Element} root
+ * @param {BridgeEvent[]} events
+ */
+function renderTimings(root, events) {
+
+    const timings = timingsFor(events);
+    if (timings.phases.length === 0) return root;
+
+    put(root, el("h2", "", "Timing"));
+    put(root, el("p", "note",
+                 `${timings.totalMillis} ms across ${timings.phases.length} phase(s). Measured when `
+               + "each event reached this screen — for a replay that times the replay, not the "
+               + "recorded session, which carries no timings of its own."));
+
+    for (const phase of timings.phases) {
+
+        const row = put(el("div", `phase${phase.overBudget ? " problem" : ""}`),
+                        el("span", "title", phase.count === 1 ? phase.name
+                                                              : `${phase.name} ×${phase.count}`),
+                        el("span", "at", `${phase.millis} ms`));
+
+        // The bar is the waterfall: a poll loop that swallowed the session is a long bar, where the
+        // list of identical rows it collapses says the same thing in thirty lines.
+        const bar  = el("div", "bar");
+        const fill = el("div", "fill");
+        fill.setAttribute("style", `width: ${(phase.share * 100).toFixed(1)}%`);
+        put(bar, fill);
+        put(row, bar);
+
+        put(root, row);
+    }
+
+    if (timings.anyOverBudget)
+        put(root, el("p", "problem",
+                     `A phase ran past ${timings.budgetMillis} ms, which is the limit our own EVCCs `
+                   + "apply to a station that keeps answering Ongoing."));
 
     return root;
 }

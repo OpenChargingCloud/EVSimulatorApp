@@ -114,6 +114,29 @@ h2 { font-size: .8rem; margin: 1rem 0 .35rem; text-transform: uppercase;
 
 .problem { color: var(--alarm); margin: .75rem 0; }
 
+/* What a screen did *not* check. Quieter than a problem on purpose: it is not an alarm, it is the
+   sentence that stops a digest sitting next to a tick it never earned. */
+.note { color: var(--ink-soft); font-size: .9rem; margin: .5rem 0; }
+
+/* ── timing ────────────────────────────────────────────────────────────────── */
+
+.phase {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "title at" "bar bar";
+    gap: .15rem .75rem;
+    padding: .5rem 0;
+    border-bottom: 1px solid var(--line);
+}
+.phase .title { grid-area: title; }
+.phase .at    { grid-area: at; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+/* The bar is the waterfall. A poll loop that swallowed the session is a long bar; the thirty
+   identical rows it collapses said the same thing and took thirty lines to do it. */
+.phase .bar  { grid-area: bar; height: .35rem; background: var(--line); border-radius: .2rem; }
+.phase .fill { height: 100%; background: var(--in); border-radius: .2rem; min-width: 1px; }
+.phase.problem .fill { background: var(--alarm); }
+
 /* ── controls ──────────────────────────────────────────────────────────────── */
 
 button {

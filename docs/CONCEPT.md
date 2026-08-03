@@ -1908,6 +1908,59 @@ persistence/export. **Exit:** a full PnC session with signed receipts on both pr
 annotation, timing waterfall vs the -2/-20 timeout budgets, export as `.pcap`/EXI trace/JSON.
 Cheap because B1's event stream already carries everything.
 
+> **The inspector and the signature view, 2026-08-03.** B4 minus the parts that need something this
+> repository does not have, plus B3's signing-detail view — which turned out to need nothing new at
+> all, because the whole XMLDSig already travels in the event: `signedInfo`, the reference, the
+> digest, the signature value. Four view-model functions in `app/src/session.js`, 10 new tests over
+> the recorded corpus, and the rendering next door.
+>
+> **The annotated frame is the V2GTP header, and it is a *check* rather than a legend.** Three
+> things worth saying about a frame can be said without a decoder, and each is a real failure this
+> project has met: the declared payload length against the bytes actually present (which is the
+> entire content of `tools/EVSimulatorApp.WsBridge`), the version byte against its own inverse, and
+> the payload type — 0x8003 and 0x8004 being two whole grammars seven bits apart. It found something
+> the first time it was pointed at a frame, which happened to be a hand-made one in a browser: *"the
+> header declares 10, but 11 byte(s) follow it."*
+>
+> **EXI-body grammar annotation is not in this**, and that is the honest half of "grammar
+> annotation": it needs the generator's grammar plan, which no back end exposes at runtime.
+>
+> **The waterfall is by phase, and the phase is why it is worth having.** Consecutive exchanges of
+> one message are a poll loop, and collapsing them is what turns a list into a picture: the EVerest
+> -20 DC run is 100 exchanges of which 78 are `DC_CableCheckReq`, and the statement worth reading is
+> *"the cable check took 8.5 seconds"*, not the seventy-eight rows that say so. The budget it
+> compares against is **ours** — the 60 s `OngoingGuard` limit — and is labelled as ours, because
+> per-message performance budgets from the standard are not written down anywhere here and an
+> invented number would be worse than none. That is the same discipline that removed an unverified
+> `[V2G2-179]` from the SAP code earlier the same day.
+>
+> **Export includes the corpus shape**, not just the raw events: a session that did something
+> surprising in the field becomes `Session.<name>.trace.json`, the layout the C# recorder writes and
+> four back ends replay. The caveats travel *in* the file and on the screen — a trace built from an
+> event stream is missing exactly what the stream does not carry, and the signed-session case says
+> so outright rather than producing a file that is quietly not corpus-grade.
+>
+> **What the signature view will not do is the point of it.** It shows what the signature claims and
+> checks the one thing checkable without a codec: that the reference points at an `Id` that is
+> really in this message. A signature over `#id2` in a message whose only `Id` is `id1` covers
+> nothing that is there, and no amount of correct cryptography makes that all right. It then says,
+> on screen, that it did not verify anything — because a digest sitting next to a tick it never
+> earned is worse than no digest at all.
+>
+> That limit is now a wiring job rather than a wall, and the specifics are worth recording:
+> `typescript/src/iso2/Iso15118_2Codec.ts` has `encodeFragment_MeteringReceiptReq`,
+> `encodeFragment_AuthorizationReq` and `encodeFragment_SignedInfo`, and WebCrypto has SHA-256 — so
+> **re-deriving the digest needs no key at all**. Verifying the signature itself additionally needs
+> the signer's public key, which arrives earlier in the same session inside `PaymentDetailsReq`.
+>
+> **Still open in B3**, and both were scoped out deliberately: the *station's* signed meter reading
+> (`SigMeterReading`) never reaches the app, because the corpus is recorded against a `Secc2` with
+> no meter installed — `Secc2.InstalledMeter` is the seam, so this is a recording job and not a
+> hardware one. When it is recorded, a station-signed reading is a randomised ECDSA signature in a
+> **response**, which `RecordingTheCorpusAgainProducesTheSameBytes` cannot compare; the decision
+> taken (2026-08-03) is to extend the existing signature-aware comparison to the response direction
+> rather than exempt the scenario. And the EV's own meter model does not exist yet at all.
+
 ### Deferred by request
 
 Charging curves, battery model, DER, V2H/BPT scenarios, WPT/ACDP. DIN 70121 stays on the
