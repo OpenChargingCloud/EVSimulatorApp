@@ -150,6 +150,43 @@ class Evcc2TraceTest {
     }
 
     /**
+     * **The vehicle's own counter lands where the station's signed reading does.**
+     *
+     * Two counters, two state machines, and neither looks at the other's total: the EV multiplies
+     * the power it committed to in its ChargingProfile, the station the profile it accepted, and
+     * both book the same declared sample period. 549 Wh is 11 kW for three minutes — and it is the
+     * last `MeterReading` in this very recording, so this is the port's arithmetic held against C#'s
+     * rather than against itself.
+     *
+     * It is also where a rounding rule shows. 183.33 Wh per sample rounds to 183 three times, not to
+     * 550: a port integrating precisely and rounding once would be one watt-hour out, silently, in a
+     * number a driver is billed on.
+     */
+    @Test
+    fun theVehiclesOwnCounterAgreesWithTheStationsSignedReading() {
+
+        val trace  = SessionTrace.load("iso2-ac-eim-meter")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_2, PowerMode.Ac)
+        val evcc = Evcc2(stream, PowerMode.Ac, pollDelay = { })
+        evcc.run()
+
+        assertEquals(3, evcc.meter.samples, "three charge-loop iterations, three samples")
+        assertEquals(549uL, evcc.meter.energyWh)
+
+        // …and that figure is the station's, read back out of the recording rather than restated.
+        val last = trace.exchanges.last { it.response.carriesMeterSignature }
+        val decoded = V2GTPDispatcher.decode(last.response.bytes)
+        val status = ((decoded as V2GTPDecodeResult.Decoded).message as V2G_Message)
+                         .body.bodyElement as ChargingStatusResType
+        assertEquals(status.meterInfo!!.meterReading, evcc.meter.energyWh,
+            "the vehicle's counter and the station's last signed reading disagree, and they are " +
+            "counting the same three iterations of the same charge loop")
+    }
+
+    /**
      * **The reading C# recorded verifies under this port's own payload layout.**
      *
      * The same argument as [theRecordedSignatureVerifiesUnderThisPortsOwnEncoder], one signer along
@@ -173,6 +210,8 @@ class Evcc2TraceTest {
         val metered = trace.exchanges.filter { it.response.carriesMeterSignature }
         assertTrue(metered.size >= 3, "the metered corpus records ${metered.size} readings")
 
+        var previous = 0uL
+
         for (exchange in metered) {
 
             val decoded = V2GTPDispatcher.decode(exchange.response.bytes)
@@ -181,7 +220,11 @@ class Evcc2TraceTest {
             val info    = status.meterInfo!!
 
             assertEquals("VAN*M*4711", info.meterID)
-            assertEquals(4200uL, info.meterReading)
+            // The reading climbs through the session — it is a register counting what the loop
+            // delivered, not a constant. A meter that never advanced would still sign correctly and
+            // would be exactly the failure this line exists to notice.
+            assertTrue(info.meterReading!! > previous, "the reading did not advance: $info")
+            previous = info.meterReading!!
 
             assertTrue(
                 MeterSignature.verify(info.sigMeterReading!!, 2, message.header.sessionID,

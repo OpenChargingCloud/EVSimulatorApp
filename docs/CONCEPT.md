@@ -2083,8 +2083,56 @@ Cheap because B1's event stream already carries everything.
 > lines saying "no". Omitting nulls cost one large diff and made the files ~35% shorter — worth it
 > for a corpus whose main job is to be *read* by someone judging whether a regeneration is innocent.
 >
-> **Still open in B3:** the EV's own meter model, which is what would make §4.3's comparison a
-> three-way one rather than a two-way one.
+> **And the vehicle's own counter, later the same day (2026-08-03) — §4.3's second leg.** `EvMeter`
+> gives the EV a number of its own, so the app can put two independent counts of one session side by
+> side. It is the only check on that screen needing **no cryptography at all**, and that is the point:
+> a signature protects a number from being altered after the meter produced it and says nothing about
+> whether the meter measured the same thing the car did. Only a second count can.
+>
+> **The vehicle's figure never comes from the station's answer**, or this would be an elaborate way
+> of comparing a number with itself. Each protocol leaves the EV a different amount to work with, and
+> each rule takes the most it owns: -20 AC has `EVPresentActivePower` in the EV's own request (the
+> only place in either protocol where a vehicle states its inlet power outright); -20 DC pairs the
+> EV's own `EVPresentVoltage` with the station's reported current, because -20 gives a DC vehicle no
+> current field of its own; -2 DC uses `EVTargetVoltage × EVTargetCurrent`, since -2 has no
+> EV-present-power field at all; -2 AC falls back to the `ChargingProfile` the EV committed to, AC
+> carrying no power in either direction. A test rewrites every `EVSEPresent*` in a recorded DC
+> session to 1 and requires the vehicle's count not to move.
+>
+> **The station's meter had to start measuring the same process.** It held a fixed 4200 Wh — harmless
+> placeholder data right up until something compared it, at which point the screen would have shown a
+> difference that meant nothing. Now both sides book the same declared `ChargeLoopSample.Period` at
+> the power they each know, so a clean session lands on the same watt-hour. A station with **no**
+> signing meter reports the same figure unsigned rather than a literal 42, which is both truer to the
+> field — nearly every station meters, few sign — and more useful, since every session then has two
+> counts and only some have a signature over one of them.
+>
+> **Sampled, not clock-driven.** The corpus is recorded with a pinned clock so -20's per-message
+> timestamps stay stable, so anything integrating over wall time would count zero there and something
+> different on every live run. Each charge-loop iteration *is* a sample and declares a duration —
+> deterministic, replayable, and the same number in all four implementations, which is what lets the
+> Kotlin and Swift trace tests hold their EVCC to C#'s figure rather than to itself.
+>
+> **Two measured corrections, both from the comparison itself.** Rounding once at the end is better
+> arithmetic and the wrong rule: the figure this is checked against lives in an `xs:unsignedLong`
+> register, and an AC session came out 549 Wh at the station and 548 in the vehicle. Both sides now
+> round per sample, deliberately less precisely. And the app first compared the station's **last**
+> reading against the vehicle's **final** total — different instants, which produced a 366 Wh
+> "disagreement" in the PnC session with nothing wrong in it at all: an unmetered station reports
+> `MeterInfo` only when it demands a receipt, which is once, early. The two figures are now paired at
+> the reading, and the session total is shown separately when it differs.
+>
+> **What agreement means, stated on screen:** two implementations of one arithmetic agreeing, which
+> catches a wrong field, a wrong unit or a wrong scale exponent. Not evidence about a real meter — in
+> this simulator both numbers come from the same modelled charge loop, and the sentence says so.
+>
+> Doing this also closed a gap nothing had noticed: the app's meter view read `MeterInfo` only where
+> **-2** puts it, so every -20 reading was silently invisible. Both places now, with the protocol
+> number taken from the payload type — and that number is part of what the meter signed and never
+> travels, so reading it wrong fails every -20 verification for a reason nothing on the wire explains.
+>
+> **Still open in B3:** the third leg — OCPP `MeterValues` from the CSMS — which is what would make
+> §4.3's comparison three-way rather than two-way.
 
 ### Deferred by request
 

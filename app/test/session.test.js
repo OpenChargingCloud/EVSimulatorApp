@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { rowsFor, detailFor, statusOf, hexLines,
          frameFor, timingsFor, signatureFor, exportsFor, digestCheckFor, signerCheckFor,
-         meterReadingFor, meterCheckFor, ONGOING_BUDGET_MS } from "../src/session.js";
+         meterReadingFor, meterCheckFor, energyFor, ONGOING_BUDGET_MS } from "../src/session.js";
 
 /**
  * The session screen, over the recorded event streams.
@@ -511,12 +511,17 @@ test("the station's signed reading verifies against the meter key the session br
     assert.ok(readings.length >= 3,
               `the metered corpus should carry a reading per charging-status cycle, found ${readings.length}`);
 
+    let climbing = 0n;
+
     for (const event of readings) {
 
         const view = meterReadingFor(event);
         assert.equal(view.meterId, "VAN*M*4711");
-        assert.equal(view.readingWh, 4200n);
         assert.equal(view.signature?.length, 128, "64 bytes of raw r‖s, as hex");
+        // The reading climbs through the session: a register counting what the loop delivered, not
+        // a constant. A meter that never advanced would sign perfectly and still be broken.
+        assert.ok(view.readingWh > climbing, `seq ${event.seq}: the reading did not advance`);
+        climbing = view.readingWh;
 
         const check = await meterCheckFor(event, events);
         assert.equal(check.verdict, "signed-by-meter", `seq ${event.seq}: ${check.explanation}`);
@@ -584,6 +589,111 @@ test("a session with no meter reports none, rather than reporting nothing", asyn
     const withReading = pnc.filter((/** @type {any} */ e) => meterReadingFor(e).present);
     assert.ok(withReading.length > 0, "the PnC session reports a reading, just an unsigned one");
     assert.equal(await meterCheckFor(withReading[0], pnc).then(c => c.verdict), "unsigned");
+});
+
+
+// ── the two counts ────────────────────────────────────────────────────────────────────────────
+
+test("the car's own count and the station's signed reading agree, across both protocols", () => {
+
+    for (const [name, expected] of [["iso2-ac-eim-meter", 549n], ["iso20-dc-eim-meter", 2400n]]) {
+
+        const energy = energyFor(sessions[name] ?? []);
+
+        assert.equal(energy.verdict, "agree", `${name}: ${energy.explanation}`);
+        assert.equal(energy.vehicleWh, expected, name);
+        assert.equal(energy.stationWh, expected, name);
+        assert.equal(energy.samples, 3, `${name}: three charge-loop iterations`);
+        // …and the sentence does not claim more than two models agreeing.
+        assert.match(energy.explanation, /not evidence about a real meter/);
+    }
+});
+
+
+test("the car counts on its own at a station with no meter, which is the ordinary case", () => {
+
+    // Every unmetered session in the corpus: the vehicle still has a number, the station does not.
+    for (const [name, events] of Object.entries(sessions)) {
+
+        if (name.endsWith("-meter")) continue;
+
+        const energy = energyFor(events);
+        assert.notEqual(energy.verdict, "differ", `${name}: ${energy.explanation}`);
+
+        if (energy.verdict === "one-sided") {
+            assert.equal(energy.stationWh, null, name);
+            assert.ok(energy.vehicleWh > 0n, `${name}: the vehicle counted nothing`);
+            assert.match(energy.explanation, /worth having/);
+        }
+    }
+});
+
+
+test("a station reporting energy it did not deliver is a difference, not a rounding note", () => {
+
+    const events = structuredClone(sessions["iso2-ac-eim-meter"] ?? []);
+    const last   = [...events].reverse().find(e => e?.json?.body?.bodyElement?.meterInfo);
+
+    // A station billing for 1 kWh it never delivered. Every signature in the session still checks
+    // out — this is the disagreement no signature can catch.
+    last.json.body.bodyElement.meterInfo.meterReading = "1549";
+
+    const energy = energyFor(events);
+    assert.equal(energy.verdict, "differ");
+    assert.equal(energy.deviationWh, 1000n);
+    assert.match(energy.explanation, /a signature cannot\s+catch/);
+});
+
+
+test("the car's count comes from what the car said, not from the station's answer", () => {
+
+    // Rewrite every figure the station reports in the -2 DC session. The vehicle's count is derived
+    // from its own CurrentDemandReq, so it must not move — if it did, this comparison would be an
+    // elaborate way of comparing a number with itself.
+    const events = structuredClone(sessions["iso2-dc-eim"] ?? []);
+    const before = energyFor(events).vehicleWh;
+
+    for (const event of events) {
+        const body = event?.json?.body?.bodyElement;
+        if (body?.eVSEPresentCurrent) body.eVSEPresentCurrent.value = 1;
+        if (body?.eVSEPresentVoltage) body.eVSEPresentVoltage.value = 1;
+    }
+
+    assert.ok(before > 0n, "the DC session counted nothing to begin with");
+    assert.equal(energyFor(events).vehicleWh, before);
+});
+
+
+test("the two counts are paired at the same instant, not at the end of the session", () => {
+
+    // The Plug & Charge session, where an unmetered station reports MeterInfo exactly once — with
+    // the receipt it demands, early. The car goes on counting afterwards, so its final total is a
+    // different moment from the station's only reading, and comparing those two produced a 366 Wh
+    // "disagreement" with nothing wrong in the session at all.
+    const energy = energyFor(sessions["iso2-ac-pnc"] ?? []);
+
+    assert.equal(energy.verdict, "agree", energy.explanation);
+    assert.equal(energy.vehicleWh, energy.stationWh, "the paired figures must be the compared ones");
+    assert.ok(energy.vehicleTotalWh > energy.vehicleWh,
+              "the car kept counting after the station stopped reporting — that is the whole point "
+            + "of keeping the total separate");
+});
+
+
+test("the -20 station's signed reading is read and checked too, not quietly skipped", async () => {
+
+    // MeterInfo sits in a different place in -20, and the protocol number in the signed payload is
+    // 20 rather than 2 — read either the -2 way and every -20 reading silently disappears or fails.
+    const events   = sessions["iso20-dc-eim-meter"] ?? [];
+    const readings = events.filter((/** @type {any} */ e) => meterReadingFor(e).present);
+
+    assert.ok(readings.length >= 3, `only ${readings.length} -20 readings were found`);
+
+    for (const event of readings) {
+        assert.equal(meterReadingFor(event).protocol, 20);
+        const check = await meterCheckFor(event, events);
+        assert.equal(check.verdict, "signed-by-meter", `seq ${event.seq}: ${check.explanation}`);
+    }
 });
 
 

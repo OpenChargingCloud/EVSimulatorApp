@@ -14,10 +14,10 @@ dependencies {
     implementation(project(":v2g-tp"))
     implementation(project(":v2g-dispatch"))
 
+    // The vehicle's own energy counter, and the verifier for a station's signed reading.
+    implementation(project(":v2g-metering"))
+
     testImplementation(kotlin("test"))
     // Reads the session-trace corpus the C# side records, verbatim, so the two cannot drift.
     testImplementation("com.google.code.gson:gson:2.11.0")
-    // Test-only: the corpus now records station-signed meter readings, and a recorded reading that
-    // nothing verifies is 64 bytes of decoration.
-    testImplementation(project(":v2g-metering"))
 }

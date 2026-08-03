@@ -3,7 +3,7 @@
 import { el, put, clear, field, button, choice, textInput, monospace } from "./dom.js";
 import { sheetFor, configFor, groupHex } from "../sheet.js";
 import { rowsFor, detailFor, statusOf, timingsFor, exportsFor,
-         digestCheckFor, signerCheckFor, meterCheckFor } from "../session.js";
+         digestCheckFor, signerCheckFor, meterCheckFor, energyFor } from "../session.js";
 import { digestDeriver, signatureVerifier } from "./plugin.js";
 
 /**
@@ -196,6 +196,34 @@ export function sessionScreen(root, events, handlers) {
         put(root, el("p", "problem",
                      `${status.lost} place(s) in this stream are missing events. What is shown is `
                    + "not the whole session."));
+
+    // Two counts of one session, before the message list rather than buried in it: it is the one
+    // question a driver actually has, and the only check here that needs no cryptography at all.
+    const energy = energyFor(events);
+    if (energy.verdict !== "none") {
+
+        put(root, el("h2", "", "Energy"));
+
+        if (energy.vehicleWh !== null)
+            put(root, field("This car counted", `${energy.vehicleWh} Wh`
+                                              + ` (${energy.samples} charge-loop sample(s))`));
+        if (energy.stationWh !== null)
+            put(root, field("The station reported", `${energy.stationWh} Wh`));
+
+        // A station that stopped reporting mid-session leaves the two figures at different instants.
+        // Showing the total beside them keeps the comparison honest rather than hiding the gap.
+        if (energy.vehicleTotalWh !== null && energy.vehicleTotalWh !== energy.vehicleWh)
+            put(root, field("This car counted in all",
+                            `${energy.vehicleTotalWh} Wh — the station stopped reporting before the `
+                          + "session ended, so the two figures above are from the same earlier moment"));
+        if (energy.verdict === "differ")
+            put(root, field("Difference", `${energy.deviationWh} Wh`, "problem"));
+
+        put(root, el("p", energy.verdict === "agree"  ? "ok"
+                        : energy.verdict === "differ" ? "problem"
+                                                      : "note",
+                     energy.explanation));
+    }
 
     const list = el("div", "events");
     put(root, list);

@@ -1,3 +1,4 @@
+import Foundation
 import ExiIso20DC
 import V2GDispatch
 
@@ -75,7 +76,19 @@ public class Evcc20Dc: Evcc20Base {
             cLReqControlMode: controlMode)
 
         let (set, message) = try exchangeRaw(.iso20DC, DCCodec.encode(request))
-        let _: DC_ChargeLoopRes = try expect(set, message, .iso20DC)
+        let response: DC_ChargeLoopRes = try expect(set, message, .iso20DC)
+
+        // The EV's own voltage — it sent EVPresentVoltage above, and a DC vehicle really does measure
+        // that at its own inlet — times the current the station reports. Half-borrowed on purpose:
+        // -20 DC gives the vehicle no field for a current it measured itself, and EVTargetCurrent
+        // would be a *request* rather than a measurement, and does not exist in Dynamic mode at all.
+        meter.sample(volts:   Self.amount(request.eVPresentVoltage),
+                     amperes: Self.amount(response.eVSEPresentCurrent))
+    }
+
+    /// A RationalNumber as a plain number: value x 10^exponent.
+    private static func amount(_ v: ExiIso20DC.RationalNumberType) -> Double {
+        Double(v.value) * pow(10, Double(v.exponent))
     }
 
     public override func runPostChargeSequence() throws {

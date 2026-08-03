@@ -97,8 +97,18 @@ open class Evcc20Dc(
             cLReqControlMode = controlMode)
 
         val (set, message) = exchangeRaw(MessageSet.Iso20DC, DCCodec.encode(request))
-        expect<DC_ChargeLoopRes>(set, message, MessageSet.Iso20DC)
+        val response = expect<DC_ChargeLoopRes>(set, message, MessageSet.Iso20DC)
+
+        // The EV's own voltage — it sent EVPresentVoltage above, and a DC vehicle really does measure
+        // that at its own inlet — times the current the station reports. Half-borrowed on purpose:
+        // -20 DC gives the vehicle no field for a current it measured itself, and EVTargetCurrent
+        // would be a *request* rather than a measurement, and does not exist in Dynamic mode at all.
+        meter.sample(amount(request.eVPresentVoltage) * amount(response.eVSEPresentCurrent))
     }
+
+    /** A RationalNumber as a plain number: value x 10^exponent. */
+    private fun amount(v: RationalNumberType): Double =
+        v.value.toDouble() * Math.pow(10.0, v.exponent.toDouble())
 
     override fun runPostChargeSequence() {
         val request = DC_WeldingDetectionReq(sessionCtx.toDcHeader(), Processing.Finished)

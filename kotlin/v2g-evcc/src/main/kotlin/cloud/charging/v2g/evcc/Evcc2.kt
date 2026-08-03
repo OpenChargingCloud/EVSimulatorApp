@@ -1,5 +1,6 @@
 package cloud.charging.v2g.evcc
 
+import cloud.charging.v2g.metering.EvMeter
 import cloud.charging.v2g.certificates.V2GCertificate
 import cloud.charging.v2g.iso2.*
 import cloud.charging.v2g.tp.MessageSet
@@ -83,6 +84,12 @@ class Evcc2(
 
     /** How many signed MeteringReceiptReq this session sent. Contract only — an EIM station never
      *  asks, so a non-zero count here is also the clearest single sign that PnC really ran. */
+    /**
+     * The vehicle's own energy counter — what this EV thinks it took, kept independently of what the
+     * station reports (`docs/CONCEPT.md` §4.2/§4.3).
+     */
+    val meter: EvMeter = EvMeter()
+
     var meteringReceiptsSent: Int = 0
         private set
 
@@ -180,12 +187,26 @@ class Evcc2(
             // MeteringReceiptReq echoing its MeterInfo, as a real EV does.
             val notification =
                 if (mode == PowerMode.Dc) {
-                    val res = send<CurrentDemandResType>(currentDemand())
+                    val demand = currentDemand()
+                    val res = send<CurrentDemandResType>(demand)
+
+                    // The EV's own view, from the EV's own request: ISO 15118-2 gives a DC vehicle no
+                    // field for a *measured* inlet power, so what it asked for is the closest thing it
+                    // owns — and taking the station's EVSEPresent* would make this counter an echo of
+                    // the very number it exists to be compared against.
+                    meter.sample(watts(demand.eVTargetVoltage, demand.eVTargetCurrent))
+
                     if (res.receiptRequired == true && res.meterInfo != null)
                         sendMeteringReceipt(res.meterInfo!!, res.sAScheduleTupleID)
                     res.dC_EVSEStatus.eVSENotification
                 } else {
                     val res = send<ChargingStatusResType>(ChargingStatusReqType())
+
+                    // AC carries no power in either direction, so the EV's own view is the profile it
+                    // committed to in PowerDeliveryReq — derived by the EV itself from the tuple it
+                    // chose, and validated by the station against its own PMax.
+                    meter.sample(committedPowerW())
+
                     if (res.receiptRequired == true && res.meterInfo != null)
                         sendMeteringReceipt(res.meterInfo!!, res.sAScheduleTupleID)
                     res.aC_EVSEStatus.eVSENotification
@@ -441,6 +462,23 @@ class Evcc2(
             bulkChargingComplete = null, chargingComplete = false,
             remainingTimeToFullSoC = null, remainingTimeToBulkSoC = null,
             eVTargetVoltage = volt(400))
+
+    /**
+     * The power this EV committed to in its ChargingProfile — its own view of an AC session, since
+     * -2 puts no power on the wire in either direction.
+     *
+     * The first entry, because the later ones start at offsets a three-iteration charge loop never
+     * reaches. Zero without a profile: a session that never agreed one has no committed power to
+     * count, and inventing one would put a number on screen that nothing in the session supports.
+     */
+    private fun committedPowerW(): Double =
+        chargingProfile?.profileEntry?.firstOrNull()?.chargingProfileEntryMaxPower?.let(::amount) ?: 0.0
+
+    /** A PhysicalValue as a plain number: value x 10^multiplier. */
+    private fun amount(v: PhysicalValueType): Double = v.value.toDouble() * Math.pow(10.0, v.multiplier.toDouble())
+
+    private fun watts(volts: PhysicalValueType, amperes: PhysicalValueType): Double =
+        amount(volts) * amount(amperes)
 
     private fun evStatus() = DC_EVStatusType(eVReady = true, eVErrorCode = DC_EVErrorCode.NO_ERROR, eVRESSSOC = 50)
     private fun volt(v: Short) = PhysicalValueType(0, UnitSymbol.V, v)

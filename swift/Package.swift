@@ -199,9 +199,9 @@ let package = Package(
         .target(name: "V2GEvcc", dependencies: [
             "V2GTP", "V2GDispatch", "ExiAppProtocol", "ExiIso2", "ExiIso20Common",
             "ExiIso20AC", "ExiIso20DC", "ExiXmlDsig", "V2GCertificates", "V2GKeystore",
+            // The vehicle's own energy counter, and the verifier for a station's signed reading.
+            "V2GMetering",
         ]),
-        // V2GMetering is test-only here: the session corpus now records station-signed meter
-        // readings, and a recorded reading that nothing verifies is 64 bytes of decoration.
         .testTarget(name: "V2GEvccTests", dependencies: ["V2GEvcc", "V2GMetering"]),
     ]
 )

@@ -633,6 +633,7 @@ export async function signerCheckFor(event, events, verify) {
 /**
  * @typedef {object} MeterView
  * @property {boolean} present
+ * @property {number} protocol   2 or 20 — part of what the meter signed, and never on the wire
  * @property {string} meterId
  * @property {bigint} readingWh
  * @property {bigint | null} timestamp
@@ -657,23 +658,32 @@ export async function signerCheckFor(event, events, verify) {
  */
 export function meterReadingFor(event) {
 
-    const absent = { present: false, meterId: "", readingWh: 0n, timestamp: null,
+    const absent = { present: false, protocol: 2, meterId: "", readingWh: 0n, timestamp: null,
                      signature: null, facts: [] };
 
-    const info = event.json?.body?.bodyElement?.meterInfo;
+    // -2 wraps every message in V2G_Message and puts MeterInfo on the body element; -20's charge-loop
+    // responses carry it at the top level. Same field, two places, and reading only the first is how
+    // this view was -2-only for a day without saying so.
+    const info = event.json?.body?.bodyElement?.meterInfo ?? event.json?.meterInfo;
     if (info === undefined || info === null || typeof info !== "object")
         return absent;
+
+    // 0x8001 carries the -2 messages; everything above it is a -20 set. The distinction matters
+    // beyond field names: the protocol number is part of what the meter signed, and it never
+    // travels, so getting it wrong fails every -20 verification for a reason nothing on the wire
+    // would explain.
+    const protocol = String(event.payloadType) === "0x8001" ? 2 : 20;
 
     // Wh and seconds arrive as strings — both are unsignedLong/long in the schema, and JSON numbers
     // would quietly lose the top bits. They are also what gets signed, so parsing them wrong is the
     // one mistake that would produce a confident wrong answer.
-    const readingWh = bigintOrNull(info.meterReading);
+    const readingWh = bigintOrNull(protocol === 2 ? info.meterReading : info.chargedEnergyReadingWh);
     if (typeof info.meterID !== "string" || readingWh === null)
         return absent;
 
-    const timestamp = bigintOrNull(info.tMeter);
-    const signature = typeof info.sigMeterReading === "string"
-                          ? info.sigMeterReading.toLowerCase() : null;
+    const timestamp = bigintOrNull(protocol === 2 ? info.tMeter : info.meterTimestamp);
+    const raw       = protocol === 2 ? info.sigMeterReading : info.meterSignature;
+    const signature = typeof raw === "string" ? raw.toLowerCase() : null;
 
     /** @type {{label: string, value: string}[]} */
     const facts = [
@@ -689,7 +699,7 @@ export function meterReadingFor(event) {
 
     facts.push({ label: "Meter signature", value: signature ?? "— (this station's meter does not sign)" });
 
-    return { present: true, meterId: info.meterID, readingWh, timestamp, signature, facts };
+    return { present: true, protocol, meterId: info.meterID, readingWh, timestamp, signature, facts };
 }
 
 
@@ -697,6 +707,176 @@ export function meterReadingFor(event) {
 function bigintOrNull(value) {
     if (typeof value !== "string" && typeof value !== "number") return null;
     try { return BigInt(value); } catch { return null; }
+}
+
+
+/**
+ * @typedef {object} EnergyComparison
+ * @property {"agree" | "differ" | "one-sided" | "none"} verdict
+ * @property {bigint | null} vehicleWh   what the EV had counted when the station last reported
+ * @property {bigint | null} vehicleTotalWh  what the EV counted over the whole session
+ * @property {bigint | null} stationWh   the station's last reported reading
+ * @property {bigint} deviationWh        station minus vehicle, absolute
+ * @property {number} samples            charge-loop iterations the vehicle counted
+ * @property {string} explanation
+ */
+
+/**
+ * The two measurements of one charging session, side by side.
+ *
+ * This is `docs/CONCEPT.md` §4.3's first two legs — the EV's own model against the station's signed
+ * `MeterInfo` — and it is the only check on this screen that needs no cryptography at all. Worth
+ * dwelling on: a signature protects a number from being altered *after* the meter produced it, and
+ * says nothing about whether the meter was measuring the same thing the car was. A second,
+ * independent count is the only thing that can.
+ *
+ * ## The vehicle's number is derived from what the vehicle said
+ *
+ * Never from the station's response, or this would be an elaborate way of comparing a number with
+ * itself. Each protocol gives the EV a different amount to work with, and each rule below is the
+ * most the vehicle owns in that case:
+ *
+ * - **-20 AC** — `EVPresentActivePower`, on the wire in the EV's own request. The only place in
+ *   either protocol where the vehicle states its inlet power outright.
+ * - **-20 DC** — the EV's `EVPresentVoltage` times the current the station reports. Half-borrowed,
+ *   because -20 DC gives the vehicle no field for a current it measured itself.
+ * - **-2 DC** — `EVTargetVoltage` × `EVTargetCurrent` from `CurrentDemandReq`: what it asked for,
+ *   since -2 has no EV-present-power field at all.
+ * - **-2 AC** — the `ChargingProfile` the EV committed to in `PowerDeliveryReq`. AC carries no power
+ *   in either direction, so the profile is the only figure either side has.
+ *
+ * ## What agreement does and does not mean
+ *
+ * Both sides count the same declared sample period, so a clean session lands on the same watt-hour.
+ * That catches a wrong field, a wrong unit, a wrong scale exponent, or a station reporting energy it
+ * did not deliver. It is not evidence about a real meter, and it cannot be: in this simulator both
+ * numbers come from the same modelled charge loop.
+ *
+ * @param {BridgeEvent[]} events
+ * @returns {EnergyComparison}
+ */
+export function energyFor(events) {
+
+    const messages = events.filter(e => e.kind === "message");
+
+    /** One charge-loop iteration stands for a minute — the same period both meters book. */
+    const SAMPLE_HOURS = 1 / 60;
+
+    let vehicle = 0n;
+    let samples = 0;
+    let committedProfileW = 0;
+
+    const sample = watts => {
+        // Whole watt-hours per sample, because the reading this is compared against lives in an
+        // integer register. Rounding once at the end would be better arithmetic and would report a
+        // difference the session does not contain.
+        vehicle += BigInt(Math.round(watts * SAMPLE_HOURS));
+        samples += 1;
+    };
+
+    /** The station's last reported reading, and what the vehicle had counted when it arrived. */
+    let station = null;
+    let pairedVehicle = null;
+
+    for (let at = 0; at < messages.length; at++) {
+
+        const event = messages[at];
+
+        if (event.direction !== "out") {
+            const reading = meterReadingFor(event);
+            if (reading.present) { station = reading.readingWh; pairedVehicle = vehicle; }
+            continue;
+        }
+
+        const body = event.json?.body?.bodyElement ?? event.json;
+        const name = String(event.messageName ?? "");
+
+        if (name.startsWith("PowerDeliveryReq")) {
+            const entry = firstOf(body?.chargingProfile?.profileEntry);
+            if (entry !== null)
+                committedProfileW = physicalValue(entry.chargingProfileEntryMaxPower) ?? committedProfileW;
+        }
+        else if (name.startsWith("CurrentDemandReq"))
+            sample((physicalValue(body?.evTargetVoltage) ?? 0) * (physicalValue(body?.evTargetCurrent) ?? 0));
+
+        else if (name.startsWith("ChargingStatusReq"))
+            sample(committedProfileW);
+
+        else if (name.startsWith("AC_ChargeLoopReq"))
+            sample(rational(body?.clReqControlMode?.evPresentActivePower) ?? 0);
+
+        else if (name.startsWith("DC_ChargeLoopReq")) {
+            // The station's answer is the next message in the stream; its present current is the
+            // half of this figure the vehicle does not own.
+            const response = messages[at + 1];
+            sample((rational(body?.evPresentVoltage) ?? 0)
+                 * (rational(response?.json?.evsePresentCurrent) ?? 0));
+        }
+    }
+
+    // …and the station's, paired with the vehicle's running total *at that moment*.
+    //
+    // Comparing the station's last reading against the vehicle's final count would be comparing two
+    // different instants, and it produced a real false alarm: an unmetered station reports MeterInfo
+    // only when it wants a receipt, which in a Plug & Charge session is once, early. The vehicle had
+    // counted 549 Wh by the end and the station's only reading said 183 — both correct, 366 Wh
+    // apart, and nothing wrong with either. Pairing at the reading is what makes the difference mean
+    // something when it is not zero.
+    const deviation = station === null || pairedVehicle === null ? 0n
+                    : station > pairedVehicle ? station - pairedVehicle : pairedVehicle - station;
+
+    if (samples === 0 && station === null)
+        return { verdict: "none", vehicleWh: null, vehicleTotalWh: null, stationWh: null,
+                 deviationWh: 0n, samples: 0,
+                 explanation: "This session had no charge loop, so neither side counted anything." };
+
+    if (samples === 0 || station === null)
+        return { verdict: "one-sided",
+                 vehicleWh: samples === 0 ? null : vehicle,
+                 vehicleTotalWh: samples === 0 ? null : vehicle, stationWh: station,
+                 deviationWh: 0n, samples,
+                 explanation: station === null
+                     ? "Only the vehicle counted. This station reported no meter reading at all, "
+                     + "which is the ordinary case in the field — and the reason an independent "
+                     + "count in the car is worth having."
+                     : "Only the station counted. Nothing in this session told the vehicle what it "
+                     + "was drawing, so there is nothing to hold the station's figure up against." };
+
+    return deviation === 0n
+        ? { verdict: "agree", vehicleWh: pairedVehicle, vehicleTotalWh: vehicle,
+            stationWh: station, deviationWh: 0n, samples,
+            explanation: "Both counts agree. The vehicle worked its figure out from what it asked "
+                       + "for, the station from what it delivered, and neither looked at the "
+                       + "other's — so this is two measurements of one session, not one number "
+                       + "shown twice. It is not evidence about a real meter: both come from the "
+                       + "same simulated charge loop." }
+        : { verdict: "differ", vehicleWh: pairedVehicle, vehicleTotalWh: vehicle,
+            stationWh: station, deviationWh: deviation, samples,
+            explanation: `The two counts differ by ${deviation} Wh. One side measured something the `
+                       + "other did not — which is exactly the disagreement a signature cannot "
+                       + "catch, because each number may be perfectly signed and still not describe "
+                       + "the same energy." };
+}
+
+
+/** @param {any} value @returns {number | null} */
+function physicalValue(value) {
+    if (value === undefined || value === null) return null;
+    const amount = Number(value.value);
+    return Number.isFinite(amount) ? amount * Math.pow(10, Number(value.multiplier ?? 0)) : null;
+}
+
+/** @param {any} value @returns {number | null} */
+function rational(value) {
+    if (value === undefined || value === null) return null;
+    const amount = Number(value.value);
+    return Number.isFinite(amount) ? amount * Math.pow(10, Number(value.exponent ?? 0)) : null;
+}
+
+/** @param {any} value @returns {any} */
+function firstOf(value) {
+    if (Array.isArray(value)) return value.length > 0 ? value[0] : null;
+    return value ?? null;
 }
 
 
@@ -765,7 +945,7 @@ export async function meterCheckFor(event, events) {
                  explanation: "This message has no session id, and the session id is part of what "
                             + "the meter signed." };
 
-    const ok = await verifyMeterSignature(key, 2, sessionId, reading);
+    const ok = await verifyMeterSignature(key, reading.protocol, sessionId, reading);
 
     if (ok === null)
         return { verdict: "unchecked",

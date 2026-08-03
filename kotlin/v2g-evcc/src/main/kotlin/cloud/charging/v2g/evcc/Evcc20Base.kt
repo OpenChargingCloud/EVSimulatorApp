@@ -1,5 +1,6 @@
 package cloud.charging.v2g.evcc
 
+import cloud.charging.v2g.metering.EvMeter
 import cloud.charging.v2g.iso20.common.*
 import cloud.charging.v2g.tp.MessageSet
 
@@ -89,6 +90,16 @@ abstract class Evcc20Base(
     var pnc: PncEvccOptions? = null
 
     /** How this session authorized: `"eim"`, or `"pnc-signed"`. */
+    /**
+     * The vehicle's own energy counter — what this EV thinks it took, kept independently of what the
+     * station reports (`docs/CONCEPT.md` §4.2/§4.3).
+     *
+     * On the base rather than per set: the counter is the vehicle's, and AC and DC differ only in
+     * what a sample is worth. Each subclass takes its own sample in [runChargeLoopIteration], where
+     * it knows which field carries the EV's view.
+     */
+    val meter: EvMeter = EvMeter()
+
     var authorizationMode: String = "eim"
         private set
 

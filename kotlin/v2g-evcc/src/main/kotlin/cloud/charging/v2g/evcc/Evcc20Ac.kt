@@ -57,14 +57,14 @@ class Evcc20Ac(
                     eVMaximumChargePower_L2   = null, eVMaximumChargePower_L3 = null,
                     eVMinimumChargePower      = rat(1, 3),
                     eVMinimumChargePower_L2   = null, eVMinimumChargePower_L3 = null,
-                    eVPresentActivePower      = rat(2_200, 1),
+                    eVPresentActivePower      = PRESENT_ACTIVE_POWER,
                     eVPresentActivePower_L2   = null, eVPresentActivePower_L3 = null,
                     eVPresentReactivePower    = rat(0),
                     eVPresentReactivePower_L2 = null, eVPresentReactivePower_L3 = null)
             else
                 Scheduled_AC_CLReqControlModeType(
                     null, null, null, null, null, null, null, null, null,
-                    eVPresentActivePower = rat(2_200, 1),
+                    eVPresentActivePower = PRESENT_ACTIVE_POWER,
                     null, null, null, null, null)
 
         val request = AC_ChargeLoopReq(sessionCtx.toAcHeader(),
@@ -73,6 +73,11 @@ class Evcc20Ac(
 
         val (set, message) = exchangeRaw(MessageSet.Iso20AC, ACCodec.encode(request))
         expect<AC_ChargeLoopRes>(set, message, MessageSet.Iso20AC)
+
+        // The one place in this project where the EV's own inlet power is a field on the wire: -20 AC
+        // has EVPresentActivePower in the request, so the vehicle's view needs no deriving and
+        // nothing borrowed from the station.
+        meter.sample(PRESENT_ACTIVE_POWER_W)
     }
 
     override fun runPostChargeSequence() = Unit   // AC: not applicable
@@ -81,4 +86,13 @@ class Evcc20Ac(
      *  (exponent, value). Keeping the helper's order identical to C#'s is what makes the two call
      *  sites read the same. */
     private fun rat(value: Short, exponent: Byte = 0) = RationalNumberType(exponent, value)
+
+    companion object {
+
+        /** The EV's present active power, 22 kW. One constant rather than the same literal in two
+         *  control-mode branches and again at the meter: those three drifting apart would mean the
+         *  vehicle's counter no longer counted what the vehicle said. */
+        private val PRESENT_ACTIVE_POWER = RationalNumberType(1, 2_200)
+        private const val PRESENT_ACTIVE_POWER_W = 22_000.0
+    }
 }

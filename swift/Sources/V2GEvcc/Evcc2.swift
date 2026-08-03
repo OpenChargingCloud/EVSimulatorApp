@@ -1,3 +1,5 @@
+import Foundation
+import V2GMetering
 import ExiIso2
 import V2GDispatch
 
@@ -73,6 +75,10 @@ public final class Evcc2 {
     public private(set) var tariff: Iso2TariffResult?
 
     private var chosenTupleId: UInt8 = 1
+    /// The vehicle's own energy counter — what this EV thinks it took, kept independently of what
+    /// the station reports (`docs/CONCEPT.md` §4.2/§4.3).
+    public let meter = EvMeter()
+
     private var chargingProfile: ChargingProfileType?
     private var energyTransferMode: EnergyTransferMode?   // chosen from what the station offered
 
@@ -176,13 +182,27 @@ public final class Evcc2 {
             // MeteringReceiptReq echoing its MeterInfo, as a real EV does.
             let notification: EVSENotification
             if mode == .dc {
-                let res: CurrentDemandResType = try send(Self.currentDemand())
+                let demand = Self.currentDemand()
+                let res: CurrentDemandResType = try send(demand)
+
+                // The EV's own view, from the EV's own request: ISO 15118-2 gives a DC vehicle no
+                // field for a *measured* inlet power, so what it asked for is the closest thing it
+                // owns — and taking the station's EVSEPresent* would make this counter an echo of the
+                // very number it exists to be compared against.
+                meter.sample(volts:   Self.amount(demand.eVTargetVoltage),
+                             amperes: Self.amount(demand.eVTargetCurrent))
                 if res.receiptRequired == true, let meterInfo = res.meterInfo {
                     try sendMeteringReceipt(meterInfo, res.sAScheduleTupleID)
                 }
                 notification = res.dC_EVSEStatus.eVSENotification
             } else {
                 let res: ChargingStatusResType = try send(ChargingStatusReqType())
+
+                // AC carries no power in either direction, so the EV's own view is the profile it
+                // committed to in PowerDeliveryReq — derived by the EV itself from the tuple it
+                // chose, and validated by the station against its own PMax.
+                meter.sample(committedPowerW())
+
                 if res.receiptRequired == true, let meterInfo = res.meterInfo {
                     try sendMeteringReceipt(meterInfo, res.sAScheduleTupleID)
                 }
@@ -400,6 +420,22 @@ public final class Evcc2 {
                     eVMaxVoltage: Self.volt(400),
                     eVMaxCurrent: Self.amp(32),
                     eVMinCurrent: Self.amp(6)))
+    }
+
+    /// The power this EV committed to in its ChargingProfile — its own view of an AC session, since
+    /// -2 puts no power on the wire in either direction.
+    ///
+    /// The first entry, because the later ones start at offsets a three-iteration charge loop never
+    /// reaches. Zero without a profile: a session that never agreed one has no committed power to
+    /// count, and inventing one would put a number on screen nothing in the session supports.
+    private func committedPowerW() -> Double {
+        guard let entry = chargingProfile?.profileEntry.first else { return 0 }
+        return Self.amount(entry.chargingProfileEntryMaxPower)
+    }
+
+    /// A PhysicalValue as a plain number: value x 10^multiplier.
+    private static func amount(_ v: PhysicalValueType) -> Double {
+        Double(v.value) * pow(10, Double(v.multiplier))
     }
 
     private static func currentDemand() -> CurrentDemandReqType {

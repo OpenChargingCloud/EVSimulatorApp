@@ -228,6 +228,48 @@ final class EvccTraceTests: XCTestCase {
             "which sends no wrong bytes and would otherwise pass")
     }
 
+    /// **The vehicle's own counter lands where the station's signed reading does**, in both protocols.
+    ///
+    /// Two counters, two state machines, and neither looks at the other's total. In -2 AC both sides
+    /// fall back to the ChargingProfile the EV committed to and the station accepted — 11 kW for
+    /// three minutes, 549 Wh. In -20 DC the vehicle's figure is half its own and half the station's:
+    /// it measures the inlet voltage it reported, the station reports the current — 400 V x 120 A,
+    /// 2400 Wh.
+    ///
+    /// The expected figure is read back out of the recording rather than restated, so this is the
+    /// port's arithmetic held against C#'s rather than against itself. It is also where a rounding
+    /// rule shows: 183.33 Wh per sample rounds to 183 three times, not to 550. A port integrating
+    /// precisely and rounding once would be one watt-hour out, silently, in a number a driver is
+    /// billed on.
+    func testTheVehiclesOwnCounterAgreesWithTheStationsSignedReading() throws {
+
+        let (_, evcc2) = try replay2("iso2-ac-eim-meter", .ac)
+        XCTAssertEqual(evcc2.meter.samples, 3, "three charge-loop iterations, three samples")
+        XCTAssertEqual(evcc2.meter.energyWh, 549)
+
+        let iso2 = try SessionTrace.load("iso2-ac-eim-meter")
+        let lastIso2 = try XCTUnwrap(iso2.exchanges.last { $0.response.carriesMeterSignature })
+        guard case let .decoded(_, message) = try V2GTPDispatcher.decode(lastIso2.response.bytes),
+              let v2g = message as? V2G_Message,
+              let status = v2g.body.bodyElement as? ChargingStatusResType
+        else { return XCTFail("the last metered -2 exchange is not a ChargingStatusRes") }
+
+        XCTAssertEqual(status.meterInfo?.meterReading, evcc2.meter.energyWh,
+            "the vehicle's counter and the station's last signed reading disagree, and they are " +
+            "counting the same three iterations of the same charge loop")
+
+        let (_, evcc20) = try replay20("iso20-dc-eim-meter", .dc)
+        XCTAssertEqual(evcc20.meter.energyWh, 2_400)
+
+        let iso20 = try SessionTrace.load("iso20-dc-eim-meter")
+        let lastIso20 = try XCTUnwrap(iso20.exchanges.last { $0.response.carriesMeterSignature })
+        guard case let .decoded(_, loopMessage) = try V2GTPDispatcher.decode(lastIso20.response.bytes),
+              let loop = loopMessage as? DC_ChargeLoopRes
+        else { return XCTFail("the last metered -20 exchange is not a DC_ChargeLoopRes") }
+
+        XCTAssertEqual(loop.meterInfo?.chargedEnergyReadingWh, evcc20.meter.energyWh)
+    }
+
     /// **The reading C# recorded verifies under this port's own payload layout**, in both protocols.
     ///
     /// The same argument as the recorded-signature test, one signer along and with a sharper edge:
@@ -249,6 +291,7 @@ final class EvccTraceTests: XCTestCase {
         let key2 = try SignedFrame.publicKey(x: XCTUnwrap(iso2.meterKey).x,
                                              y: XCTUnwrap(iso2.meterKey).y)
         var checked2 = 0
+        var previousReading: UInt64 = 0
 
         for exchange in iso2.exchanges where exchange.response.carriesMeterSignature {
 
@@ -259,7 +302,11 @@ final class EvccTraceTests: XCTestCase {
             else { return XCTFail("exchange \(exchange.index) is not a -2 ChargingStatusRes") }
 
             XCTAssertEqual(info.meterID, "VAN*M*4711")
-            XCTAssertEqual(info.meterReading, 4200)
+            // The reading climbs through the session — a register counting what the loop delivered,
+            // not a constant. A meter that never advanced would still sign correctly, and that is
+            // exactly the failure this line exists to notice.
+            XCTAssertGreaterThan(try XCTUnwrap(info.meterReading), previousReading)
+            previousReading = try XCTUnwrap(info.meterReading)
 
             XCTAssertTrue(try MeterSignature.verify(XCTUnwrap(info.sigMeterReading), protocol: 2,
                                                     sessionId: v2g.header.sessionID,

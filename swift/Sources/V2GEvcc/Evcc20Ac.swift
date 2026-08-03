@@ -34,10 +34,10 @@ public final class Evcc20Ac: Evcc20Base {
                   eVMinimumEnergyRequest: Self.rat(10, 3),    // 10 kWh
                   eVMaximumChargePower:   Self.rat(11, 3),    // 11 kW
                   eVMinimumChargePower:   Self.rat(1, 3),
-                  eVPresentActivePower:   Self.rat(2_200, 1),
+                  eVPresentActivePower:   Self.presentActivePower,
                   eVPresentReactivePower: Self.rat(0))
             : Scheduled_AC_CLReqControlModeType(
-                  eVPresentActivePower: Self.rat(2_200, 1))
+                  eVPresentActivePower: Self.presentActivePower)
 
         let request = AC_ChargeLoopReq(
             header: sessionCtx.toAcHeader(),
@@ -46,7 +46,18 @@ public final class Evcc20Ac: Evcc20Base {
 
         let (set, message) = try exchangeRaw(.iso20AC, ACCodec.encode(request))
         let _: AC_ChargeLoopRes = try expect(set, message, .iso20AC)
+
+        // The one place in this project where the EV's own inlet power is a field on the wire: -20 AC
+        // has EVPresentActivePower in the request, so the vehicle's view needs no deriving and
+        // nothing borrowed from the station.
+        meter.sample(Self.presentActivePowerW)
     }
+
+    /// The EV's present active power, 22 kW. One constant rather than the same literal in two
+    /// control-mode branches and again at the meter: those three drifting apart would mean the
+    /// vehicle's counter no longer counted what the vehicle said.
+    private static var presentActivePower: ExiIso20AC.RationalNumberType { rat(2_200, 1) }
+    private static let presentActivePowerW: Double = 22_000
 
     /// (value, exponent) as in the C# helper; the generated type takes (exponent, value).
     private static func rat(_ value: Int16, _ exponent: Int8 = 0) -> ExiIso20AC.RationalNumberType {

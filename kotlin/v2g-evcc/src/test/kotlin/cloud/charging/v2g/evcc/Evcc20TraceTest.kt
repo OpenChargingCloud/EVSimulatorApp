@@ -75,6 +75,31 @@ class Evcc20TraceTest {
     }
 
     /**
+     * The vehicle's own counter lands where the station's signed reading does — the -20 case, where
+     * the EV's figure is half its own and half the station's: it measures the inlet voltage it
+     * reported, the station reports the current. 400 V x 120 A for three minutes is 2400 Wh.
+     */
+    @Test
+    fun theVehiclesOwnCounterAgreesWithTheStationsSignedReading() {
+
+        val trace  = SessionTrace.load("iso20-dc-eim-meter")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_20, PowerMode.Dc)
+        val evcc = Evcc20Dc(stream, recordedAt, pollDelay = { })
+        evcc.run()
+
+        assertEquals(2_400uL, evcc.meter.energyWh)
+
+        val last = trace.exchanges.last { it.response.carriesMeterSignature }
+        val decoded = V2GTPDispatcher.decode(last.response.bytes)
+        val loop = (decoded as V2GTPDecodeResult.Decoded).message as DC_ChargeLoopRes
+        assertEquals(loop.meterInfo!!.chargedEnergyReadingWh, evcc.meter.energyWh,
+            "the vehicle's counter and the station's last signed reading disagree")
+    }
+
+    /**
      * The station's signed reading in -20, and the byte that never travels.
      *
      * `MeterSignature` here and `SigMeterReading` in -2 are the same 64-byte slot over the same
