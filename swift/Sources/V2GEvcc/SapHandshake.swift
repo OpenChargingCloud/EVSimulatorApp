@@ -13,12 +13,31 @@ public enum PowerMode: Sendable {
     case dc
 }
 
+/// One protocol the EVCC is prepared to run, in a SupportedAppProtocol offer: the variant, and for
+/// -20 the power mode that picks the application namespace (…-20:DC / …-20:AC).
+///
+/// The list order handed to ``SapHandshake/runEvccSide(_:_:)-swift.type.method`` is the EV's
+/// preference: entry 0 is offered at Priority 1 (the highest) with SchemaID 1, entry 1 at Priority 2
+/// with SchemaID 2, and so on. The field is `variant` rather than `protocol` for the same reason
+/// `SessionTrace` reads `protocolName`: `protocol` is Swift's keyword, not ours.
+public struct SapOffer: Equatable, Sendable {
+    public let variant: ProtocolVariant
+    public let mode: PowerMode
+    public init(_ variant: ProtocolVariant, _ mode: PowerMode = .dc) {
+        self.variant = variant
+        self.mode = mode
+    }
+}
+
 /// The SupportedAppProtocol handshake every session opens with, before either side switches to the
 /// negotiated -2/-20 codec. A port of the C# `SapHandshake`, EVCC side only — the station half has
 /// no home on a phone.
 ///
-/// Like the original this offers exactly one protocol rather than a candidate list: the simulator
-/// always knows in advance which protocol it is testing.
+/// Two shapes: the single-protocol overload negotiates a fixed protocol, for a caller that knows in
+/// advance which one it is testing. The list overload is the real thing — every protocol the EV can
+/// run in **one** request, the state machine chosen *after* the handshake from whichever entry the
+/// station picked. That is the case a multiplexing station (EVerest's `IsoMux`) exists for, and it
+/// is held to the `*-sapboth` traces.
 public enum SapHandshake {
 
     private static let iso2Namespace    = "urn:iso:15118:2:2013:MsgDef"
@@ -35,21 +54,35 @@ public enum SapHandshake {
         }
     }
 
+    // Version numbers per protocol: ISO 15118-2:2013 MsgDef is protocol version 2.0, the -20 sets
+    // are 1.0. A live Josev SECC matches namespace AND major version — offering -2 as "1.0" gets
+    // Failed_NoNegotiation.
+    private static func versionFor(_ variant: ProtocolVariant) -> UInt32 {
+        variant == .iso15118_2 ? 2 : 1
+    }
+
     /// Offers exactly `wanted`, and throws `SessionAborted` if the station rejects it.
     public static func runEvccSide(_ stream: V2GTPStream,
                                    _ wanted: ProtocolVariant,
                                    _ mode: PowerMode = .dc) throws {
+        _ = try runEvccSide(stream, [SapOffer(wanted, mode)])
+    }
 
-        // Version numbers per protocol: ISO 15118-2:2013 MsgDef is protocol version 2.0, the -20
-        // sets are 1.0. A live Josev SECC matches namespace AND major version — offering -2 as "1.0"
-        // gets Failed_NoNegotiation.
-        let major: UInt32 = wanted == .iso15118_2 ? 2 : 1
+    /// The multi-protocol offer: every entry in one request, best first, and the state machine is
+    /// chosen **after** the handshake — the caller runs whichever came back.
+    ///
+    /// - Returns: the offer the station accepted, mapped back through the answered SchemaID.
+    public static func runEvccSide(_ stream: V2GTPStream, _ offers: [SapOffer]) throws -> SapOffer {
 
-        let request = SupportedAppProtocolReq(appProtocol: [
-            AppProtocolType(protocolNamespace: namespaceFor(wanted, mode),
-                            versionNumberMajor: major, versionNumberMinor: 0,
-                            schemaID: 1, priority: 1)
-        ])
+        guard (1...20).contains(offers.count) else {
+            throw SessionAborted("a SupportedAppProtocol offer carries 1..20 entries.")
+        }
+
+        let request = SupportedAppProtocolReq(appProtocol: offers.enumerated().map { i, offer in
+            AppProtocolType(protocolNamespace: namespaceFor(offer.variant, offer.mode),
+                            versionNumberMajor: versionFor(offer.variant), versionNumberMinor: 0,
+                            schemaID: UInt8(i + 1), priority: UInt8(i + 1))
+        })
 
         try stream.writeRawFrame(payloadType: V2GTP.payloadTypeAppProtocol,
                                  SupportedAppProtocolCodec.encode(request))
@@ -67,13 +100,16 @@ public enum SapHandshake {
         }
 
         // The SchemaID says *which* of the offered protocols was accepted, and it was read by
-        // nobody: harmless while the offer is a single entry, and a silent protocol mismatch the
-        // moment it is not. Checked now rather than when the second entry is added — that is the
-        // point at which nobody would think to look (found in the C# sweep of 2026-08-03).
-        guard response.schemaID == request.appProtocol[0].schemaID else {
+        // nobody until the C# sweep of 2026-08-03: harmless while the offer was a single entry, and
+        // a silent protocol mismatch now that it is not — the whole point of a multi-protocol offer
+        // is that the answer decides which state machine runs next.
+        guard let schemaId = response.schemaID.map(Int.init), (1...offers.count).contains(schemaId) else {
             throw SessionAborted(
                 "SAP: the SECC accepted SchemaID \(response.schemaID.map(String.init) ?? "<none>"), "
-              + "which is not the \(request.appProtocol[0].schemaID) it was offered.")
+              + "which is not among the offered "
+              + "(\(request.appProtocol.map { String($0.schemaID) }.joined(separator: ", "))).")
         }
+
+        return offers[schemaId - 1]
     }
 }
