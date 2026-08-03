@@ -200,6 +200,8 @@ let package = Package(
             "V2GTP", "V2GDispatch", "ExiAppProtocol", "ExiIso2", "ExiIso20Common",
             "ExiIso20AC", "ExiIso20DC", "ExiXmlDsig", "V2GCertificates", "V2GKeystore",
         ]),
-        .testTarget(name: "V2GEvccTests", dependencies: ["V2GEvcc"]),
+        // V2GMetering is test-only here: the session corpus now records station-signed meter
+        // readings, and a recorded reading that nothing verifies is 64 bytes of decoration.
+        .testTarget(name: "V2GEvccTests", dependencies: ["V2GEvcc", "V2GMetering"]),
     ]
 )

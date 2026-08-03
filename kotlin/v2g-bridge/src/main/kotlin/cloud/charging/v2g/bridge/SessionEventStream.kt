@@ -213,12 +213,20 @@ class SessionEventStream(private val monotonicMillis: () -> Long) {
         var seq = 0
         var failed = false
 
+        val meterKey = (trace["meterKey"] as? JsonObject)?.let {
+            (it["x"] as JsonString).value to (it["y"] as JsonString).value
+        }
+
         events.add(BridgeEvent.SessionStarted(
             seq = seq++,
             atMillis = monotonicMillis() - start,
             name = (trace["name"] as JsonString).value,
             protocol = (trace["protocol"] as JsonString).value,
-            mode = (trace["mode"] as JsonString).value))
+            mode = (trace["mode"] as JsonString).value,
+            // Once, at the head of the stream, rather than beside every reading: it is a property of
+            // the station, and repeating it per message would invite checking each reading against
+            // the key that arrived with it — which is no check at all.
+            meterKey = meterKey))
 
         for (exchange in exchanges.asList()) {
             for ((side, direction) in listOf("request" to "out", "response" to "in")) {

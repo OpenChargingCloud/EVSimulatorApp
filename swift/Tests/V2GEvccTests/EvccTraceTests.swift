@@ -1,4 +1,8 @@
 import XCTest
+import ExiIso2
+import ExiIso20DC
+import V2GDispatch
+import V2GMetering
 @testable import V2GEvcc
 
 /// The Swift EVCC against the C# one, byte for byte — the third implementation held to the same
@@ -206,6 +210,111 @@ final class EvccTraceTests: XCTestCase {
 
         XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
         XCTAssertEqual(evcc.authorizationMode, "pnc-signed")
+    }
+
+    // ── the station's meter ───────────────────────────────────────────────
+
+    func testMeteredAcIso2SessionMatchesTheRecordingByteForByte() throws {
+        let (replay, _) = try replay2("iso2-ac-eim-meter", .ac)
+        XCTAssertTrue(replay.complete,
+            "the session stopped after \(replay.replayed) recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+    }
+
+    func testMeteredDcIso20SessionMatchesTheRecordingByteForByte() throws {
+        let (replay, _) = try replay20("iso20-dc-eim-meter", .dc)
+        XCTAssertTrue(replay.complete,
+            "the session stopped after \(replay.replayed) recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /// **The reading C# recorded verifies under this port's own payload layout**, in both protocols.
+    ///
+    /// The same argument as the recorded-signature test, one signer along and with a sharper edge:
+    /// ISO 15118 defines the `SigMeterReading` / `MeterSignature` *field* and says nothing about what
+    /// the signature covers, so the payload is this project's own convention. Three ports of one
+    /// convention, each tested against itself, agree perfectly and can be wrong together.
+    ///
+    /// `MeterSignatureTests` already holds this port to a C#-generated vector corpus, which fixes the
+    /// layout. What it cannot fix is everything between the wire and that call — above all whether
+    /// the **session id** comes from the message header rather than from somewhere convenient.
+    ///
+    /// And the last assertion is the one nothing on the wire can make: the payload's protocol byte,
+    /// 2 against 20, is never transmitted. A port that hard-coded one would keep the -2 corpus green
+    /// while verifying every -20 reading over the wrong octets.
+    func testTheRecordedMeterReadingsVerifyAndDoNotCrossProtocols() throws {
+
+        // ISO 15118-2: SigMeterReading, on the AC charge-loop response.
+        let iso2 = try SessionTrace.load("iso2-ac-eim-meter")
+        let key2 = try SignedFrame.publicKey(x: XCTUnwrap(iso2.meterKey).x,
+                                             y: XCTUnwrap(iso2.meterKey).y)
+        var checked2 = 0
+
+        for exchange in iso2.exchanges where exchange.response.carriesMeterSignature {
+
+            guard case let .decoded(_, message) = try V2GTPDispatcher.decode(exchange.response.bytes),
+                  let v2g = message as? V2G_Message,
+                  let status = v2g.body.bodyElement as? ChargingStatusResType,
+                  let info = status.meterInfo
+            else { return XCTFail("exchange \(exchange.index) is not a -2 ChargingStatusRes") }
+
+            XCTAssertEqual(info.meterID, "VAN*M*4711")
+            XCTAssertEqual(info.meterReading, 4200)
+
+            XCTAssertTrue(try MeterSignature.verify(XCTUnwrap(info.sigMeterReading), protocol: 2,
+                                                    sessionId: v2g.header.sessionID,
+                                                    meterId: info.meterID,
+                                                    reading: XCTUnwrap(info.meterReading),
+                                                    timestamp: info.tMeter, publicKey: key2),
+                "exchange \(exchange.index): the reading C# recorded does not verify here — the two " +
+                "meter payload layouts disagree, or this port reads the session id from the wrong place")
+
+            // The session binding, checked rather than assumed: without it the field would prove a
+            // reading genuine but not that it is *yours*.
+            var elsewhere = v2g.header.sessionID
+            elsewhere[0] = elsewhere[0] &+ 1
+            XCTAssertFalse(try MeterSignature.verify(XCTUnwrap(info.sigMeterReading), protocol: 2,
+                                                     sessionId: elsewhere, meterId: info.meterID,
+                                                     reading: XCTUnwrap(info.meterReading),
+                                                     timestamp: info.tMeter, publicKey: key2),
+                "a reading verified under a session id it was not signed for")
+            checked2 += 1
+        }
+
+        XCTAssertGreaterThanOrEqual(checked2, 3, "the metered -2 corpus records \(checked2) readings")
+
+        // ISO 15118-20: the same layout, the same key, one different byte that never travels.
+        let iso20 = try SessionTrace.load("iso20-dc-eim-meter")
+        let key20 = try SignedFrame.publicKey(x: XCTUnwrap(iso20.meterKey).x,
+                                              y: XCTUnwrap(iso20.meterKey).y)
+        var checked20 = 0
+
+        for exchange in iso20.exchanges where exchange.response.carriesMeterSignature {
+
+            guard case let .decoded(_, message) = try V2GTPDispatcher.decode(exchange.response.bytes),
+                  let loop = message as? DC_ChargeLoopRes,
+                  let info = loop.meterInfo
+            else { return XCTFail("exchange \(exchange.index) is not a -20 DC_ChargeLoopRes") }
+
+            let timestamp = info.meterTimestamp.map { Int64($0) }
+
+            XCTAssertTrue(try MeterSignature.verify(XCTUnwrap(info.meterSignature), protocol: 20,
+                                                    sessionId: loop.header.sessionID,
+                                                    meterId: info.meterID,
+                                                    reading: info.chargedEnergyReadingWh,
+                                                    timestamp: timestamp, publicKey: key20),
+                "exchange \(exchange.index): the -20 reading C# recorded does not verify here")
+
+            XCTAssertFalse(try MeterSignature.verify(XCTUnwrap(info.meterSignature), protocol: 2,
+                                                     sessionId: loop.header.sessionID,
+                                                     meterId: info.meterID,
+                                                     reading: info.chargedEnergyReadingWh,
+                                                     timestamp: timestamp, publicKey: key20),
+                "a -20 reading verified as a -2 one — the protocol byte is not in the signed payload")
+            checked20 += 1
+        }
+
+        XCTAssertGreaterThan(checked20, 0, "the metered -20 corpus records no reading")
     }
 
     /// A Common Name that cannot be an eMAID is refused before the session opens.

@@ -6,6 +6,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+import cloud.charging.v2g.iso20.dc.DC_ChargeLoopRes
+import cloud.charging.v2g.metering.MeterSignature
+import cloud.charging.v2g.tp.V2GTPDecodeResult
+import cloud.charging.v2g.tp.V2GTPDispatcher
+
 /**
  * The Kotlin -20 EVCC against the C# one, byte for byte — the same gate [Evcc2TraceTest] applies to
  * -2, and it has one thing to catch that the -2 corpus cannot.
@@ -59,6 +64,54 @@ class Evcc20TraceTest {
         assertTrue(replay.complete,
             "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
             "which sends no wrong bytes and would otherwise pass")
+    }
+
+    @Test
+    fun theMeteredDcSessionMatchesTheRecordingByteForByte() {
+        val replay = replay("iso20-dc-eim-meter", PowerMode.Dc)
+        assertTrue(replay.complete,
+            "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /**
+     * The station's signed reading in -20, and the byte that never travels.
+     *
+     * `MeterSignature` here and `SigMeterReading` in -2 are the same 64-byte slot over the same
+     * payload layout, differing in one thing: the protocol byte, 20 against 2. It is not transmitted,
+     * so nothing on the wire can reveal a port that hard-codes the wrong one — the -2 corpus would
+     * stay green and every -20 reading would verify against the wrong octets. Two recorded sessions
+     * are the only place that shows, which is why both exist.
+     */
+    @Test
+    fun theRecordedMeterReadingVerifiesAndIsNotAMinusTwoReading() {
+
+        val trace = SessionTrace.load("iso20-dc-eim-meter")
+        val key   = SignedFrame.publicKey(trace.meterKey!!.x, trace.meterKey.y)
+
+        val metered = trace.exchanges.filter { it.response.carriesMeterSignature }
+        assertTrue(metered.isNotEmpty(), "the metered -20 corpus records no reading")
+
+        for (exchange in metered) {
+
+            val decoded = V2GTPDispatcher.decode(exchange.response.bytes)
+            val loop    = (decoded as V2GTPDecodeResult.Decoded).message as DC_ChargeLoopRes
+            val info    = loop.meterInfo!!
+
+            assertEquals("VAN*M*4711", info.meterID)
+
+            assertTrue(
+                MeterSignature.verify(info.meterSignature!!, 20, loop.header.sessionID, info.meterID,
+                                      info.chargedEnergyReadingWh, info.meterTimestamp?.toLong(), key),
+                "exchange ${exchange.index}: the -20 reading C# recorded does not verify here")
+
+            // …and the same bytes must NOT verify as a -2 reading. If they did, the protocol byte
+            // would not be doing its job and a reading could be carried across protocols.
+            assertTrue(
+                !MeterSignature.verify(info.meterSignature!!, 2, loop.header.sessionID, info.meterID,
+                                       info.chargedEnergyReadingWh, info.meterTimestamp?.toLong(), key),
+                "a -20 reading verified as a -2 one — the protocol byte is not in the signed payload")
+        }
     }
 
     // ── Dynamic control mode ──────────────────────────────────────────────

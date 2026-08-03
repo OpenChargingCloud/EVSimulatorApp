@@ -171,6 +171,7 @@ export function detailFor(event) {
                   : JSON.stringify(event.json, null, 2),
         frame:     typeof event.exi === "string" ? frameFor(event.exi) : null,
         signature: signatureFor(event),
+        meter:     meterReadingFor(event),
     };
 }
 
@@ -630,6 +631,229 @@ export async function signerCheckFor(event, events, verify) {
 
 
 /**
+ * @typedef {object} MeterView
+ * @property {boolean} present
+ * @property {string} meterId
+ * @property {bigint} readingWh
+ * @property {bigint | null} timestamp
+ * @property {string | null} signature   raw r‖s, hex, when the meter signed
+ * @property {{label: string, value: string}[]} facts
+ */
+
+/**
+ * The station's meter reading, as the message carries it.
+ *
+ * ISO 15118-2 puts this in `MeterInfo`, and `SigMeterReading` beside it is a field almost nothing in
+ * the field ever populates — 64 bytes, exactly one raw ECDSA P-256 `r‖s` pair, for the **meter** to
+ * sign what it measured rather than the station asserting it. That is the Eichrecht trust model
+ * carried over stock ISO 15118, and a phone that shows and checks one is the point of §4.3.
+ *
+ * `MeterStatus` and `TMeter` are shown when present because they are part of what was signed; a
+ * screen that displayed the number without the moment it was taken would be inviting the wrong
+ * comparison.
+ *
+ * @param {BridgeEvent} event
+ * @returns {MeterView}
+ */
+export function meterReadingFor(event) {
+
+    const absent = { present: false, meterId: "", readingWh: 0n, timestamp: null,
+                     signature: null, facts: [] };
+
+    const info = event.json?.body?.bodyElement?.meterInfo;
+    if (info === undefined || info === null || typeof info !== "object")
+        return absent;
+
+    // Wh and seconds arrive as strings — both are unsignedLong/long in the schema, and JSON numbers
+    // would quietly lose the top bits. They are also what gets signed, so parsing them wrong is the
+    // one mistake that would produce a confident wrong answer.
+    const readingWh = bigintOrNull(info.meterReading);
+    if (typeof info.meterID !== "string" || readingWh === null)
+        return absent;
+
+    const timestamp = bigintOrNull(info.tMeter);
+    const signature = typeof info.sigMeterReading === "string"
+                          ? info.sigMeterReading.toLowerCase() : null;
+
+    /** @type {{label: string, value: string}[]} */
+    const facts = [
+        { label: "Meter",   value: info.meterID },
+        { label: "Reading", value: `${readingWh} Wh` },
+    ];
+
+    if (timestamp !== null)
+        facts.push({ label: "Taken at", value: `${new Date(Number(timestamp) * 1000).toISOString()} `
+                                             + `(TMeter ${timestamp})` });
+    if (info.meterStatus !== undefined && info.meterStatus !== null)
+        facts.push({ label: "Meter status", value: String(info.meterStatus) });
+
+    facts.push({ label: "Meter signature", value: signature ?? "— (this station's meter does not sign)" });
+
+    return { present: true, meterId: info.meterID, readingWh, timestamp, signature, facts };
+}
+
+
+/** @param {any} value @returns {bigint | null} */
+function bigintOrNull(value) {
+    if (typeof value !== "string" && typeof value !== "number") return null;
+    try { return BigInt(value); } catch { return null; }
+}
+
+
+/**
+ * @typedef {object} MeterCheck
+ * @property {"signed-by-meter" | "wrong-meter" | "unsigned" | "unchecked"} verdict
+ * @property {string} explanation
+ */
+
+/**
+ * Whether the station's meter really signed the reading in this message.
+ *
+ * A third signer, and the one that is not the vehicle's. The digest check says a signature covers
+ * this content; the signer check says the vehicle's contract key made it. This says the **station's
+ * meter** vouched for the number beside it — which is the only reason to believe a reading you are
+ * about to be billed for.
+ *
+ * ## Three deliberate choices
+ *
+ * **No codec.** Unlike the other two checks, everything this needs is in the decoded message:
+ * meter id, reading, timestamp, and the session id from the header. So it works in a build with no
+ * bundle at all, and `crypto.subtle` is used directly rather than injected — the seam in the others
+ * exists because the *codec* is TypeScript, not because crypto is.
+ *
+ * **The values on screen, not the frame.** It verifies the JSON-LD the inspector displays rather
+ * than re-decoding the EXI. Where the two could disagree, a tick earned by the frame would sit
+ * beside a number taken from the JSON — and a wrong number under a green tick is the most
+ * convincing way to be wrong. (`SessionEventStreamTests` pins the two halves to be one message, so
+ * this costs nothing.)
+ *
+ * **The key comes from the session.** Which is exactly as much as this can be, and less than it
+ * looks: a key handed over by the station it authenticates shows the reading was not altered on the
+ * way here and is bound to this session — not that the station is who it says. That needs the key
+ * out of band, from the pairing code (`docs/CONCEPT.md` §4.5), and the wording below says so.
+ *
+ * @param {BridgeEvent} event
+ * @param {BridgeEvent[]} events  the whole stream, for the meter key
+ * @returns {Promise<MeterCheck>}
+ */
+export async function meterCheckFor(event, events) {
+
+    const reading = meterReadingFor(event);
+
+    if (!reading.present)
+        return { verdict: "unchecked", explanation: "This message carries no meter reading." };
+
+    if (reading.signature === null)
+        return { verdict: "unsigned",
+                 explanation: "This reading is not signed. That is what almost every station in the "
+                            + "field does — the field exists and is left empty — so it is worth "
+                            + "noticing rather than treating as a fault." };
+
+    const started = events.find(e => e.kind === "sessionStarted");
+    const key     = started?.meterKey;
+
+    if (key === undefined || key === null
+        || typeof key.x !== "string" || typeof key.y !== "string")
+        return { verdict: "unchecked",
+                 explanation: "The reading is signed, and this session brought no meter key to check "
+                            + "it against. 64 bytes nobody can verify is a decoration; the key "
+                            + "belongs in the station's pairing code." };
+
+    const sessionId = String(event.json?.header?.sessionID ?? "");
+    if (!/^[0-9a-fA-F]*$/.test(sessionId) || sessionId.length === 0)
+        return { verdict: "unchecked",
+                 explanation: "This message has no session id, and the session id is part of what "
+                            + "the meter signed." };
+
+    const ok = await verifyMeterSignature(key, 2, sessionId, reading);
+
+    if (ok === null)
+        return { verdict: "unchecked",
+                 explanation: "Not checked: this build has no Web Crypto, or the meter key could not "
+                            + "be read." };
+
+    return ok
+        ? { verdict: "signed-by-meter",
+            explanation: "The station's meter signed this reading, for this session. So the number "
+                       + "above is the number the meter measured, and it was not altered on the way "
+                       + "here. Whether the meter itself is the one this station should have is a "
+                       + "separate question — that needs its key from the pairing code, not from the "
+                       + "station." }
+        : { verdict: "wrong-meter",
+            explanation: "The signature does not match this reading. Either the number was changed "
+                       + "after the meter signed it, or it was signed by a different meter, or it "
+                       + "belongs to another session." };
+}
+
+
+/**
+ * ISO 15118 defines the *field* and not its content, so the octets below are this project's own
+ * layout — `MeterSigningPayload.cs` is where it is written down, and this is the third
+ * implementation of it after Kotlin and Swift.
+ *
+ * Length-prefixing the meter id is the part that matters and is easy to skip: without it, meter
+ * `"A1"` reading 23 and meter `"A"` reading 123 produce the same octets. The protocol byte is the
+ * other: it never travels on the wire, and it is the only thing stopping a -20 reading being
+ * presented as a -2 one.
+ *
+ * @param {{x: string, y: string}} key
+ * @param {number} protocol
+ * @param {string} sessionIdHex
+ * @param {MeterView} reading
+ * @returns {Promise<boolean | null>}
+ */
+async function verifyMeterSignature(key, protocol, sessionIdHex, reading) {
+
+    const subtle = globalThis.crypto?.subtle;
+    if (subtle === undefined) return null;
+
+    const meterId   = new TextEncoder().encode(reading.meterId);
+    const sessionId = bytesOfHex(sessionIdHex);
+    const signature = bytesOfHex(reading.signature ?? "");
+
+    if (meterId.length > 255 || signature.length !== 64) return null;
+
+    const payload = new Uint8Array(12 + 1 + sessionId.length + 1 + meterId.length + 8 + 8);
+    const view    = new DataView(payload.buffer);
+    let at = 0;
+
+    payload.set(new TextEncoder().encode("V2G-METER-1\0"), at); at += 12;
+    payload[at++] = protocol;
+    payload.set(sessionId, at); at += sessionId.length;
+    payload[at++] = meterId.length;
+    payload.set(meterId, at); at += meterId.length;
+
+    view.setBigUint64(at, reading.readingWh, false); at += 8;
+    // Absent is a zero rather than an omission, so the payload's length never depends on which
+    // optional fields happen to be present.
+    view.setBigInt64(at, reading.timestamp ?? 0n, false);
+
+    try {
+        const publicKey = await subtle.importKey(
+            "jwk",
+            { kty: "EC", crv: "P-256", x: base64url(bytesOfHex(key.x)), y: base64url(bytesOfHex(key.y)) },
+            { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+
+        // Raw r‖s, which is what the 64-byte field holds and what WebCrypto expects — the DER form
+        // every other ECDSA API defaults to would not fit the field in the first place.
+        return await subtle.verify({ name: "ECDSA", hash: "SHA-256" }, publicKey, signature, payload);
+    } catch {
+        return null;
+    }
+}
+
+/** @param {string} hex @returns {Uint8Array} */
+function bytesOfHex(hex) {
+    return new Uint8Array((hex.match(/.{1,2}/g) ?? []).map(b => parseInt(b, 16)));
+}
+
+/** @param {Uint8Array} bytes @returns {string} */
+function base64url(bytes) {
+    return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+
+/**
  * Every `Id` in a message, at any depth — the set a signature reference can legally point into.
  *
  * @param {any} node
@@ -720,11 +944,19 @@ export function exportsFor(events, name) {
                    + "separately so a replay can substitute it before comparing bytes; an event "
                    + "stream does not carry that, so this file is not corpus-grade as it stands.");
 
+    // The same gap one signer along, and it lands on the *responses* — which is exactly the half a
+    // trace built from an event stream is most likely to be assumed fine.
+    if (events.some(e => meterReadingFor(e).signature !== null))
+        caveats.push("This session carries meter-signed readings. Those 64 bytes are random per "
+                   + "recording too, and the corpus records them — and the meter's public key — "
+                   + "separately. Neither is in an event stream, so the readings here can be read "
+                   + "but not re-verified or replayed.");
+
     if (statusOf(events).lost > 0)
         caveats.push("Events were lost on the way to this screen, so the trace has holes.");
 
     const trace = {
-        schemaVersion: 2,
+        schemaVersion: 3,
         name,
         protocol: String(started?.protocol ?? ""),
         mode:     String(started?.mode ?? ""),

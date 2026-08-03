@@ -52,6 +52,26 @@ public abstract record BridgeEvent
 
         /// <summary><c>ac</c> or <c>dc</c>.</summary>
         public required string Mode { get; init; }
+
+        /// <summary>
+        /// The station meter's public key as the two P-256 field elements, hex — present only when
+        /// this session's station has a meter that signs its readings.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Without it a reader can see that <c>SigMeterReading</c> is populated and can do nothing
+        /// with it: 64 bytes and no key is not a check, it is a decoration. So the key travels with
+        /// the session, and every consumer has to be told what that is worth.
+        /// </para>
+        /// <para>
+        /// <b>It is worth less than a tick suggests.</b> A key that arrives from the station it
+        /// authenticates proves the reading was not altered between the meter and this screen and is
+        /// bound to this session — not that the station is who it says. That needs the key out of
+        /// band, which is the pairing code's <c>meter</c> field (<c>docs/CONCEPT.md</c> §4.5). The
+        /// same distinction the contract-signature view already has to make, one signer along.
+        /// </para>
+        /// </remarks>
+        public (string X, string Y)? MeterKey { get; init; }
     }
 
 

@@ -15,8 +15,16 @@ struct TraceFrame: Decodable {
     let frame: String
     let signature: String?
 
+    /// The raw `r‖s` the station's **meter** put in `MeterInfo`, when it fitted one. A second
+    /// randomised signature by a second signer, and one that travels in *responses* — so unlike
+    /// `signature` it never makes a request incomparable, and the replay never has to substitute it.
+    let meterSignature: String?
+
     var isSigned: Bool { signature != nil }
     var signatureBytes: [UInt8]? { signature.map(SignedFrame.hex) }
+
+    var carriesMeterSignature: Bool { meterSignature != nil }
+    var meterSignatureBytes: [UInt8]? { meterSignature.map(SignedFrame.hex) }
 
     var bytes: [UInt8] {
         stride(from: 0, to: frame.count, by: 2).map {
@@ -48,22 +56,25 @@ struct TraceExchange: Decodable {
 /// prove. In short: they pin this port to what the C# EVCC does, and cannot catch a bug it has too.
 struct SessionTrace: Decodable {
 
-    // 2 since 2026-07-31, when frames gained an optional signature. The bump is deliberate even
-    // though the change is additive: a reader that silently ignored the new field would compare a
-    // signed frame as though its bytes were deterministic and fail for the wrong reason.
-    static let schemaVersion = 2
+    // 3 since 2026-08-03, when frames gained an optional meterSignature and traces a meterKey — a
+    // station whose meter signs its readings. 2 since 2026-07-31, when frames gained an optional
+    // signature. Both bumps are deliberate even though the changes are additive: a reader that
+    // silently ignored the new field would compare a frame as though its bytes were deterministic
+    // and fail for the wrong reason.
+    static let schemaVersion = 3
 
     let schemaVersion: Int
     let name: String
     let mode: String
     let exchanges: [TraceExchange]
     let signingKey: TraceSigningKey?
+    let meterKey: TraceSigningKey?
 
     // `protocol` is a Swift keyword, so the field is renamed rather than back-ticked everywhere.
     let protocolName: String
 
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, name, mode, exchanges, signingKey
+        case schemaVersion, name, mode, exchanges, signingKey, meterKey
         case protocolName = "protocol"
     }
 
@@ -161,6 +172,18 @@ final class TraceReplay: V2GByteStream {
 
             let exchange = trace.exchanges[replayed]
             let expected = exchange.request.bytes
+
+            // A meter signature in a *request* would need the same substitution one field along, and
+            // this harness does not do it. No recorded request carries one — the EV only ever echoes
+            // a reading inside a signed MeteringReceiptReq, which the C# corpus refuses to record for
+            // a separate reason (the echoed bytes sit inside the digested fragment). Refusing beats
+            // comparing bytes that cannot match.
+            guard !exchange.request.carriesMeterSignature else {
+                throw TraceMismatch(description:
+                    "exchange \(replayed) (\(exchange.request.message)) carries a meter signature in " +
+                    "a request. This harness can only substitute the header signature, so it would " +
+                    "compare 64 random bytes and fail for the wrong reason.")
+            }
 
             // A signed frame cannot be compared as bytes — ECDSA's nonce is random. SignedFrame
             // explains the substitution; the short of it is that the signature value is the only

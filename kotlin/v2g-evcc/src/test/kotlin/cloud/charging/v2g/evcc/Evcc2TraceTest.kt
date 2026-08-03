@@ -5,6 +5,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+import cloud.charging.v2g.iso2.ChargingStatusResType
+import cloud.charging.v2g.iso2.V2G_Message
+import cloud.charging.v2g.metering.MeterSignature
+import cloud.charging.v2g.tp.V2GTPDecodeResult
+import cloud.charging.v2g.tp.V2GTPDispatcher
+
 /**
  * The Kotlin EVCC against the C# one, byte for byte.
  *
@@ -132,6 +138,64 @@ class Evcc2TraceTest {
                     "$name exchange ${exchange.index} (${exchange.request.message}): the signature C# " +
                     "recorded does not verify here. The two standalone-xmldsig encoders disagree, " +
                     "which no other check in this suite can see.")
+        }
+    }
+
+    @Test
+    fun theMeteredAcSessionMatchesTheRecordingByteForByte() {
+        val replay = replay("iso2-ac-eim-meter", PowerMode.Ac)
+        assertTrue(replay.complete,
+            "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /**
+     * **The reading C# recorded verifies under this port's own payload layout.**
+     *
+     * The same argument as [theRecordedSignatureVerifiesUnderThisPortsOwnEncoder], one signer along
+     * and with a sharper edge: ISO 15118 defines the `SigMeterReading` *field* and says nothing about
+     * what the signature covers, so the payload is this project's own convention. Three ports of one
+     * convention, each tested against itself, agree perfectly and can be wrong together.
+     *
+     * [MeterSignatureTest] already holds this port to a C#-generated vector corpus, which fixes the
+     * layout. What it cannot fix is everything between the wire and that call: whether the reading,
+     * the timestamp and above all the **session id** are pulled from the right places. Those come
+     * from two different parts of the frame here — MeterInfo and the message header — and reading
+     * either from the wrong place produces a verification that fails on good data or, worse, one
+     * that never varies.
+     */
+    @Test
+    fun theRecordedMeterReadingVerifiesUnderThisPortsOwnLayout() {
+
+        val trace = SessionTrace.load("iso2-ac-eim-meter")
+        val key   = SignedFrame.publicKey(trace.meterKey!!.x, trace.meterKey.y)
+
+        val metered = trace.exchanges.filter { it.response.carriesMeterSignature }
+        assertTrue(metered.size >= 3, "the metered corpus records ${metered.size} readings")
+
+        for (exchange in metered) {
+
+            val decoded = V2GTPDispatcher.decode(exchange.response.bytes)
+            val message = (decoded as V2GTPDecodeResult.Decoded).message as V2G_Message
+            val status  = message.body.bodyElement as ChargingStatusResType
+            val info    = status.meterInfo!!
+
+            assertEquals("VAN*M*4711", info.meterID)
+            assertEquals(4200uL, info.meterReading)
+
+            assertTrue(
+                MeterSignature.verify(info.sigMeterReading!!, 2, message.header.sessionID,
+                                      info.meterID, info.meterReading!!, info.tMeter, key),
+                "exchange ${exchange.index}: the reading C# recorded does not verify here — the two " +
+                "meter payload layouts disagree, or this port reads the session id from the wrong place")
+
+            // The session binding, checked rather than assumed: the same reading under another
+            // session id must not verify, or the field would prove genuine-but-not-yours.
+            val elsewhere = message.header.sessionID.copyOf().also { it[0] = (it[0] + 1).toByte() }
+            assertTrue(
+                !MeterSignature.verify(info.sigMeterReading!!, 2, elsewhere, info.meterID,
+                                       info.meterReading!!, info.tMeter, key),
+                "a reading verified under a session id it was not signed for")
         }
     }
 

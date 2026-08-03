@@ -200,8 +200,18 @@ public final class SessionEventStream {
         var seq = 0
         var failed = false
 
+        // Once, at the head of the stream, rather than beside every reading: it is a property of the
+        // station, and repeating it per message would invite checking each reading against the key
+        // that arrived with it — which is no check at all.
+        var meterKey: (x: String, y: String)?
+        if let key = trace["meterKey"] as? JsonObject,
+           let x = key["x"] as? JsonString, let y = key["y"] as? JsonString {
+            meterKey = (x.value, y.value)
+        }
+
         events.append(.sessionStarted(seq: seq, atMillis: monotonicMillis() - start,
-                                      name: name.value, protocolName: proto.value, mode: mode.value))
+                                      name: name.value, protocolName: proto.value, mode: mode.value,
+                                      meterKey: meterKey))
         seq += 1
 
         for exchange in exchanges.asList {

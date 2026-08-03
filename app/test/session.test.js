@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { rowsFor, detailFor, statusOf, hexLines,
          frameFor, timingsFor, signatureFor, exportsFor, digestCheckFor, signerCheckFor,
-         ONGOING_BUDGET_MS } from "../src/session.js";
+         meterReadingFor, meterCheckFor, ONGOING_BUDGET_MS } from "../src/session.js";
 
 /**
  * The session screen, over the recorded event streams.
@@ -501,6 +501,92 @@ test("an EIM session has no certificate, and that is not a fault", async () => {
 });
 
 
+// ── the station's meter ───────────────────────────────────────────────────────────────────────
+
+test("the station's signed reading verifies against the meter key the session brought", async () => {
+
+    const events   = sessions["iso2-ac-eim-meter"] ?? [];
+    const readings = events.filter((/** @type {any} */ e) => meterReadingFor(e).present);
+
+    assert.ok(readings.length >= 3,
+              `the metered corpus should carry a reading per charging-status cycle, found ${readings.length}`);
+
+    for (const event of readings) {
+
+        const view = meterReadingFor(event);
+        assert.equal(view.meterId, "VAN*M*4711");
+        assert.equal(view.readingWh, 4200n);
+        assert.equal(view.signature?.length, 128, "64 bytes of raw r‖s, as hex");
+
+        const check = await meterCheckFor(event, events);
+        assert.equal(check.verdict, "signed-by-meter", `seq ${event.seq}: ${check.explanation}`);
+        // …and it stops where it should: this says nothing about the meter being the right meter.
+        assert.match(check.explanation, /separate question/);
+    }
+});
+
+
+test("a reading altered after signing does not verify", async () => {
+
+    const events = sessions["iso2-ac-eim-meter"] ?? [];
+    const signed = events.find((/** @type {any} */ e) => meterReadingFor(e).signature !== null);
+
+    // A CPO shaving 100 Wh off the number between the meter and this screen. The signature is
+    // untouched, the message still parses, and only the check can tell.
+    const shaved = structuredClone(signed);
+    shaved.json.body.bodyElement.meterInfo.meterReading = "4100";
+
+    const check = await meterCheckFor(shaved, events);
+    assert.equal(check.verdict, "wrong-meter");
+    assert.match(check.explanation, /changed after the meter signed it/);
+
+    // The session binding, which is the half a signature over the numbers alone would miss.
+    const elsewhere = structuredClone(signed);
+    elsewhere.json.header.sessionID = "1111111111111111";
+    assert.equal((await meterCheckFor(elsewhere, events)).verdict, "wrong-meter");
+});
+
+
+test("an unsigned reading is named as unsigned, and no key is not a fault of the reading", async () => {
+
+    // Every station in the field: MeterInfo present, SigMeterReading empty.
+    const events = sessions["iso2-ac-eim-meter"] ?? [];
+    const signed = events.find((/** @type {any} */ e) => meterReadingFor(e).signature !== null);
+
+    const bare = structuredClone(signed);
+    delete bare.json.body.bodyElement.meterInfo.sigMeterReading;
+
+    const unsigned = await meterCheckFor(bare, events);
+    assert.equal(unsigned.verdict, "unsigned");
+    assert.match(unsigned.explanation, /almost every station in the field/);
+
+    // A signed reading with nothing to check it against is a different answer again — and must not
+    // read as a pass.
+    const noKey = events.filter((/** @type {any} */ e) => e.kind !== "sessionStarted");
+    const check = await meterCheckFor(signed, noKey);
+    assert.equal(check.verdict, "unchecked");
+    assert.match(check.explanation, /decoration/);
+});
+
+
+test("a session with no meter reports none, rather than reporting nothing", async () => {
+
+    for (const [name, events] of Object.entries(sessions)) {
+        if (name.endsWith("-meter")) continue;
+        for (const event of events)
+            assert.equal(meterReadingFor(event).signature, null,
+                         `${name}/${event.seq}: a station with no meter signed a reading`);
+    }
+
+    // …and the -2 sessions without a meter still carry the plain MeterInfo a receipt needs, so
+    // "no signature" and "no reading" stay distinguishable on screen.
+    const pnc = sessions["iso2-ac-pnc"] ?? [];
+    const withReading = pnc.filter((/** @type {any} */ e) => meterReadingFor(e).present);
+    assert.ok(withReading.length > 0, "the PnC session reports a reading, just an unsigned one");
+    assert.equal(await meterCheckFor(withReading[0], pnc).then(c => c.verdict), "unsigned");
+});
+
+
 // ── export ────────────────────────────────────────────────────────────────────────────────────
 
 test("a session exports as the corpus trace shape, request paired with response", () => {
@@ -513,7 +599,7 @@ test("a session exports as the corpus trace shape, request paired with response"
 
         const outbound = events.filter((/** @type {any} */ e) => e.kind === "message" && e.direction === "out");
 
-        assert.equal(trace.schemaVersion, 2, name);
+        assert.equal(trace.schemaVersion, 3, name);
         assert.equal(trace.exchanges.length, outbound.length, name);
 
         for (const exchange of trace.exchanges) {

@@ -17,7 +17,12 @@ public enum BridgeEvent {
 
     /// The session began — what the whole stream is about, so a consumer joining at the top needs no
     /// configuration of its own.
-    case sessionStarted(seq: Int, atMillis: Int, name: String, protocolName: String, mode: String)
+    /// `meterKey` is the station meter's public key as the two P-256 field elements, hex, and is
+    /// present only when this station's meter signs its readings. Without it a reading's 64 bytes are
+    /// a decoration; with it they can be checked for not having been altered on the way here. Who the
+    /// meter *is* needs the key out of band, from the pairing code (`docs/CONCEPT.md` §4.5).
+    case sessionStarted(seq: Int, atMillis: Int, name: String, protocolName: String, mode: String,
+                        meterKey: (x: String, y: String)? = nil)
 
     /// A message crossed the wire.
     ///
@@ -38,7 +43,7 @@ public enum BridgeEvent {
 
     public var seq: Int {
         switch self {
-        case let .sessionStarted(seq, _, _, _, _):   return seq
+        case let .sessionStarted(seq, _, _, _, _, _):   return seq
         case let .message(seq, _, _, _, _, _, _):    return seq
         case let .sessionFinished(seq, _, _, _):     return seq
         case let .error(seq, _, _, _):               return seq
@@ -49,7 +54,7 @@ public enum BridgeEvent {
     /// arrived here when the Capacitor adapter needed to time an event it had to invent.
     public var atMillis: Int {
         switch self {
-        case let .sessionStarted(_, atMillis, _, _, _):   return atMillis
+        case let .sessionStarted(_, atMillis, _, _, _, _):   return atMillis
         case let .message(_, atMillis, _, _, _, _, _):    return atMillis
         case let .sessionFinished(_, atMillis, _, _):     return atMillis
         case let .error(_, atMillis, _, _):               return atMillis
@@ -83,11 +88,17 @@ public enum BridgeEvent {
 
         switch event {
 
-        case let .sessionStarted(seq, atMillis, name, protocolName, mode):
+        case let .sessionStarted(seq, atMillis, name, protocolName, mode, meterKey):
             head(seq, atMillis)
             json["name"] = JsonValue.of(name)
             json["protocol"] = JsonValue.of(protocolName)
             json["mode"] = JsonValue.of(mode)
+            if let meterKey {
+                let key = JsonObject()
+                key["x"] = JsonValue.of(meterKey.x)
+                key["y"] = JsonValue.of(meterKey.y)
+                json["meterKey"] = key
+            }
 
         case let .message(seq, atMillis, direction, payloadType, messageName, exi, payload):
             head(seq, atMillis)

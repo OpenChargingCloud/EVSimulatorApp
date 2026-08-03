@@ -14,10 +14,21 @@ import java.io.OutputStream
  * frame is **not** byte-comparable as it stands — ECDSA's nonce is random — so it is compared by
  * substituting the recorded value and verifying the produced one separately. See [SignedFrame].
  */
-class TraceFrame(val message: String, val bytes: ByteArray, val signature: String?) {
+class TraceFrame(val message: String, val bytes: ByteArray, val signature: String?,
+                 val meterSignature: String? = null) {
     val isSigned: Boolean get() = signature != null
-    val signatureBytes: ByteArray?
-        get() = signature?.let { s -> ByteArray(s.length / 2) { s.substring(it * 2, it * 2 + 2).toInt(16).toByte() } }
+    val signatureBytes: ByteArray? get() = signature?.let(::hexBytes)
+
+    /**
+     * The raw `r‖s` the station's **meter** put in `MeterInfo`, when it fitted one. A second
+     * randomised signature by a second signer, and one that travels in *responses* — so unlike
+     * [signature] it does not make a request incomparable, and the replay never has to substitute it.
+     */
+    val carriesMeterSignature: Boolean get() = meterSignature != null
+    val meterSignatureBytes: ByteArray? get() = meterSignature?.let(::hexBytes)
+
+    private fun hexBytes(s: String) =
+        ByteArray(s.length / 2) { s.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 }
 
 
@@ -36,14 +47,17 @@ class TraceExchange(val index: Int, val request: TraceFrame, val response: Trace
  * prove. In short: they pin this port to what the C# EVCC does, and cannot catch a bug it has too.
  */
 class SessionTrace(val name: String, val protocol: String, val mode: String,
-                   val exchanges: List<TraceExchange>, val signingKey: TraceSigningKey?) {
+                   val exchanges: List<TraceExchange>, val signingKey: TraceSigningKey?,
+                   val meterKey: TraceSigningKey?) {
 
     companion object {
 
-        // 2 since 2026-07-31, when frames gained an optional signature. The bump is deliberate even
-        // though the change is additive: a reader that silently ignored the new field would compare a
-        // signed frame as though its bytes were deterministic and fail for the wrong reason.
-        private const val SCHEMA_VERSION = 2
+        // 3 since 2026-08-03, when frames gained an optional meterSignature and traces a meterKey —
+        // a station whose meter signs its readings. 2 since 2026-07-31, when frames gained an
+        // optional signature. Both bumps are deliberate even though the changes are additive: a
+        // reader that silently ignored the new field would compare a frame as though its bytes were
+        // deterministic and fail for the wrong reason.
+        private const val SCHEMA_VERSION = 3
 
         fun load(name: String): SessionTrace {
 
@@ -64,21 +78,27 @@ class SessionTrace(val name: String, val protocol: String, val mode: String,
 
             val exchanges = root.getAsJsonArray("exchanges").map { it.asJsonObject }.map { e ->
                 fun frame(side: String) = e.getAsJsonObject(side).let {
-                    val signature = it.get("signature")
                     TraceFrame(it.get("message").asString, hex(it.get("frame").asString),
-                               if (signature == null || signature.isJsonNull) null else signature.asString)
+                               text(it, "signature"), text(it, "meterSignature"))
                 }
                 TraceExchange(e.get("index").asInt, frame("request"), frame("response"))
             }
 
-            val key = root.get("signingKey")
-            val signingKey = if (key == null || key.isJsonNull) null
-                             else key.asJsonObject.let {
-                                 TraceSigningKey(it.get("x").asString, it.get("y").asString)
-                             }
-
             return SessionTrace(root.get("name").asString, root.get("protocol").asString,
-                                root.get("mode").asString, exchanges, signingKey)
+                                root.get("mode").asString, exchanges,
+                                key(root, "signingKey"), key(root, "meterKey"))
+        }
+
+        /** Absent and null are the same answer — schema 3 omits nulls rather than writing them. */
+        private fun text(node: com.google.gson.JsonObject, name: String): String? {
+            val value = node.get(name)
+            return if (value == null || value.isJsonNull) null else value.asString
+        }
+
+        private fun key(node: com.google.gson.JsonObject, name: String): TraceSigningKey? {
+            val value = node.get(name)
+            return if (value == null || value.isJsonNull) null
+                   else value.asJsonObject.let { TraceSigningKey(it.get("x").asString, it.get("y").asString) }
         }
 
         private fun hex(s: String) = ByteArray(s.length / 2) {
@@ -169,6 +189,17 @@ class TraceReplay(private val trace: SessionTrace) {
                     "${trace.exchanges.size}. The port charges on past where the recording ends.")
 
             val exchange = trace.exchanges[replayed]
+
+            // A meter signature in a *request* would need the same substitution one field along, and
+            // this harness does not do it. No recorded request carries one — the EV only ever echoes
+            // a reading inside a signed MeteringReceiptReq, which the C# corpus refuses to record for
+            // a separate reason (the echoed bytes sit inside the digested fragment). Refusing beats
+            // comparing bytes that cannot match.
+            if (exchange.request.carriesMeterSignature)
+                throw TraceMismatch(
+                    "exchange $replayed (${exchange.request.message}) carries a meter signature in a " +
+                    "request. This harness can only substitute the header signature, so it would " +
+                    "compare 64 random bytes and fail for the wrong reason.")
 
             // A signed frame cannot be compared as bytes — ECDSA's nonce is random. SignedFrame
             // explains the substitution; the short of it is that the signature value is the only

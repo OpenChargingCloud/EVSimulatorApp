@@ -53,6 +53,12 @@ public sealed class SessionEventStream
             Name     = root["name"]!.GetValue<string>(),
             Protocol = root["protocol"]!.GetValue<string>(),
             Mode     = root["mode"]!.GetValue<string>(),
+            // Once, at the head of the stream, rather than beside every reading: it is a property of
+            // the station, and repeating it per message would invite a reader to check each reading
+            // against the key that arrived with it — which is no check at all.
+            MeterKey = root["meterKey"] is JsonObject key
+                           ? (key["x"]!.GetValue<string>(), key["y"]!.GetValue<string>())
+                           : null,
         };
 
         var failed = false;
@@ -140,6 +146,8 @@ public sealed class SessionEventStream
                 json["name"]     = started.Name;
                 json["protocol"] = started.Protocol;
                 json["mode"]     = started.Mode;
+                if (started.MeterKey is var (x, y))
+                    json["meterKey"] = new JsonObject { ["x"] = x, ["y"] = y };
                 break;
 
             case BridgeEvent.Message message:

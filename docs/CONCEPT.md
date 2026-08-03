@@ -2030,6 +2030,61 @@ Cheap because B1's event stream already carries everything.
 > **response**, which `RecordingTheCorpusAgainProducesTheSameBytes` cannot compare; the decision
 > taken (2026-08-03) is to extend the existing signature-aware comparison to the response direction
 > rather than exempt the scenario. And the EV's own meter model does not exist yet at all.
+>
+> **Done, later the same day (2026-08-03): the station's signed reading, recorded and checked.**
+> Two new sessions — `iso2-ac-eim-meter` and `iso20-dc-eim-meter` — are recorded against a `Secc2` /
+> `Secc20Dc` with a meter fitted, so `SigMeterReading` and `MeterSignature` finally carry a real
+> P-256 signature somewhere the bridge, the app and the two ports can see it. **Trace schema 3**:
+> frames gained an optional `meterSignature`, traces a `meterKey`.
+>
+> **The comparison now walks both directions, and that was overdue rather than new.** A signed
+> session used to have its *requests* compared and its responses skipped entirely — harmless while
+> the EV was the only signer, and exactly the wrong half to be skipping the moment a station's meter
+> started signing. Comparing both is strictly stronger for the existing PnC traces too, whose
+> responses had never been compared at all. The two random parts are substituted independently: they
+> live in different fields — one in the message header, one in the body's `MeterInfo` — so neither
+> substitution disturbs the other, and an unsigned, unmetered session must now reproduce with
+> *nothing* differing, which is the strong statement that makes a re-record's diff readable.
+>
+> **The combination that is not solved, written down as a running check.** In a Plug & Charge session
+> the EV echoes the station's `MeterInfo` back inside a **signed** `MeteringReceiptReq`, so the
+> meter's 64 random bytes land inside the fragment the EV digests: substituting them would leave
+> `SignedInfo`'s digest describing a body that no longer exists. The metered scenarios are EIM and
+> never reach that shape, and `TheMeterSignatureIsNotInsideASignedFragment` fails immediately if
+> anyone records one — because the alternative is a corpus that quietly compares nothing for exactly
+> the session that motivated it. (Solvable by verifying each side's digest against its own body
+> instead of substituting; not solved.)
+>
+> **Both protocols, for one byte that never travels.** The payload's protocol byte — 2 against 20 —
+> is what stops a -20 reading being presented as a -2 one, and it is not on the wire. A port that
+> hard-coded either would keep one corpus green while verifying the other protocol's readings over
+> the wrong octets. Kotlin and Swift both assert the recorded -20 reading verifies as -20 and
+> **fails** as -2, which is the only place that byte is observable at all.
+>
+> **In the app, no codec at all.** Everything the check needs is in the decoded message — meter id,
+> reading, timestamp, and the session id from the header — so unlike the digest and signer checks it
+> needs no bundle and calls `crypto.subtle` directly. It verifies the **JSON-LD it displays** rather
+> than re-decoding the EXI: where the two could disagree, a tick earned by the frame would sit beside
+> a number taken from the JSON, and a wrong number under a green tick is the most convincing possible
+> way to be wrong. (`SessionEventStreamTests` pins the two halves to be one message, so this costs
+> nothing.) Measured in a browser: the recorded reading verifies, 4100 in place of 4200 comes back
+> `wrong-meter`, a foreign session id comes back `wrong-meter`, and a stream with no `meterKey` comes
+> back `unchecked`. An *unsigned* reading is a fourth answer, `unsigned`, because that is what almost
+> every station in the field sends and it is not a fault.
+>
+> **The key travels with the session, and the sentence on screen says what that is worth.** A key
+> handed over by the station it authenticates shows the reading was not altered on the way to the
+> screen and is bound to this session — not that the station is who it says. That needs the key out
+> of band, from the pairing code's `meter` field (§4.5). Third signer, third honest limit; the same
+> shape as the two above it.
+>
+> **The trace files also stopped writing nulls.** With two optional signatures per frame and neither
+> present on most of them, the corpus was about to bury three real signatures under four hundred
+> lines saying "no". Omitting nulls cost one large diff and made the files ~35% shorter — worth it
+> for a corpus whose main job is to be *read* by someone judging whether a regeneration is innocent.
+>
+> **Still open in B3:** the EV's own meter model, which is what would make §4.3's comparison a
+> three-way one rather than a two-way one.
 
 ### Deferred by request
 

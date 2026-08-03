@@ -42,6 +42,16 @@ sealed class BridgeEvent {
         val name: String,
         val protocol: String,
         val mode: String,
+        /**
+         * The station meter's public key as the two P-256 field elements, hex — present only when
+         * this station's meter signs its readings.
+         *
+         * Without it a reader can see that `SigMeterReading` is populated and can do nothing with
+         * it. With it, a reading can be checked — but only for *not having been altered on the way
+         * here*, since the key arrives from the station it authenticates. Saying who the meter is
+         * needs the key out of band, from the pairing code (`docs/CONCEPT.md` §4.5).
+         */
+        val meterKey: Pair<String, String>? = null,
     ) : BridgeEvent() {
         override val kind get() = "sessionStarted"
     }
@@ -111,6 +121,12 @@ sealed class BridgeEvent {
                     json["name"] = JsonValue.of(event.name)
                     json["protocol"] = JsonValue.of(event.protocol)
                     json["mode"] = JsonValue.of(event.mode)
+                    event.meterKey?.let { (x, y) ->
+                        json["meterKey"] = JsonObject().apply {
+                            this["x"] = JsonValue.of(x)
+                            this["y"] = JsonValue.of(y)
+                        }
+                    }
                 }
 
                 is Message -> {

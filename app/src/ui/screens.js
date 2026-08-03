@@ -3,7 +3,7 @@
 import { el, put, clear, field, button, choice, textInput, monospace } from "./dom.js";
 import { sheetFor, configFor, groupHex } from "../sheet.js";
 import { rowsFor, detailFor, statusOf, timingsFor, exportsFor,
-         digestCheckFor, signerCheckFor } from "../session.js";
+         digestCheckFor, signerCheckFor, meterCheckFor } from "../session.js";
 import { digestDeriver, signatureVerifier } from "./plugin.js";
 
 /**
@@ -316,6 +316,27 @@ function renderDetail(root, event, events) {
         });
 
         for (const fact of detail.signature.facts)
+            put(root, field(fact.label, fact.value, undefined));
+    }
+
+    // The station's meter, when it reported one. A third signer and a different claim from the two
+    // above: those are about the vehicle's message, this is about the station's number — the one
+    // somebody is going to be billed for.
+    if (detail.meter.present) {
+
+        put(root, el("h2", "", "Meter reading"));
+
+        const verdict = el("p", "note", "Checking the meter's signature…");
+        put(root, verdict);
+
+        meterCheckFor(event, events).then(check => {
+            verdict.className   = check.verdict === "signed-by-meter" ? "ok"
+                                : check.verdict === "wrong-meter"     ? "problem"
+                                                                      : "note";
+            verdict.textContent = check.explanation;
+        });
+
+        for (const fact of detail.meter.facts)
             put(root, field(fact.label, fact.value, undefined));
     }
 
