@@ -62,5 +62,14 @@ object SapHandshake {
         if (response.responseCode != ResponseCode.OK_SuccessfulNegotiation &&
             response.responseCode != ResponseCode.OK_SuccessfulNegotiationWithMinorDeviation)
             throw SessionAborted("SAP: SECC rejected the protocol offer (${response.responseCode}).")
+
+        // The SchemaID says *which* of the offered protocols was accepted, and it was read by
+        // nobody: harmless while the offer is a single entry, and a silent protocol mismatch the
+        // moment it is not. Checked now rather than when the second entry is added — that is the
+        // point at which nobody would think to look (found in the C# sweep of 2026-08-03).
+        if (response.schemaID != request.appProtocol[0].schemaID)
+            throw SessionAborted(
+                "SAP: the SECC accepted SchemaID ${response.schemaID ?: "<none>"}, which is not " +
+                "the ${request.appProtocol[0].schemaID} it was offered.")
     }
 }

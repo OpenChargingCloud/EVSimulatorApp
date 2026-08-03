@@ -31,13 +31,10 @@ data class Iso2TariffResult(
  *
  * ## What is not here yet
  *
- * **Plug & Charge, and tariff-signature verification.** The C# original also does PaymentDetails
- * with a contract chain, a signed AuthorizationReq, signed MeteringReceiptReq, and the §7.9.2.5
- * check over signed SalesTariffs. All four are signature work, and the trace corpus is EIM — ECDSA
- * signing is randomised, so a signed request cannot be compared byte for byte at all and needs a
- * signature-aware comparison first. Porting them now would mean writing crypto with no oracle, which
- * is the one thing this repository has repeatedly found it should not do. The EIM path below is
- * complete, and the missing half is named rather than silently absent.
+ * **Tariff-signature verification.** The C# original also runs the §7.9.2.5 check over signed
+ * SalesTariffs (digest per tariff + ECDSA, dual-grammar); the tuple *choice* is ported, the
+ * signature check is not — [Iso2TariffResult] carries three fields where C#'s carries seven, and
+ * nothing here takes a tariff verify key.
  *
  * **Pause/resume** ([V2G2-740]) is likewise unported: it needs a trace that pauses and rejoins.
  */
@@ -99,6 +96,7 @@ class Evcc2(
 
     private var chosenTupleId: UByte = 1u
     private var chargingProfile: ChargingProfileType? = null
+    private var energyTransferMode: EnergyTransferMode? = null   // chosen from what the station offered
 
 
     fun run() {
@@ -115,6 +113,12 @@ class Evcc2(
 
         val discovery = send<ServiceDiscoveryResType>(
             ServiceDiscoveryReqType(serviceScope = null, serviceCategory = null))
+        energyTransferMode = selectEnergyTransferMode(discovery)
+
+        // The service id is the station's, not a constant. Ours has always been 1 and so has every
+        // counterparty's so far, which is exactly why this was a literal until the sweep of
+        // 2026-08-03 (the schema makes ChargeService mandatory, so unlike C# there is no null case).
+        val chargeServiceId = discovery.chargeService.serviceID
 
         // Plug & Charge only if we have credentials AND the station offers it; otherwise EIM.
         // Read once into a local: `pnc` is settable, and Kotlin will not smart-cast a mutable
@@ -125,7 +129,7 @@ class Evcc2(
 
         send<PaymentServiceSelectionResType>(PaymentServiceSelectionReqType(
             if (contract) PaymentOption.Contract else PaymentOption.ExternalPayment,
-            SelectedServiceListType(listOf(SelectedServiceType(serviceID = 1u, parameterSetID = null)))))
+            SelectedServiceListType(listOf(SelectedServiceType(chargeServiceId, parameterSetID = null)))))
 
         // ── AUTH (poll until authorised) ───────────────────────────────────
         // Contract: PaymentDetails first (chain in, GenChallenge out), then a signed AuthorizationReq
@@ -248,12 +252,15 @@ class Evcc2(
 
 
     /** Polls ChargeParameterDiscovery until Finished, then evaluates the offer. Runs again after a
-     *  renegotiation, because the offer may have changed. */
+     *  renegotiation, because the offer may have changed. Deadline-guarded like the other Ongoing
+     *  poll loops — this one had quietly missed the ongoing-deadline port. */
     private fun runChargeParameterDiscovery() {
         var response: ChargeParameterDiscoveryResType
+        val guard = OngoingGuard("ChargeParameterDiscovery", ongoingTimeoutMillis)
         while (true) {
             response = send(chargeParameterDiscovery())
             if (response.eVSEProcessing == EVSEProcessing.Finished) break
+            guard.tick()
             pollDelay(POLL_INTERVAL_MS)
         }
         evaluateSchedules(response)
@@ -361,6 +368,43 @@ class Evcc2(
     }
 
 
+    /**
+     * The energy transfer mode to request, chosen from the ones the station advertised in
+     * `ServiceDiscoveryRes`'s ChargeService rather than assumed.
+     *
+     * This used to be hard-coded — `DC_extended` for DC, `AC_three_phase_core` for AC — and it
+     * worked against every station this stack had met, because every one of them offered exactly
+     * what we happened to name. EVerest's AC SIL configuration does not: it advertises single-phase,
+     * answers a three-phase request with `FAILED_WrongEnergyTransferMode`, and is right to
+     * (`docs/interop-runs/2026-08-03-everest-ac/`). The trace corpus could not show the difference,
+     * because our own SECC offers exactly the mode the constant named — the ports' whole blind spot,
+     * one layer along.
+     *
+     * Preference within our own power mode is best-first — three-phase over single-phase, extended
+     * over core — and a station that offers nothing in our mode is refused with the offer named.
+     */
+    private fun selectEnergyTransferMode(discovery: ServiceDiscoveryResType): EnergyTransferMode {
+
+        val offered = discovery.chargeService.supportedEnergyTransferMode.energyTransferMode
+
+        val preferred =
+            if (mode == PowerMode.Dc)
+                listOf(EnergyTransferMode.DC_extended, EnergyTransferMode.DC_core,
+                       EnergyTransferMode.DC_combo_core, EnergyTransferMode.DC_unique)
+            else
+                listOf(EnergyTransferMode.AC_three_phase_core, EnergyTransferMode.AC_single_phase_core)
+
+        preferred.firstOrNull { it in offered }?.let { return it }
+
+        // Nothing in our power mode. Say what was offered: it is the one line that turns "the
+        // station refused" into "the station is a DC charger and we are an AC car".
+        throw SessionAborted(
+            "ServiceDiscovery: the station offers no ${if (mode == PowerMode.Dc) "DC" else "AC"} " +
+            "energy transfer mode (offered: " +
+            (if (offered.isEmpty()) "none" else offered.joinToString(", ")) + ").")
+    }
+
+
     // ── request builders ──────────────────────────────────────────────────
 
     /** Start carries the smart-charging outcome — the chosen tuple and the PMax-shaped profile;
@@ -372,20 +416,23 @@ class Evcc2(
             chargingProfile = if (progress == ChargeProgress.Start) chargingProfile else null,
             eVPowerDeliveryParameter = null)
 
-    private fun chargeParameterDiscovery() =
-        if (mode == PowerMode.Dc)
-            ChargeParameterDiscoveryReqType(null, EnergyTransferMode.DC_extended,
+    private fun chargeParameterDiscovery(): ChargeParameterDiscoveryReqType {
+        val transferMode = energyTransferMode
+            ?: throw IllegalStateException("ChargeParameterDiscovery before ServiceDiscovery")
+        return if (mode == PowerMode.Dc)
+            ChargeParameterDiscoveryReqType(null, transferMode,
                 DC_EVChargeParameterType(
                     departureTime = null, dC_EVStatus = evStatus(),
                     eVMaximumCurrentLimit = amp(200), eVMaximumPowerLimit = null,
                     eVMaximumVoltageLimit = volt(500), eVEnergyCapacity = null,
                     eVEnergyRequest = null, fullSOC = 100, bulkSOC = 80))
         else
-            ChargeParameterDiscoveryReqType(null, EnergyTransferMode.AC_three_phase_core,
+            ChargeParameterDiscoveryReqType(null, transferMode,
                 AC_EVChargeParameterType(
                     departureTime = null,
                     eAmount = PhysicalValueType(0, UnitSymbol.Wh, 22_000),
                     eVMaxVoltage = volt(400), eVMaxCurrent = amp(32), eVMinCurrent = amp(6)))
+    }
 
     private fun currentDemand() =
         CurrentDemandReqType(

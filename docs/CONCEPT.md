@@ -1767,7 +1767,8 @@ phone; scanning a screenshot from two minutes ago is rejected.
 > `V2GTPStream`s. The header's length is a 32-bit count supplied by the peer, so a station can ask a
 > phone for a 2 GiB allocation with one 8-byte frame, and `0xFFFFFFFF` converts to `-1` and yields a
 > silently truncated frame instead. Filed rather than fixed here; the bridge caps at 1 MiB and names
-> the refusal.
+> the refusal. *(Fixed the same day: all three session-side streams now cap at the same 1 MiB —
+> `V2GTP.MaximumPayloadBytes` and its ports, kept in step by name.)*
 
 > **Pairing ported to Kotlin and Swift, 2026-07-31.** `v2g-pairing` and `V2GPairing` carry the
 > payload parser, the warning classification and both halves of the TOTP — generator and verifier —

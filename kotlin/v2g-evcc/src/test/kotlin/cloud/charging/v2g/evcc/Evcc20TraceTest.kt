@@ -1,6 +1,7 @@
 package cloud.charging.v2g.evcc
 
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -28,7 +29,7 @@ class Evcc20TraceTest {
      */
     private val recordedAt: () -> ULong = { 1_767_225_600uL }
 
-    private fun replay(name: String, mode: PowerMode): TraceReplay {
+    private fun replay(name: String, mode: PowerMode, preferDynamic: Boolean = false): TraceReplay {
 
         val trace  = SessionTrace.load(name)
         val replay = TraceReplay(trace)
@@ -38,6 +39,7 @@ class Evcc20TraceTest {
 
         val evcc = if (mode == PowerMode.Dc) Evcc20Dc(stream, recordedAt, pollDelay = { })
                    else                      Evcc20Ac(stream, recordedAt, pollDelay = { })
+        evcc.preferDynamicControlMode = preferDynamic
         evcc.run()
 
         return replay
@@ -57,6 +59,42 @@ class Evcc20TraceTest {
         assertTrue(replay.complete,
             "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
             "which sends no wrong bytes and would otherwise pass")
+    }
+
+    // ── Dynamic control mode ──────────────────────────────────────────────
+    //
+    // Recorded 2026-08-03, the day the C# EVCC learned the mode, precisely so the ports could not
+    // claim it unchecked: the mode touches the parameter set, ScheduleExchange, the EVPowerProfile
+    // and the charge loop, and every one of them is in these bytes.
+
+    @Test
+    fun theDcDynamicSessionMatchesTheRecordingByteForByte() {
+        val replay = replay("iso20-dc-eim-dynamic", PowerMode.Dc, preferDynamic = true)
+        assertTrue(replay.complete,
+            "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+    }
+
+    @Test
+    fun theAcDynamicSessionMatchesTheRecordingByteForByte() {
+        val replay = replay("iso20-ac-eim-dynamic", PowerMode.Ac, preferDynamic = true)
+        assertTrue(replay.complete,
+            "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /**
+     * The negative, without which the two tests above would also pass on a flag that is read
+     * nowhere — if Scheduled and Dynamic produced the same bytes, the Dynamic traces would prove
+     * nothing. Diverges at ServiceSelectionReq, the first message the mode reaches (the ControlMode
+     * = 2 parameter set).
+     */
+    @Test
+    fun withoutTheFlagTheDynamicTraceDiverges() {
+        val thrown = assertFailsWith<TraceMismatch> {
+            replay("iso20-dc-eim-dynamic", PowerMode.Dc, preferDynamic = false)
+        }
+        assertContains(thrown.message!!, "ServiceSelectionReq")
     }
 
     /**

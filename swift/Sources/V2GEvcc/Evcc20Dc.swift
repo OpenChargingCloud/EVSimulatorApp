@@ -30,11 +30,13 @@ public class Evcc20Dc: Evcc20Base {
 
     public override func runPreChargeSequence() throws {
 
+        let cableGuard = OngoingGuard("DC_CableCheck", limitMillis: ongoingTimeoutMillis)
         while true {
             let (set, message) = try exchangeRaw(.iso20DC,
                 DCCodec.encode(DC_CableCheckReq(header: sessionCtx.toDcHeader())))
             let res: DC_CableCheckRes = try expect(set, message, .iso20DC)
             if res.eVSEProcessing == ExiIso20DC.Processing.Finished { break }
+            try cableGuard.tick()
             pollDelay(Self.pollIntervalMs)
         }
 
@@ -48,13 +50,29 @@ public class Evcc20Dc: Evcc20Base {
 
     public override func runChargeLoopIteration() throws {
 
+        // Asking in kind, the mirror of [V2G20-1600]: the request's control mode must be the one
+        // the session negotiated. Dynamic states what the battery needs and what the car can take,
+        // and lets the station choose the setpoint; Scheduled names the setpoint itself.
+        let controlMode: CLReqControlModeType = preferDynamicControlMode
+            ? Dynamic_DC_CLReqControlModeType(
+                  departureTime:          departureTime,
+                  eVTargetEnergyRequest:  Self.rat(30, 3),    // 30 kWh
+                  eVMaximumEnergyRequest: Self.rat(60, 3),    // 60 kWh
+                  eVMinimumEnergyRequest: Self.rat(10, 3),    // 10 kWh
+                  eVMaximumChargePower:   Self.rat(50, 3),    // 50 kW
+                  eVMinimumChargePower:   Self.rat(1,  3),    //  1 kW
+                  eVMaximumChargeCurrent: Self.rat(125),
+                  eVMaximumVoltage:       Self.rat(500),
+                  eVMinimumVoltage:       Self.rat(200))
+            : Scheduled_DC_CLReqControlModeType(
+                  eVTargetCurrent: Self.rat(120),
+                  eVTargetVoltage: Self.rat(400))
+
         let request = DC_ChargeLoopReq(
             header: sessionCtx.toDcHeader(),
             meterInfoRequested: false,
             eVPresentVoltage: Self.rat(400),
-            cLReqControlMode: Scheduled_DC_CLReqControlModeType(
-                eVTargetCurrent: Self.rat(120),
-                eVTargetVoltage: Self.rat(400)))
+            cLReqControlMode: controlMode)
 
         let (set, message) = try exchangeRaw(.iso20DC, DCCodec.encode(request))
         let _: DC_ChargeLoopRes = try expect(set, message, .iso20DC)

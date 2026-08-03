@@ -23,22 +23,23 @@ internal func expect<T>(_ actualSet: MessageSet, _ message: Any, _ expectedSet: 
 ///
 /// ## What is not here
 ///
-/// **Plug & Charge, contract provisioning (CertificateInstallation), and price-schedule signature
-/// verification.** All three are signature work; the corpus is EIM and a randomised ECDSA signature
-/// cannot be compared byte for byte, so porting them now would mean writing crypto against no
-/// oracle. Named here rather than silently absent, exactly as in ``Evcc2``.
-///
-/// **Dynamic control mode.** This EVCC drives Scheduled mode, as the C# original does — it asks for
-/// a Scheduled parameter set and sends a Scheduled ScheduleExchange. [V2G20-1600] requires a
-/// response's control mode to match the request's, so the two halves are one decision, not two.
+/// **Contract provisioning (CertificateInstallation) and price-schedule signature verification.**
+/// Both are signature work with no recorded oracle yet; named here rather than silently absent,
+/// exactly as in ``Evcc2``. (Plug & Charge itself *is* here, held to the signed traces; Dynamic
+/// control mode is here too, held to the `iso20-*-eim-dynamic` traces.)
 open class Evcc20Base {
 
     internal static let pollIntervalMs: UInt64 = 50
     private static let chargeCycles = 3
 
-    // ISO 15118-20 energy-transfer service ids (Table 204): AC=1, DC=2, AC_BPT=5, DC_BPT=6.
+    // ISO 15118-20 energy-transfer service ids (Table 204): AC=1, DC=2, AC_BPT=5, DC_BPT=6, MCS=8,
+    // MCS_BPT=9. MCS is the DC message set under different ids, so it is *drivable* by a DC EVCC
+    // even when it is not what that EVCC would ask for first — which is the difference the two
+    // pairs of lists carry.
     private static let dcServiceIds: [UInt16] = [2, 6]
     private static let acServiceIds: [UInt16] = [1, 5]
+    private static let dcDrivableIds: [UInt16] = [2, 6, 8, 9]
+    private static let acDrivableIds: [UInt16] = [1, 5]
 
     private let stream: V2GTPStream
     internal let pollDelay: (UInt64) -> Void
@@ -74,6 +75,24 @@ open class Evcc20Base {
     /// How this session authorized: `"eim"`, or `"pnc-signed"`.
     public private(set) var authorizationMode = "eim"
 
+    /// Drive the session in **Dynamic** control mode (ControlMode = 2) instead of Scheduled.
+    ///
+    /// The mode is a property of the whole session, not of one message — it touches the parameter
+    /// set selected out of `ServiceDetailRes`, `ScheduleExchangeReq`'s control-mode arm, the
+    /// `EVPowerProfile` in PowerDelivery(Start), and the charge loop's request arm (``Evcc20Dc``/
+    /// ``Evcc20Ac``). Answering in kind is [V2G20-1600]; asking in kind is the same rule read from
+    /// the other end. The substantive difference is who plans: in Scheduled mode the EV picks a
+    /// schedule tuple and commits to it, in Dynamic mode it states energy needs and a departure
+    /// time and lets the station steer.
+    ///
+    /// Held to the `iso20-dc-eim-dynamic` / `iso20-ac-eim-dynamic` traces — recorded the day the C#
+    /// EVCC learned the mode (2026-08-03), precisely so the ports could not claim it unchecked.
+    public var preferDynamicControlMode = false
+
+    /// When the car leaves, as a -20 `DepartureTime` (seconds from the session's time anchor).
+    /// Dynamic mode only: it is the deadline the station schedules against.
+    public var departureTime: UInt32 = 3600
+
     public init(_ stream: V2GTPStream, clock: @escaping () -> UInt64,
                 pollDelay: @escaping (UInt64) -> Void = { _ in }) {
         self.stream = stream
@@ -103,6 +122,14 @@ open class Evcc20Base {
     /// ask for the megawatt services instead.
     open var preferredEnergyServiceIds: [UInt16] {
         energyMode == .dc ? Self.dcServiceIds : Self.acServiceIds
+    }
+
+    /// Every service id whose messages this EVCC can actually speak — the ones on its own message
+    /// set. Wider than ``preferredEnergyServiceIds`` on purpose: a megawatt truck at an ordinary DC
+    /// charger should take the DC service rather than refuse, and a DC car at an AC-only station
+    /// has nothing to take.
+    open var drivableEnergyServiceIds: [UInt16] {
+        energyMode == .dc ? Self.dcDrivableIds : Self.acDrivableIds
     }
 
     // ── the session ───────────────────────────────────────────────────────
@@ -168,7 +195,10 @@ open class Evcc20Base {
                 CommonMessagesCodec.encode(ScheduleExchangeReq(
                     header: sessionCtx.toCommonHeader(),
                     maximumSupportingPoints: 12,
-                    scheduled_SEReqControlMode: Scheduled_SEReqControlModeType())))
+                    dynamic_SEReqControlMode:
+                        preferDynamicControlMode ? dynamicScheduleRequest() : nil,
+                    scheduled_SEReqControlMode:
+                        preferDynamicControlMode ? nil : Scheduled_SEReqControlModeType())))
             if scheduleRes.eVSEProcessing == .Finished { break }
             pollDelay(Self.pollIntervalMs)
         }
@@ -180,7 +210,7 @@ open class Evcc20Base {
         let _: PowerDeliveryRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(PowerDeliveryReq(
                 header: sessionCtx.toCommonHeader(), eVProcessing: .Finished,
-                chargeProgress: .Start, eVPowerProfile: Self.buildEvPowerProfile(scheduleRes))))
+                chargeProgress: .Start, eVPowerProfile: buildEvPowerProfile(scheduleRes))))
 
         for _ in 0 ..< Self.chargeCycles {
             try runChargeLoopIteration()
@@ -225,6 +255,16 @@ open class Evcc20Base {
                     header: header, selectedAuthorizationService: .PnC,
                     pnC_AReqAuthorizationMode: pncMode))
             }
+        }
+
+        // EIM is what is left, and it too has to be on offer: a station that advertises PnC only is
+        // saying it cannot authorize this car, and hearing that at AuthorizationSetup is better
+        // than hearing FAILED at AuthorizationReq.
+        guard authSetup.authorizationServices.contains(.EIM) else {
+            throw SessionAborted(
+                "AuthorizationSetup: the station offers no EIM authorization "
+              + "(offered: \(authSetup.authorizationServices.map { "\($0)" }.joined(separator: ", ")))"
+              + (pnc == nil ? " and this EVCC has no contract certificate." : "."))
         }
 
         return { [sessionCtx] in
@@ -290,44 +330,93 @@ open class Evcc20Base {
         return try expect(set, message, expectedSet)
     }
 
-    /// The first advertised service whose id matches this EVCC's mode (DC → 2/6, AC → 1/5), else the
-    /// first offered — a simplified station may advertise a single generic id.
+    /// Picks the energy-transfer service to select from the station's advertised list: the best one
+    /// this EVCC asks for, else any other it can actually drive, else a refusal.
+    ///
+    /// The old fallback was `offered[0]`, which for a DC car at an AC-only station selects the AC
+    /// service and then sends the next request on the DC set — refused two exchanges later, for a
+    /// reason that no longer names the cause. Falling back *within* the message set keeps the case
+    /// this is really for (a megawatt truck at an ordinary DC charger) and drops the one it never
+    /// was (found in the C# sweep of 2026-08-03).
     private func selectEnergyTransferService(_ res: ServiceDiscoveryRes) throws -> UInt16 {
+
         let offered = res.energyTransferServiceList.service
         guard !offered.isEmpty else {
             throw SessionAborted("ServiceDiscovery: the station advertised no energy-transfer service.")
         }
+
         let preferred = preferredEnergyServiceIds
-        return (offered.first { preferred.contains($0.serviceID) } ?? offered[0]).serviceID
+        let drivable  = drivableEnergyServiceIds
+        let match = offered.first { preferred.contains($0.serviceID) }
+                 ?? offered.first { drivable.contains($0.serviceID) }
+
+        guard let match else {
+            throw SessionAborted(
+                "ServiceDiscovery: the station offers no \(energyMode == .dc ? "DC" : "AC") "
+              + "energy-transfer service (wanted \(preferred.map(String.init).joined(separator: "/")), "
+              + "offered \(offered.map { String($0.serviceID) }.joined(separator: ", "))).")
+        }
+        return match.serviceID
     }
 
-    /// Prefers a Scheduled control-mode set (ControlMode=1, matching the Scheduled ScheduleExchange
-    /// this EVCC drives), else the first offered.
+    /// Picks the parameter set whose `ControlMode` matches the mode this EVCC is about to drive
+    /// (1 = Scheduled, 2 = Dynamic), else the first offered. A Dynamic EV at a Scheduled-only
+    /// station is refused by name instead: the selected set is what the station answers in kind
+    /// against for the rest of the session, so a silent fallback would negotiate one mode and then
+    /// ask in the other.
     private func selectParameterSet(_ res: ServiceDetailRes) throws -> UInt16 {
+
         let sets = res.serviceParameterList.parameterSet
         guard !sets.isEmpty else {
             throw SessionAborted("ServiceDetail: the station advertised no parameter set.")
         }
-        let scheduled = sets.first { set in
-            set.parameter.contains { $0.name == "ControlMode" && $0.intValue == 1 }
+
+        let wanted: Int32 = preferDynamicControlMode ? 2 : 1
+        let match = sets.first { set in
+            set.parameter.contains { $0.name == "ControlMode" && $0.intValue == wanted }
         }
-        return (scheduled ?? sets[0]).parameterSetID
+
+        if match == nil && preferDynamicControlMode {
+            throw SessionAborted("ServiceDetail: Dynamic control mode was requested, but the station "
+                               + "offers no parameter set with ControlMode = 2.")
+        }
+
+        return (match ?? sets[0]).parameterSetID
     }
 
-    /// The Scheduled-mode EVPowerProfile that PowerDelivery(Start) must carry: the first schedule
-    /// tuple the station returned, and one echoed power-schedule entry. Falls back to tuple 1 if the
-    /// station returned no Scheduled control mode.
-    private static func buildEvPowerProfile(_ scheduleRes: ScheduleExchangeRes) -> EVPowerProfileType {
+    /// The Dynamic-mode ScheduleExchange request: a departure time and what the battery needs,
+    /// instead of a schedule to choose from. The three energy fields are **mandatory** in this arm
+    /// (they are optional in the Scheduled one), which is the schema saying the same thing: a
+    /// station can only steer if it knows the target.
+    private func dynamicScheduleRequest() -> Dynamic_SEReqControlModeType {
+        Dynamic_SEReqControlModeType(
+            departureTime:          departureTime,
+            minimumSOC:             30,
+            targetSOC:              80,
+            eVTargetEnergyRequest:  RationalNumberType(exponent: 3, value: 30),   // 30 kWh
+            eVMaximumEnergyRequest: RationalNumberType(exponent: 3, value: 60),   // 60 kWh
+            eVMinimumEnergyRequest: RationalNumberType(exponent: 3, value: 10))   // 10 kWh
+    }
+
+    /// The EVPowerProfile that PowerDelivery(Start) must carry. Scheduled mode selects the first
+    /// schedule tuple the station returned and echoes one power-schedule entry (falling back to
+    /// tuple 1 if the station returned no Scheduled control mode); Dynamic mode has no tuple to
+    /// point at, so its control-mode element is empty — the profile is then only the EV's own power
+    /// curve.
+    private func buildEvPowerProfile(_ scheduleRes: ScheduleExchangeRes) -> EVPowerProfileType {
 
         let tupleId = scheduleRes.scheduled_SEResControlMode?.scheduleTuple.first?.scheduleTupleID ?? 1
 
         return EVPowerProfileType(
             timeAnchor: 0,
+            dynamic_EVPPTControlMode:
+                preferDynamicControlMode ? Dynamic_EVPPTControlModeType() : nil,
             // PowerToleranceAcceptance is schema-optional but Josev's model requires it — its SECC
             // rejects an absent one, and a live run needed it set.
-            scheduled_EVPPTControlMode: Scheduled_EVPPTControlModeType(
-                selectedScheduleTupleID: tupleId,
-                powerToleranceAcceptance: .PowerToleranceConfirmed),
+            scheduled_EVPPTControlMode:
+                preferDynamicControlMode ? nil : Scheduled_EVPPTControlModeType(
+                    selectedScheduleTupleID: tupleId,
+                    powerToleranceAcceptance: .PowerToleranceConfirmed),
             eVPowerProfileEntries: EVPowerProfileEntryListType(eVPowerProfileEntry: [
                 // one 1-hour entry at 10 kW (Power = 10 × 10³ W)
                 PowerScheduleEntryType(duration: 3600, power: RationalNumberType(exponent: 3, value: 10))

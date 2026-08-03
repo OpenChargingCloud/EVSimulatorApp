@@ -25,11 +25,24 @@ public final class Evcc20Ac: Evcc20Base {
 
     public override func runChargeLoopIteration() throws {
 
+        // Asking in kind, the mirror of [V2G20-1600] — see ``Evcc20Dc`` for the same split and why.
+        let controlMode: CLReqControlModeType = preferDynamicControlMode
+            ? Dynamic_AC_CLReqControlModeType(
+                  departureTime:          departureTime,
+                  eVTargetEnergyRequest:  Self.rat(30, 3),    // 30 kWh
+                  eVMaximumEnergyRequest: Self.rat(60, 3),    // 60 kWh
+                  eVMinimumEnergyRequest: Self.rat(10, 3),    // 10 kWh
+                  eVMaximumChargePower:   Self.rat(11, 3),    // 11 kW
+                  eVMinimumChargePower:   Self.rat(1, 3),
+                  eVPresentActivePower:   Self.rat(2_200, 1),
+                  eVPresentReactivePower: Self.rat(0))
+            : Scheduled_AC_CLReqControlModeType(
+                  eVPresentActivePower: Self.rat(2_200, 1))
+
         let request = AC_ChargeLoopReq(
             header: sessionCtx.toAcHeader(),
             meterInfoRequested: false,
-            cLReqControlMode: Scheduled_AC_CLReqControlModeType(
-                eVPresentActivePower: Self.rat(2_200, 1)))
+            cLReqControlMode: controlMode)
 
         let (set, message) = try exchangeRaw(.iso20AC, ACCodec.encode(request))
         let _: AC_ChargeLoopRes = try expect(set, message, .iso20AC)

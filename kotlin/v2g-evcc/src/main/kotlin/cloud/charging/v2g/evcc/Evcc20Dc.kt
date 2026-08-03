@@ -12,6 +12,7 @@ import cloud.charging.v2g.iso20.dc.DC_PreChargeReq
 import cloud.charging.v2g.iso20.dc.DC_PreChargeRes
 import cloud.charging.v2g.iso20.dc.DC_WeldingDetectionReq
 import cloud.charging.v2g.iso20.dc.DC_WeldingDetectionRes
+import cloud.charging.v2g.iso20.dc.Dynamic_DC_CLReqControlModeType
 import cloud.charging.v2g.iso20.dc.Processing
 import cloud.charging.v2g.iso20.dc.RationalNumberType
 import cloud.charging.v2g.iso20.dc.Scheduled_DC_CLReqControlModeType
@@ -51,11 +52,13 @@ open class Evcc20Dc(
 
     override fun runPreChargeSequence() {
 
+        val cableGuard = OngoingGuard("DC_CableCheck", ongoingTimeoutMillis)
         while (true) {
             val (set, message) = exchangeRaw(MessageSet.Iso20DC,
                 DCCodec.encode(DC_CableCheckReq(sessionCtx.toDcHeader())))
             val res = expect<DC_CableCheckRes>(set, message, MessageSet.Iso20DC)
             if (res.eVSEProcessing == Processing.Finished) break
+            cableGuard.tick()
             pollDelay(POLL_INTERVAL_MS)
         }
 
@@ -67,13 +70,31 @@ open class Evcc20Dc(
 
     override fun runChargeLoopIteration() {
 
+        // Asking in kind, the mirror of [V2G20-1600]: the request's control mode must be the one the
+        // session negotiated. Dynamic states what the battery needs and what the car can take, and
+        // lets the station choose the setpoint; Scheduled names the setpoint itself.
+        val controlMode =
+            if (preferDynamicControlMode)
+                Dynamic_DC_CLReqControlModeType(
+                    departureTime          = departureTime,
+                    eVTargetEnergyRequest  = rat(30, 3),    // 30 kWh
+                    eVMaximumEnergyRequest = rat(60, 3),    // 60 kWh
+                    eVMinimumEnergyRequest = rat(10, 3),    // 10 kWh
+                    eVMaximumChargePower   = rat(50, 3),    // 50 kW
+                    eVMinimumChargePower   = rat(1,  3),    //  1 kW
+                    eVMaximumChargeCurrent = rat(125),
+                    eVMaximumVoltage       = rat(500),
+                    eVMinimumVoltage       = rat(200))
+            else
+                Scheduled_DC_CLReqControlModeType(
+                    null, null, null,
+                    eVTargetCurrent = rat(120), eVTargetVoltage = rat(400),
+                    null, null, null, null, null)
+
         val request = DC_ChargeLoopReq(sessionCtx.toDcHeader(),
             displayParameters = null, meterInfoRequested = false,
             eVPresentVoltage = rat(400),
-            cLReqControlMode = Scheduled_DC_CLReqControlModeType(
-                null, null, null,
-                eVTargetCurrent = rat(120), eVTargetVoltage = rat(400),
-                null, null, null, null, null))
+            cLReqControlMode = controlMode)
 
         val (set, message) = exchangeRaw(MessageSet.Iso20DC, DCCodec.encode(request))
         expect<DC_ChargeLoopRes>(set, message, MessageSet.Iso20DC)

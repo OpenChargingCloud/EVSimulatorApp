@@ -57,13 +57,15 @@ final class EvccTraceTests: XCTestCase {
 
     // ── ISO 15118-20 ──────────────────────────────────────────────────────
 
-    private func replay20(_ name: String, _ mode: PowerMode) throws -> (TraceReplay, Evcc20Base) {
+    private func replay20(_ name: String, _ mode: PowerMode,
+                          preferDynamic: Bool = false) throws -> (TraceReplay, Evcc20Base) {
         let replay = TraceReplay(try SessionTrace.load(name))
         let stream = V2GTPStream(replay)
         try SapHandshake.runEvccSide(stream, .iso15118_20, mode)
         let evcc: Evcc20Base = mode == .dc
             ? Evcc20Dc(stream, clock: recordedAt)
             : Evcc20Ac(stream, clock: recordedAt)
+        evcc.preferDynamicControlMode = preferDynamic
         try evcc.run()
         return (replay, evcc)
     }
@@ -78,6 +80,35 @@ final class EvccTraceTests: XCTestCase {
         let (replay, _) = try replay20("iso20-dc-eim", .dc)
         XCTAssertTrue(replay.complete,
             "the session stopped after \(replay.replayed) of the recorded exchanges")
+    }
+
+    // ── Dynamic control mode ──────────────────────────────────────────────
+    //
+    // Recorded 2026-08-03, the day the C# EVCC learned the mode, precisely so the ports could not
+    // claim it unchecked: the mode touches the parameter set, ScheduleExchange, the EVPowerProfile
+    // and the charge loop, and every one of them is in these bytes.
+
+    func testTheDcDynamicSessionMatchesTheRecordingByteForByte() throws {
+        let (replay, _) = try replay20("iso20-dc-eim-dynamic", .dc, preferDynamic: true)
+        XCTAssertTrue(replay.complete,
+            "the session stopped after \(replay.replayed) of the recorded exchanges")
+    }
+
+    func testTheAcDynamicSessionMatchesTheRecordingByteForByte() throws {
+        let (replay, _) = try replay20("iso20-ac-eim-dynamic", .ac, preferDynamic: true)
+        XCTAssertTrue(replay.complete,
+            "the session stopped after \(replay.replayed) of the recorded exchanges")
+    }
+
+    /// The negative, without which the two tests above would also pass on a flag that is read
+    /// nowhere — if Scheduled and Dynamic produced the same bytes, the Dynamic traces would prove
+    /// nothing. Diverges at ServiceSelectionReq, the first message the mode reaches (the
+    /// ControlMode = 2 parameter set).
+    func testWithoutTheFlagTheDynamicTraceDiverges() throws {
+        XCTAssertThrowsError(try replay20("iso20-dc-eim-dynamic", .dc)) { error in
+            XCTAssertTrue(String(describing: error).contains("ServiceSelectionReq"),
+                          String(describing: error))
+        }
     }
 
     /// Which energy-transfer service the negotiation settled on: DC=2, AC=1 (Table 204). The wire
