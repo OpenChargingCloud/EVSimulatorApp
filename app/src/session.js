@@ -561,6 +561,75 @@ export async function digestCheckFor(event, deriveDigest) {
 
 
 /**
+ * @typedef {object} SignerCheck
+ * @property {"signed-by-contract" | "wrong-signer" | "unchecked"} verdict
+ * @property {string} explanation
+ */
+
+/**
+ * Who signed — the other half, and the one that needs a key.
+ *
+ * The digest says a signature covers this content. This says the signature was made with the
+ * private key belonging to the **contract certificate this session presented**, which is the
+ * question "is this really that customer's car" reduces to.
+ *
+ * The certificate is not taken from the signed message: it comes from the `PaymentDetailsReq` the EV
+ * sent earlier in the same stream, which is where the station gets it from as well. That is the
+ * decision this function exists to make, and it is why the whole event list is a parameter — a
+ * per-event check could not reach it.
+ *
+ * What it deliberately does **not** claim: that the certificate is trustworthy. Whether the contract
+ * chain leads to a Mobility Operator root anyone accepts is a different question again, answered by
+ * `v2g-certificates` on the native side and by nothing here. A session inspector saying "signed by
+ * the certificate that was presented" is exactly as much as it can honestly say.
+ *
+ * @param {BridgeEvent} event
+ * @param {BridgeEvent[]} events  the whole stream, for the certificate
+ * @param {null | ((signedFrameHex: string, certificateFrameHex: string) => Promise<boolean | null>)} verify
+ * @returns {Promise<SignerCheck>}
+ */
+export async function signerCheckFor(event, events, verify) {
+
+    if (!signatureFor(event).present)
+        return { verdict: "unchecked", explanation: "This message carries no signature." };
+
+    if (verify === null || typeof event.exi !== "string")
+        return { verdict: "unchecked",
+                 explanation: "Not checked: this build cannot verify a signature." };
+
+    // The certificate arrives in PaymentDetailsReq, and only in a Contract session. Its absence is
+    // the ordinary case for EIM and is not a fault.
+    const details = events.find(e => e.kind === "message"
+                                  && String(e.messageName ?? "").startsWith("PaymentDetailsReq")
+                                  && typeof e.exi === "string");
+
+    if (details === undefined)
+        return { verdict: "unchecked",
+                 explanation: "No contract certificate in this session — nothing to check the "
+                            + "signature against. A PaymentDetailsReq carries it, and only a "
+                            + "Plug & Charge session sends one." };
+
+    const ok = await verify(event.exi, String(details.exi));
+
+    if (ok === null)
+        return { verdict: "unchecked",
+                 explanation: "Not checked: this build could not re-encode the signed element or "
+                            + "read the certificate's public key. The TypeScript codec covers "
+                            + "ISO 15118-2 only." };
+
+    return ok
+        ? { verdict: "signed-by-contract",
+            explanation: "Signed by the contract certificate this session presented. Whether that "
+                       + "certificate is one anyone should trust is a separate question, and is not "
+                       + "answered here." }
+        : { verdict: "wrong-signer",
+            explanation: "The signature was not made with the key of the contract certificate this "
+                       + "session presented. Either it came from somewhere else, or the message was "
+                       + "altered after signing." };
+}
+
+
+/**
  * Every `Id` in a message, at any depth — the set a signature reference can legally point into.
  *
  * @param {any} node

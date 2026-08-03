@@ -79,3 +79,29 @@ export async function digestDeriver(frameHex) {
     }
 
 }
+
+
+/**
+ * Verifies a signed message against the contract certificate a session presented — or `null` when
+ * this build cannot.
+ *
+ * The second half of the same seam. It needs a codec the app does not carry *twice over*: the -2
+ * one to read both messages, and the standalone-xmldsig one to re-encode the octets that were
+ * actually signed.
+ *
+ * @param {string} signedFrameHex
+ * @param {string} certificateFrameHex
+ * @returns {Promise<boolean | null>}
+ */
+export async function signatureVerifier(signedFrameHex, certificateFrameHex) {
+
+    try {
+        const bundle = await import("../../vendor/ev-simulator.js");
+        return typeof bundle.verifySignatureOfFrame === "function"
+                   ? await bundle.verifySignatureOfFrame(signedFrameHex, certificateFrameHex)
+                   : null;
+    } catch {
+        return null;
+    }
+
+}

@@ -1982,6 +1982,46 @@ Cheap because B1's event stream already carries everything.
 >
 > **-20 is untouched by this**, for the reason that has held all along: the generator has not emitted
 > the -20 sets for TypeScript, so the -20 PnC message in the corpus stays `unchecked` and says why.
+
+> **And who signed, 2026-08-03 — which needed a second codec nobody had noticed was missing.** The
+> inspector now answers both halves for ISO 15118-2: the digest says a signature covers *this
+> content*, and the signature says it was made with the key of the **contract certificate this
+> session presented** — taken from the session's own `PaymentDetailsReq`, which is where a station
+> gets it from too.
+>
+> **The trap, and it was one message away from being shipped.** `SignedInfo` is signed as a
+> **standalone** xmldsig fragment — a grammar built from `xmldsig-core-schema.xsd` alone — not as a
+> fragment of the -2 schema set. Both decode identically and encode differently, because an EXI
+> fragment's top-level event-code width tracks the schema's global-element count. `typescript/` had
+> only the -2 form, and the first attempt with it produced **210 bytes and a failed verification**
+> against a signature the C# and Kotlin sides accept every day. Verifying with the wrong grammar
+> would have cried wolf on every valid signature — worse than not checking. Generating
+> `typescript/src/xmldsig/` gives **209**, and it verifies. That 209/210 pair is the same one
+> `docs/phase5-report.md` recorded from the live Josev work in July, reproduced by a back end written
+> months later — which is a nice confirmation that the dual-grammar finding was about the grammars
+> and not about C#.
+>
+> `signature.test.ts` pins all three facts: the two lengths differ, the standalone form verifies, and
+> **the -2 form does not**. That last one is the assertion that keeps the second codec honest — if it
+> ever passes, the grammars have stopped being distinguishable and the extra codec has stopped
+> earning its keep.
+>
+> **A browser has no X.509 parser**, and `crypto.subtle` imports a SubjectPublicKeyInfo and nothing
+> larger, so the seven fields in front of it are stepped over by hand: tag, length, jump, no
+> interpretation. Everything a mis-parse could get wrong ends in `importKey` refusing the bytes —
+> a wrong answer is not reachable, only a missing one.
+>
+> **Two lines on screen, never merged.** A single verdict would have to be the weaker of the two and
+> would read as the stronger. And the second one stops exactly where it should: *signed by the
+> certificate that was presented* — whether that certificate is one anyone should trust is a third
+> question, answered by `v2g-certificates` on the native side and by nothing here.
+>
+> Measured in a browser: the recorded `AuthorizationReq` verifies, a tampered signature value comes
+> back `false`, and a session with no `PaymentDetailsReq` comes back `unchecked` rather than failed.
+> Worth recording what a first counter-test got wrong: flipping a byte at the *end* of the frame left
+> the verification `true` — correctly, because those are EXI padding bits that change no decoded
+> content. The two checks are complementary, and neither is sufficient: body tampering is the
+> digest's job, `SignedInfo` and signature tampering is this one's.
 >
 > **Still open in B3**, and both were scoped out deliberately: the *station's* signed meter reading
 > (`SigMeterReading`) never reaches the app, because the corpus is recorded against a `Secc2` with

@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { rowsFor, detailFor, statusOf, hexLines,
-         frameFor, timingsFor, signatureFor, exportsFor, digestCheckFor,
+         frameFor, timingsFor, signatureFor, exportsFor, digestCheckFor, signerCheckFor,
          ONGOING_BUDGET_MS } from "../src/session.js";
 
 /**
@@ -437,6 +437,67 @@ test("every unsigned message in the corpus stays unchecked, whatever the deriver
     }
 
     assert.ok(unsigned >= 100, `only ${unsigned} unsigned messages`);
+});
+
+
+// ── who signed ────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The certificate comes from earlier in the *session*, not from the signed message — so these check
+ * the decision the whole-stream parameter exists for. The cryptography itself is
+ * `typescript/test/signature.test.ts`, which verifies the recorded signatures for real.
+ */
+test("the signer check reaches back to the session's PaymentDetailsReq", async () => {
+
+    const events = sessions["iso2-ac-pnc"] ?? [];
+    const signed = events.find((/** @type {any} */ e) => e?.json?.header?.signature);
+
+    const details = events.find(
+        (/** @type {any} */ e) => String(e.messageName ?? "").startsWith("PaymentDetailsReq"));
+    assert.notEqual(details, undefined, "the PnC corpus should carry a PaymentDetailsReq");
+
+    /** @type {string[]} */
+    const seen = [];
+    const check = await signerCheckFor(signed, events, async (signedHex, certHex) => {
+        seen.push(certHex);
+        return true;
+    });
+
+    assert.equal(check.verdict, "signed-by-contract");
+    assert.deepEqual(seen, [details.exi], "the certificate did not come from PaymentDetailsReq");
+    // …and the sentence does not overreach into trust.
+    assert.match(check.explanation, /separate question/);
+});
+
+
+test("a signature from the wrong key is named as such, not blurred into 'unchecked'", async () => {
+
+    const events = sessions["iso2-ac-pnc"] ?? [];
+    const signed = events.find((/** @type {any} */ e) => e?.json?.header?.signature);
+
+    const wrong = await signerCheckFor(signed, events, async () => false);
+    assert.equal(wrong.verdict, "wrong-signer");
+    assert.match(wrong.explanation, /not made with the key/);
+
+    const cannot = await signerCheckFor(signed, events, async () => null);
+    assert.equal(cannot.verdict, "unchecked");
+    assert.match(cannot.explanation, /ISO 15118-2 only/);
+});
+
+
+test("an EIM session has no certificate, and that is not a fault", async () => {
+
+    // Take a signed message into a session that never sent PaymentDetailsReq.
+    const pnc    = sessions["iso2-ac-pnc"] ?? [];
+    const signed = pnc.find((/** @type {any} */ e) => e?.json?.header?.signature);
+    const eim    = sessions["iso2-ac-eim"] ?? [];
+
+    const check = await signerCheckFor(signed, eim, async () => {
+        throw new Error("the verifier must not be called without a certificate");
+    });
+
+    assert.equal(check.verdict, "unchecked");
+    assert.match(check.explanation, /Plug & Charge session sends one/);
 });
 
 

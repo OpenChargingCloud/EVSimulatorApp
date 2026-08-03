@@ -2,8 +2,9 @@
 
 import { el, put, clear, field, button, choice, textInput, monospace } from "./dom.js";
 import { sheetFor, configFor, groupHex } from "../sheet.js";
-import { rowsFor, detailFor, statusOf, timingsFor, exportsFor, digestCheckFor } from "../session.js";
-import { digestDeriver } from "./plugin.js";
+import { rowsFor, detailFor, statusOf, timingsFor, exportsFor,
+         digestCheckFor, signerCheckFor } from "../session.js";
+import { digestDeriver, signatureVerifier } from "./plugin.js";
 
 /**
  * The three screens, drawn from the view models next door.
@@ -211,7 +212,7 @@ export function sessionScreen(root, events, handlers) {
             const open = el("div", "opened");
             node.addEventListener("click", () => {
                 if (open.childElementCount > 0) { clear(open); return; }
-                renderDetail(open, /** @type {BridgeEvent} */ (row.event));
+                renderDetail(open, /** @type {BridgeEvent} */ (row.event), events);
             });
             put(list, node, open);
         } else {
@@ -271,8 +272,10 @@ function download(file) {
 /**
  * @param {Element} root
  * @param {BridgeEvent} event
+ * @param {BridgeEvent[]} events  the whole stream — the signer check needs the contract certificate,
+ *                                which arrived in an earlier message
  */
-function renderDetail(root, event) {
+function renderDetail(root, event, events) {
 
     const detail = detailFor(event);
 
@@ -300,13 +303,20 @@ function renderDetail(root, event) {
             verdict.textContent = check.explanation;
         });
 
+        // Two questions, two lines, never merged: *what* the signature covers, and *who* made it.
+        // A single verdict would have to be the weaker of them and would read as the stronger.
+        const signer = el("p", "note", "Checking who signed…");
+        put(root, signer);
+
+        signerCheckFor(event, events, signatureVerifier).then(check => {
+            signer.className   = check.verdict === "signed-by-contract" ? "ok"
+                               : check.verdict === "wrong-signer"       ? "problem"
+                                                                       : "note";
+            signer.textContent = check.explanation;
+        });
+
         for (const fact of detail.signature.facts)
             put(root, field(fact.label, fact.value, undefined));
-
-        // The standing limit — who signed — stays whatever the digest says. It is a different
-        // question and it needs the contract certificate.
-        for (const limit of detail.signature.limits.slice(1))
-            put(root, el("p", "note", limit));
     }
 
     // Both halves, always. B1 asks the stream to carry every message as JSON-LD *and* as the raw
