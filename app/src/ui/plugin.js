@@ -52,3 +52,30 @@ export async function plugin() {
     }
 
 }
+
+
+/**
+ * Re-derives a signed message's digest from its own frame — or answers `null` when this build
+ * cannot.
+ *
+ * The same bundle, for the same reason: the computation needs the EXI codec. Everything *around* it
+ * — what a match means, what an absent answer means — is `digestCheckFor` in `session.js`, where
+ * `npm test` reaches it without a browser.
+ *
+ * A build with no bundle answers `null` rather than throwing, so the inspector says "not checked"
+ * and goes on showing everything else. That is the same posture the rest of this file takes: a
+ * missing bundle is a state, not a failure.
+ *
+ * @param {string} frameHex
+ * @returns {Promise<string | null>}
+ */
+export async function digestDeriver(frameHex) {
+
+    try {
+        const bundle = await import("../../vendor/ev-simulator.js");
+        return typeof bundle.digestOfFrame === "function" ? await bundle.digestOfFrame(frameHex) : null;
+    } catch {
+        return null;
+    }
+
+}

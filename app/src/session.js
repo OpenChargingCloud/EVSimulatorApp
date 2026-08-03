@@ -492,6 +492,75 @@ export function signatureFor(event) {
 }
 
 /**
+ * @typedef {object} DigestCheck
+ * @property {"match" | "mismatch" | "unchecked"} verdict
+ * @property {string | null} claimed   the digest the message carries
+ * @property {string | null} derived   the digest its own frame produces
+ * @property {string} explanation
+ */
+
+/**
+ * The digest, re-derived from the message's own frame.
+ *
+ * The one part of a signature that can be checked **with no key at all**: re-encode the covered
+ * element as canonical EXI, hash it, compare. A match says the signature covers *this content* —
+ * that nobody altered the message under a signature that still parses. It says nothing about who
+ * signed, which needs the contract certificate and is a separate sentence on screen.
+ *
+ * The deriver is injected rather than imported, and that is the whole reason this stays here: the
+ * codec is TypeScript and lives in the bundle, while every other source in `app/` is a plain ES
+ * module that Node runs for the tests and a browser runs without a build. So the decision — what
+ * counts as a match, and what an absent answer means — is testable on a laptop, and only the
+ * *computation* needs the bundle.
+ *
+ * A build without the bundle, a -20 message, or a body this codec has no fragment encoder for all
+ * give the same answer: `unchecked`. That is deliberately distinct from `mismatch`. A screen that
+ * showed "not verified" and "wrong" the same way would be worse than one that showed neither.
+ *
+ * @param {BridgeEvent} event
+ * @param {null | ((frameHex: string) => Promise<string | null>)} deriveDigest
+ * @returns {Promise<DigestCheck>}
+ */
+export async function digestCheckFor(event, deriveDigest) {
+
+    const view = signatureFor(event);
+
+    if (!view.present)
+        return { verdict: "unchecked", claimed: null, derived: null,
+                 explanation: "This message carries no signature." };
+
+    const reference = event.json?.header?.signature?.signedInfo?.reference;
+    const first     = Array.isArray(reference) ? reference[0] : reference;
+    const claimed   = first?.digestValue === undefined ? null : String(first.digestValue).toLowerCase();
+
+    if (deriveDigest === null || typeof event.exi !== "string")
+        return { verdict: "unchecked", claimed, derived: null,
+                 explanation: "Not checked: this build cannot re-encode the covered element." };
+
+    const derived = await deriveDigest(event.exi);
+
+    if (derived === null)
+        return { verdict: "unchecked", claimed, derived: null,
+                 explanation: "Not checked: this build has no fragment encoder for this message. "
+                            + "The TypeScript codec covers ISO 15118-2 only." };
+
+    if (claimed === null)
+        return { verdict: "unchecked", claimed, derived,
+                 explanation: "The signature declares no digest to compare against." };
+
+    return derived === claimed
+        ? { verdict: "match", claimed, derived,
+            explanation: "The digest matches: this signature covers exactly the content in this "
+                       + "message. Who signed it is a separate question — that needs the contract "
+                       + "certificate, and is not checked here." }
+        : { verdict: "mismatch", claimed, derived,
+            explanation: "The digest does not match. The signature does not cover the content that "
+                       + "arrived — either the message was altered after signing, or the signature "
+                       + "belongs to something else." };
+}
+
+
+/**
  * Every `Id` in a message, at any depth — the set a signature reference can legally point into.
  *
  * @param {any} node

@@ -118,6 +118,11 @@ h2 { font-size: .8rem; margin: 1rem 0 .35rem; text-transform: uppercase;
    sentence that stops a digest sitting next to a tick it never earned. */
 .note { color: var(--ink-soft); font-size: .9rem; margin: .5rem 0; }
 
+/* A check that was actually performed and passed. Deliberately the only green sentence on these
+   screens: everything else a signature shows is its own claim, and this is the one line that was
+   re-derived rather than read. */
+.ok { color: var(--in); margin: .75rem 0; }
+
 /* ── timing ────────────────────────────────────────────────────────────────── */
 
 .phase {

@@ -1952,6 +1952,36 @@ Cheap because B1's event stream already carries everything.
 > `encodeFragment_AuthorizationReq` and `encodeFragment_SignedInfo`, and WebCrypto has SHA-256 — so
 > **re-deriving the digest needs no key at all**. Verifying the signature itself additionally needs
 > the signer's public key, which arrives earlier in the same session inside `PaymentDetailsReq`.
+
+> **The digest is re-derived now, 2026-08-03.** The inspector no longer says it checked nothing about
+> an ISO 15118-2 signature: it decodes the message's **own frame**, re-encodes the covered element as
+> canonical EXI, SHA-256s it, and compares. Measured in a browser against the recorded PnC session —
+> both signed messages, `AuthorizationReq` and `MeteringReceiptReq`, reproduce the digest C# computed,
+> byte for byte, and a frame with one byte moved does not.
+>
+> **It needs no key, and the screen says so in the same breath.** A matching digest means the
+> signature covers *this content* — that nobody altered the message under a signature that still
+> parses. Who signed it is a different question, needs the contract certificate from earlier in the
+> session, and is still not answered. That sentence stayed on screen next to the green one, because
+> the failure this whole view guards against is a tick that means less than a reader assumes.
+>
+> **The check is also the first oracle this back end's fragment encoders have ever had.**
+> `iso15118-2.test.ts` round-trips whole documents against libcbv2g's `expectedHex`; nothing had ever
+> checked `encodeFragment_*` in TypeScript — and a fragment is a different grammar from a document,
+> which is precisely why -2/-20 signature interop needed a dual-grammar implementation in the first
+> place. The recorded `DigestValue` is C#'s, so reproducing it *is* the byte-exactness proof, and it
+> now runs in `typescript/test/digest.test.ts` on every `npm test`.
+>
+> **Three separations were worth the trouble.** The computation lives in the bundle, because the codec
+> does; the *decisions* — what counts as a match, what an absent answer means — live in `session.js`,
+> injected, so `npm test` reaches them with no browser and no codec. And `unchecked` is a third
+> verdict, deliberately not folded into `mismatch`: a build with no bundle, a -20 message, or a body
+> with no fragment encoder all produce it, and a screen that showed "not verified" and "wrong" the
+> same way would be worse than one that showed neither. `app/` now depends on the codec package
+> directly, since its bundle genuinely uses it — the earlier imports were types, which erase.
+>
+> **-20 is untouched by this**, for the reason that has held all along: the generator has not emitted
+> the -20 sets for TypeScript, so the -20 PnC message in the corpus stays `unchecked` and says why.
 >
 > **Still open in B3**, and both were scoped out deliberately: the *station's* signed meter reading
 > (`SigMeterReading`) never reaches the app, because the corpus is recorded against a `Secc2` with

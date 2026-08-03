@@ -6,7 +6,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { rowsFor, detailFor, statusOf, hexLines,
-         frameFor, timingsFor, signatureFor, exportsFor, ONGOING_BUDGET_MS } from "../src/session.js";
+         frameFor, timingsFor, signatureFor, exportsFor, digestCheckFor,
+         ONGOING_BUDGET_MS } from "../src/session.js";
 
 /**
  * The session screen, over the recorded event streams.
@@ -355,6 +356,87 @@ test("a signature covering an Id that is not in the message is refused, not deco
     assert.equal(view.problems.length, 1);
     assert.match(view.problems[0], /#id9/);
     assert.match(view.problems[0], /id1/);   // …and says what the message does carry
+});
+
+
+// ── the digest, re-derived ────────────────────────────────────────────────────────────────────
+
+/**
+ * The deriver is injected, so these are the *decisions* — what counts as a match, and what an
+ * absent answer means — checked without a codec and without a browser. That the computation itself
+ * agrees with C# is `typescript/test/digest.test.ts`, which reproduces the recorded digests.
+ */
+test("a digest that matches its frame is reported as covering the content, and no more", async () => {
+
+    const signed = (sessions["iso2-ac-pnc"] ?? []).find(
+        (/** @type {any} */ e) => e?.json?.header?.signature);
+    assert.notEqual(signed, undefined);
+
+    const claimed = signed.json.header.signature.signedInfo.reference[0].digestValue.toLowerCase();
+
+    const check = await digestCheckFor(signed, async () => claimed);
+
+    assert.equal(check.verdict, "match");
+    assert.equal(check.derived, claimed);
+    // The sentence has to keep the two questions apart: this says nothing about who signed.
+    assert.match(check.explanation, /covers exactly the content/);
+    assert.match(check.explanation, /separate question/);
+});
+
+
+test("a digest that does not match is a mismatch, not a shrug", async () => {
+
+    const signed = (sessions["iso2-ac-pnc"] ?? []).find(
+        (/** @type {any} */ e) => e?.json?.header?.signature);
+
+    const check = await digestCheckFor(signed, async () => "00".repeat(32));
+
+    assert.equal(check.verdict, "mismatch");
+    assert.match(check.explanation, /does not cover the content/);
+});
+
+
+test("not being able to check is not the same as checking and failing", async () => {
+
+    const signed = (sessions["iso2-ac-pnc"] ?? []).find(
+        (/** @type {any} */ e) => e?.json?.header?.signature);
+
+    // No bundle at all.
+    const noBundle = await digestCheckFor(signed, null);
+    assert.equal(noBundle.verdict, "unchecked");
+    assert.notEqual(noBundle.claimed, null, "the claimed digest is still shown");
+
+    // A bundle that cannot re-encode this message — a -20 body, or one with no fragment encoder.
+    const noEncoder = await digestCheckFor(signed, async () => null);
+    assert.equal(noEncoder.verdict, "unchecked");
+    assert.match(noEncoder.explanation, /ISO 15118-2 only/);
+
+    // An unsigned message has nothing to check and says so without alarm.
+    const plain = (sessions["iso2-ac-eim"] ?? []).find(
+        (/** @type {any} */ e) => e.kind === "message");
+    const none = await digestCheckFor(plain, async () => "whatever");
+    assert.equal(none.verdict, "unchecked");
+    assert.match(none.explanation, /no signature/);
+});
+
+
+test("every unsigned message in the corpus stays unchecked, whatever the deriver says", async () => {
+
+    let unsigned = 0;
+
+    for (const events of Object.values(sessions)) {
+        for (const event of events) {
+
+            if (event.kind !== "message" || event?.json?.header?.signature) continue;
+
+            // A deriver that answers confidently must not turn an unsigned message into a verdict.
+            const check = await digestCheckFor(event, async () => "aa".repeat(32));
+            assert.equal(check.verdict, "unchecked", `seq ${event.seq}`);
+            unsigned++;
+        }
+    }
+
+    assert.ok(unsigned >= 100, `only ${unsigned} unsigned messages`);
 });
 
 

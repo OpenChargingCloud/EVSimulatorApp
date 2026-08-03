@@ -2,7 +2,8 @@
 
 import { el, put, clear, field, button, choice, textInput, monospace } from "./dom.js";
 import { sheetFor, configFor, groupHex } from "../sheet.js";
-import { rowsFor, detailFor, statusOf, timingsFor, exportsFor } from "../session.js";
+import { rowsFor, detailFor, statusOf, timingsFor, exportsFor, digestCheckFor } from "../session.js";
+import { digestDeriver } from "./plugin.js";
 
 /**
  * The three screens, drawn from the view models next door.
@@ -286,10 +287,25 @@ function renderDetail(root, event) {
         for (const problem of detail.signature.problems)
             put(root, el("p", "problem", problem));
 
+        // The verdict lands here when it arrives. Re-deriving a digest means decoding a frame and
+        // hashing it, which is asynchronous — so the row is drawn now and answered a tick later,
+        // rather than the whole detail pane waiting on it.
+        const verdict = el("p", "note", "Checking the digest…");
+        put(root, verdict);
+
+        digestCheckFor(event, digestDeriver).then(check => {
+            verdict.className   = check.verdict === "match"    ? "ok"
+                                : check.verdict === "mismatch" ? "problem"
+                                                               : "note";
+            verdict.textContent = check.explanation;
+        });
+
         for (const fact of detail.signature.facts)
             put(root, field(fact.label, fact.value, undefined));
 
-        for (const limit of detail.signature.limits)
+        // The standing limit — who signed — stays whatever the digest says. It is a different
+        // question and it needs the contract certificate.
+        for (const limit of detail.signature.limits.slice(1))
             put(root, el("p", "note", limit));
     }
 
