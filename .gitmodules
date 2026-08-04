@@ -1,6 +1,12 @@
-[submodule "libs/Vanaheimr.V2G.Exi"]
-	path = libs/Vanaheimr.V2G.Exi
-	url = ssh://git@git.graphdefined.com:5001/OpenChargingCloud/Vanaheimr.V2G.Exi.git
 [submodule "libs/DynamicQRCodes"]
 	path = libs/DynamicQRCodes
 	url = ssh://git@git.graphdefined.com:5001/OpenChargingCloud/DynamicQRCodes.git
+[submodule "libs/WWCP_ISO15118"]
+	path = libs/WWCP_ISO15118
+	url = ssh://git@git.graphdefined.com:5001/OpenChargingCloud/WWCP_ISO15118.git
+[submodule "libs/Hermod"]
+	path = libs/Hermod
+	url = ssh://git@git.graphdefined.com:5001/Vanaheimr/Hermod.git
+[submodule "libs/Styx"]
+	path = libs/Styx
+	url = ssh://git@git.graphdefined.com:5001/Vanaheimr/Styx.git

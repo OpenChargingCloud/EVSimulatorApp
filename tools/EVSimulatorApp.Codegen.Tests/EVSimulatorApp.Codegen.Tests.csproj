@@ -29,7 +29,7 @@
     schema" means.
   -->
   <ItemGroup>
-    <Compile Include="..\..\libs\Vanaheimr.V2G.Exi\libs\WWCP_ISO15118\WWCP_ISO15118_EXI_Tests\Infrastructure\EmitterHarness.cs"
+    <Compile Include="..\..\libs\WWCP_ISO15118\WWCP_ISO15118_EXI_Tests\Infrastructure\EmitterHarness.cs"
              LinkBase="Linked" />
   </ItemGroup>
 

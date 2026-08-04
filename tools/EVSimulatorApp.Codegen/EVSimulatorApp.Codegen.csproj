@@ -28,7 +28,7 @@
     a change to two repositories.
   -->
   <PropertyGroup>
-    <ExiGenerator>..\..\libs\Vanaheimr.V2G.Exi\libs\WWCP_ISO15118\WWCP_ISO15118_EXI_SourceGenerator</ExiGenerator>
+    <ExiGenerator>..\..\libs\WWCP_ISO15118\WWCP_ISO15118_EXI_SourceGenerator</ExiGenerator>
   </PropertyGroup>
 
   <ItemGroup>

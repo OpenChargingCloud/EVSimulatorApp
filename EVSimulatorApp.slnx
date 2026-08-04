@@ -1,30 +1,32 @@
 <Solution>
-  <Folder Name="/libs/" />
-  <Folder Name="/libs/DynamicQRCodes/" />
-  <Folder Name="/libs/DynamicQRCodes/TOTP/" />
-  <Folder Name="/libs/DynamicQRCodes/TOTP/CSharp/">
+  <Folder Name="/libs/">
     <Project Path="libs/DynamicQRCodes/TOTP/CSharp/TOTPSharp/TOTPSharp.csproj" />
+    <Project Path="libs/Hermod/Hermod/Hermod.csproj" />
+    <Project Path="libs/Styx/Styx/Styx.csproj" />
   </Folder>
-  <Folder Name="/libs/Vanaheimr.V2G.Exi/">
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Dispatch/WWCP_ISO15118_EXI_Dispatch.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/WWCP_ISO15118_2.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.AC/WWCP_ISO15118_20.AC.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.ACDP/WWCP_ISO15118_20.ACDP.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.CommonMessages/WWCP_ISO15118_20.CommonMessages.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.DC/WWCP_ISO15118_20.DC.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.WPT/WWCP_ISO15118_20.WPT.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI/WWCP_ISO15118_EXI.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_SourceGenerator/WWCP_ISO15118_EXI_SourceGenerator.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_XMLDSig/WWCP_ISO15118_XMLDSig.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation/Vanaheimr.V2G.Simulation.csproj" />
+  <Folder Name="/libs/WWCP_ISO15118/">
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_EXI/WWCP_ISO15118_EXI.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Dispatch/WWCP_ISO15118_EXI_Dispatch.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_EXI_SourceGenerator/WWCP_ISO15118_EXI_SourceGenerator.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_2/WWCP_ISO15118_2.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_20.AC/WWCP_ISO15118_20.AC.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_20.ACDP/WWCP_ISO15118_20.ACDP.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_20.CommonMessages/WWCP_ISO15118_20.CommonMessages.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_20.DC/WWCP_ISO15118_20.DC.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_20.WPT/WWCP_ISO15118_20.WPT.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_XMLDSig/WWCP_ISO15118_XMLDSig.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_NetworkInterfaces/WWCP_ISO15118_NetworkInterfaces.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_SDP/WWCP_ISO15118_SDP.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_SLAC/WWCP_ISO15118_SLAC.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_V2GTP/WWCP_ISO15118_V2GTP.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_PKI/WWCP_ISO15118_PKIBuilder/WWCP_ISO15118_PKIBuilder.csproj" />
   </Folder>
-  <Folder Name="/libs/Vanaheimr.V2G.Exi/libs/">
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/Hermod/Hermod/Hermod.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/Styx/Styx/Styx.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_NetworkInterfaces/WWCP_ISO15118_NetworkInterfaces.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_SDP/WWCP_ISO15118_SDP.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_SLAC/WWCP_ISO15118_SLAC.csproj" />
-    <Project Path="libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_V2GTP/WWCP_ISO15118_V2GTP.csproj" />
+  <Folder Name="/simulation/">
+    <Project Path="simulation/Vanaheimr.V2G.Simulation/Vanaheimr.V2G.Simulation.csproj" />
+    <Project Path="simulation/Vanaheimr.V2G.Simulation.Cli/Vanaheimr.V2G.Simulation.Cli.csproj" />
+  </Folder>
+  <Folder Name="/experiments/">
+    <Project Path="experiments/Vanaheimr.V2G.Experiments.Pqc/Vanaheimr.V2G.Experiments.Pqc.csproj" />
   </Folder>
   <Folder Name="/bridge/">
     <Project Path="bridge/EVSimulatorApp.Bridge.Tests/EVSimulatorApp.Bridge.Tests.csproj" />
@@ -33,12 +35,12 @@
   <Folder Name="/tools/">
     <Project Path="tools/EVSimulatorApp.WsBridge.Tests/EVSimulatorApp.WsBridge.Tests.csproj" />
     <Project Path="tools/EVSimulatorApp.WsBridge/EVSimulatorApp.WsBridge.csproj" />
+    <Project Path="tools/EVSimulatorApp.Codegen/EVSimulatorApp.Codegen.csproj" />
+    <Project Path="tools/EVSimulatorApp.Codegen.Tests/EVSimulatorApp.Codegen.Tests.csproj" />
   </Folder>
   <Folder Name="/pairing/">
     <Project Path="pairing/EVSimulatorApp.Pairing.Tests/EVSimulatorApp.Pairing.Tests.csproj" />
     <Project Path="pairing/EVSimulatorApp.Pairing/EVSimulatorApp.Pairing.csproj" />
     <Project Path="pairing/EVSimulatorApp.Pi/EVSimulatorApp.Pi.csproj" />
-  <Project Path="tools/EVSimulatorApp.Codegen/EVSimulatorApp.Codegen.csproj" />
-  <Project Path="tools/EVSimulatorApp.Codegen.Tests/EVSimulatorApp.Codegen.Tests.csproj" />
   </Folder>
 </Solution>
