@@ -37,7 +37,7 @@ import { Iso15118_2CodecJson } from "../src/iso2/Iso15118_2CodecJson.Json.ts";
 const repositoryRoot = (() => {
     let directory = dirname(fileURLToPath(import.meta.url));
     for (;;) {
-        try { readFileSync(join(directory, "libs/Vanaheimr.V2G.Exi/CLAUDE.md")); return directory; }
+        try { readFileSync(join(directory, "EVSimulatorApp.slnx")); return directory; }
         catch { /* keep walking */ }
         const parent = dirname(directory);
         if (parent === directory) throw new Error("repository root not found");
@@ -45,7 +45,7 @@ const repositoryRoot = (() => {
     }
 })();
 
-const vectorsDirectory = join(repositoryRoot, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors");
+const vectorsDirectory = join(repositoryRoot, "libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors");
 const read = (name: string) => JSON.parse(readFileSync(join(vectorsDirectory, name), "utf8"));
 
 const documents = read("JsonLd.documents.json").sets as Record<string, Record<string, JsonObject>>;

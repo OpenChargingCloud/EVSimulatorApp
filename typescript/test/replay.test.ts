@@ -18,7 +18,7 @@ import { replay, steppingClock, type SessionTrace } from "../src/bridge/replay.t
 const repositoryRoot = (() => {
     let directory = dirname(fileURLToPath(import.meta.url));
     for (;;) {
-        try { readFileSync(join(directory, "libs/Vanaheimr.V2G.Exi/CLAUDE.md")); return directory; }
+        try { readFileSync(join(directory, "EVSimulatorApp.slnx")); return directory; }
         catch { /* keep walking */ }
         const parent = dirname(directory);
         if (parent === directory) throw new Error("repository root not found");
@@ -31,15 +31,23 @@ const read = (path: string) => JSON.parse(readFileSync(join(repositoryRoot, path
 const sessions: Record<string, unknown[]> =
     read("bridge/EVSimulatorApp.Bridge.Tests/Vectors/Bridge.events.json").sessions;
 
+// The session trace corpus is the ISO15118ConformanceTests repo's — it lives with the C# session
+// tests that record it, in the parent that carries this app as a submodule. These C#-vs-port replay
+// checks therefore run under conformance and skip when the app is checked out on its own.
 const trace = (name: string): SessionTrace =>
-    read(`libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.${name}.trace.json`);
+    read(`../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`);
+
+const skipNoTraces = (() => {
+    try { trace("iso2-ac-eim"); return false; }
+    catch { return "session trace corpus absent — it lives in the ISO15118ConformanceTests repo"; }
+})();
 
 
 /** The sessions this build's codecs cover: SupportedAppProtocol and ISO 15118-2. */
 const DECODABLE = ["iso2-ac-eim", "iso2-ac-pnc", "iso2-dc-eim"];
 
 
-test("every ISO 15118-2 session produces exactly the events C# produces", () => {
+test("every ISO 15118-2 session produces exactly the events C# produces", { skip: skipNoTraces }, () => {
 
     let checked = 0;
 
@@ -72,7 +80,7 @@ test("every ISO 15118-2 session produces exactly the events C# produces", () => 
  *
  * When the -20 codecs are generated, this test fails, and the three sessions move into DECODABLE.
  */
-test("an ISO 15118-20 session is not silently wrong — every -20 frame becomes a named error", () => {
+test("an ISO 15118-20 session is not silently wrong — every -20 frame becomes a named error", { skip: skipNoTraces }, () => {
 
     const produced = replay(trace("iso20-ac-eim"), steppingClock());
 
@@ -104,7 +112,7 @@ test("an ISO 15118-20 session is not silently wrong — every -20 frame becomes 
 });
 
 
-test("the clock is read once before the first event and once per event", () => {
+test("the clock is read once before the first event and once per event", { skip: skipNoTraces }, () => {
 
     let reads = 0;
     const counting = () => { reads++; return 0; };

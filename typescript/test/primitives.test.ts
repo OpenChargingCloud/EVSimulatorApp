@@ -25,12 +25,12 @@ import { BitReader, BitWriter, ExiPrimitives } from "../src/runtime/index.ts";
 
 const vectorsDirectory = (() => {
     let directory = dirname(fileURLToPath(import.meta.url));
-    while (!existsSync(join(directory, "libs/Vanaheimr.V2G.Exi"))) {
+    while (!existsSync(join(directory, "EVSimulatorApp.slnx"))) {
         const parent = dirname(directory);
         if (parent === directory) throw new Error("repository root not found");
         directory = parent;
     }
-    return join(directory, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors");
+    return join(directory, "libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors");
 })();
 
 function existsSync(path: string): boolean {

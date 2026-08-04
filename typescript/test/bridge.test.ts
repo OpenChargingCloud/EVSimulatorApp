@@ -26,7 +26,7 @@ import { Iso15118_2CodecJson } from "../src/iso2/Iso15118_2CodecJson.Json.ts";
 const repositoryRoot = (() => {
     let directory = dirname(fileURLToPath(import.meta.url));
     for (;;) {
-        try { readFileSync(join(directory, "libs/Vanaheimr.V2G.Exi/CLAUDE.md")); return directory; }
+        try { readFileSync(join(directory, "EVSimulatorApp.slnx")); return directory; }
         catch { /* keep walking */ }
         const parent = dirname(directory);
         if (parent === directory) throw new Error("repository root not found");
