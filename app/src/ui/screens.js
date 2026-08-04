@@ -3,7 +3,8 @@
 import { el, put, clear, field, button, choice, textInput, monospace } from "./dom.js";
 import { sheetFor, configFor, groupHex } from "../sheet.js";
 import { rowsFor, detailFor, statusOf, timingsFor, exportsFor,
-         digestCheckFor, signerCheckFor, meterCheckFor, energyFor } from "../session.js";
+         digestCheckFor, signerCheckFor, meterCheckFor, energyFor,
+         backendCheckFor } from "../session.js";
 import { digestDeriver, signatureVerifier } from "./plugin.js";
 
 /**
@@ -181,8 +182,11 @@ export function manualScreen(root, handlers) {
  * @param {Element} root
  * @param {BridgeEvent[]} events
  * @param {{onStop: () => void, onBack: () => void}} handlers
+ * @param {any} [backendRecord]  what the station told its operator, when anything has fetched it.
+ *                               Nothing does yet: it comes from a CSMS, which is outside the
+ *                               session and outside this repository — see `backendCheckFor`.
  */
-export function sessionScreen(root, events, handlers) {
+export function sessionScreen(root, events, handlers, backendRecord = null) {
 
     clear(root);
 
@@ -223,6 +227,26 @@ export function sessionScreen(root, events, handlers) {
                         : energy.verdict === "differ" ? "problem"
                                                       : "note",
                      energy.explanation));
+
+        // The third account, when something has fetched one. Under the two above rather than beside
+        // them: it is the same quantity again, from a party the driver never talks to.
+        const backend = backendCheckFor(events, backendRecord);
+        if (backend.verdict !== "none") {
+
+            if (backend.backendWh !== null)
+                put(root, field("The backend was told", `${backend.backendWh} Wh`
+                                                      + (backend.signedValues > 0
+                                                             ? ` (${backend.matched} of `
+                                                             + `${backend.signedValues} signed reading(s) `
+                                                             + "match what this car saw)"
+                                                             : "")));
+
+            put(root, el("p", backend.verdict === "consistent"           ? "ok"
+                            : backend.verdict === "reported-differently" ? "problem"
+                            : backend.verdict === "energy-differs"       ? "problem"
+                                                                        : "note",
+                         backend.explanation));
+        }
     }
 
     const list = el("div", "events");

@@ -881,6 +881,135 @@ function firstOf(value) {
 
 
 /**
+ * @typedef {object} BackendCheck
+ * @property {"consistent" | "reported-differently" | "energy-differs" | "unsigned" | "unbound" | "none"} verdict
+ * @property {bigint | null} backendWh   the final reading the backend was given
+ * @property {number} signedValues       how many of the backend's readings carry a signature
+ * @property {number} matched            how many of those the car also saw, byte for byte
+ * @property {string} explanation
+ */
+
+/**
+ * The third account of one charging session: what the station told its backend.
+ *
+ * `docs/CONCEPT.md` §4.3 asks for three independent measurements, and this is the third — with one
+ * caveat that has to come first because it decides what every verdict below is worth.
+ *
+ * ## Independence is a property of where the record came from
+ *
+ * A transaction record produced by the **station** is not independent of the station. It is the same
+ * party twice, so its energy agreeing with the `MeterInfo` on the wire is arithmetic and not
+ * evidence, and this function says so rather than showing a third green tick. Independence arrives
+ * when the record comes from the **CSMS** — a different party, holding what the station actually
+ * billed — and `record.source` is what distinguishes the two.
+ *
+ * ## One real question survives without a CSMS
+ *
+ * **Did the station tell the backend what it told the car?** OCPP carries the meter's own signature
+ * in `SignedMeterValue.signedMeterData`, and ISO 15118 carries it in `SigMeterReading`. If those are
+ * the same 64 bytes, the station reported the reading it showed. If they differ, one of the two is
+ * a value the meter signed for an audience that was not going to compare — which is the fraud this
+ * whole chapter is about, and it is invisible from either record on its own.
+ *
+ * That comparison needs **no key at all**: it is byte equality between two things the reader already
+ * holds. It works with a station-produced record, which is the only kind available before a CSMS is
+ * wired up, and it is the reason this is worth having now rather than later.
+ *
+ * ## The binding is checked first and refuses rather than guesses
+ *
+ * OCPP meter values belong to a transaction, not to an ISO 15118 session. A record whose
+ * `v2gSessionId` is not this session's describes some other charge, and comparing against it would
+ * produce a difference — or an agreement — that means nothing at all.
+ *
+ * @param {BridgeEvent[]} events
+ * @param {any} record  an OCPP transaction record, or null when nothing supplied one
+ * @returns {BackendCheck}
+ */
+export function backendCheckFor(events, record) {
+
+    const none = { verdict: "none", backendWh: null, signedValues: 0, matched: 0 };
+
+    if (record === undefined || record === null || typeof record !== "object")
+        return { ...none,
+                 explanation: "No backend record for this session. What a station reports to its "
+                            + "operator is not visible from inside the charging session — it has to "
+                            + "be fetched from the CSMS, and nothing here has done that." };
+
+    const values = Array.isArray(record.meterValues) ? record.meterValues : [];
+    if (values.length === 0)
+        return { ...none, explanation: "The backend record for this session is empty." };
+
+    // The binding, before anything is compared against anything.
+    //
+    // The first *assigned* session id, which is neither the first message's nor the first one
+    // present. The SupportedAppProtocol handshake has no session at all, and SessionSetupReq carries
+    // all zeros because the car does not know the id yet — the station assigns it in the response.
+    // Taking either of those makes every record look unbound.
+    const sessionId = String(events.map(e => e.json?.header?.sessionID)
+                                   .find(id => typeof id === "string" && /[^0]/.test(id)) ?? "");
+    const bound     = String(record.v2gSessionId ?? "").toLowerCase();
+
+    if (bound === "" || sessionId === "" || bound !== sessionId.toLowerCase())
+        return { ...none, verdict: "unbound",
+                 explanation: "This backend record is not tied to this charging session"
+                            + (bound === "" ? " — it names no session at all." : ` (it names ${bound}).`)
+                            + " Comparing against it would produce a number with no meaning, so "
+                            + "nothing was compared." };
+
+    // What the station signed for the car, in order.
+    const shown = events.filter(e => meterReadingFor(e).signature !== null)
+                        .map(e => /** @type {string} */ (meterReadingFor(e).signature));
+
+    /** @type {string[]} */
+    const reported = [];
+    let backendWh = null;
+
+    for (const value of values) {
+        for (const sampled of Array.isArray(value.sampledValue) ? value.sampledValue : []) {
+            backendWh = bigintOrNull(sampled.value) ?? backendWh;
+            const signature = sampled.signedMeterValue?.signedMeterData;
+            if (typeof signature === "string") reported.push(signature.toLowerCase());
+        }
+    }
+
+    const matched  = reported.filter(signature => shown.includes(signature)).length;
+    const stranger = reported.find(signature => !shown.includes(signature));
+
+    const fromCsms = String(record.source ?? "") === "csms";
+    const provenance = fromCsms
+        ? "This came from the operator's backend, so it is a genuinely separate account of the same "
+        + "session."
+        : "This came from the station itself, not from its operator's backend — the same party as "
+        + "the reading on the wire. So the figures agreeing is arithmetic rather than evidence, and "
+        + "only the signature comparison above says anything a station could not have arranged.";
+
+    if (stranger !== undefined)
+        return { verdict: "reported-differently", backendWh, signedValues: reported.length, matched,
+                 explanation: "The station reported a signed reading to its backend that it never "
+                            + "showed this car. One of the two is a value the meter signed for an "
+                            + "audience that was not expected to compare — and neither record shows "
+                            + "that on its own. " + provenance };
+
+    if (reported.length === 0)
+        return { verdict: "unsigned", backendWh, signedValues: 0, matched: 0,
+                 explanation: `The backend was told ${backendWh} Wh, and none of it is signed — so `
+                            + "there is nothing to hold against what the car saw. " + provenance };
+
+    const paired = energyFor(events).stationWh;
+
+    if (paired !== null && backendWh !== null && paired !== backendWh)
+        return { verdict: "energy-differs", backendWh, signedValues: reported.length, matched,
+                 explanation: `The backend's final figure is ${backendWh} Wh and the last reading `
+                            + `this car saw was ${paired} Wh. ` + provenance };
+
+    return { verdict: "consistent", backendWh, signedValues: reported.length, matched,
+             explanation: `All ${matched} signed reading(s) the backend was given are readings this `
+                        + "car also saw, byte for byte — so the station reported what it showed. "
+                        + provenance };
+}
+
+
+/**
  * @typedef {object} MeterCheck
  * @property {"signed-by-meter" | "wrong-meter" | "unsigned" | "unchecked"} verdict
  * @property {string} explanation

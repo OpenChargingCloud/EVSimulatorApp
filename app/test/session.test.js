@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 
 import { rowsFor, detailFor, statusOf, hexLines,
          frameFor, timingsFor, signatureFor, exportsFor, digestCheckFor, signerCheckFor,
-         meterReadingFor, meterCheckFor, energyFor, ONGOING_BUDGET_MS } from "../src/session.js";
+         meterReadingFor, meterCheckFor, energyFor, backendCheckFor,
+         ONGOING_BUDGET_MS } from "../src/session.js";
 
 /**
  * The session screen, over the recorded event streams.
@@ -694,6 +695,86 @@ test("the -20 station's signed reading is read and checked too, not quietly skip
         const check = await meterCheckFor(event, events);
         assert.equal(check.verdict, "signed-by-meter", `seq ${event.seq}: ${check.explanation}`);
     }
+});
+
+
+// ── what the station told its backend ─────────────────────────────────────────────────────────
+
+/** @type {Record<string, any>} */
+const transactions = JSON.parse(readFileSync(
+    join(repositoryRoot,
+         "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.ocpp-transactions.json"),
+    "utf8")).transactions;
+
+
+test("the signed readings the backend got are the ones this car saw", async () => {
+
+    for (const name of ["iso2-ac-eim-meter", "iso20-dc-eim-meter"]) {
+
+        const check = backendCheckFor(sessions[name] ?? [], transactions[name]);
+
+        assert.equal(check.verdict, "consistent", `${name}: ${check.explanation}`);
+        assert.equal(check.signedValues, 3, name);
+        assert.equal(check.matched, 3, name);
+        assert.equal(check.backendWh, energyFor(sessions[name] ?? []).stationWh, name);
+
+        // …and the sentence refuses to call a station-produced record independent.
+        assert.match(check.explanation, /not from its operator's backend/);
+    }
+});
+
+
+test("a station that reports one figure and shows another is caught, with no key at all", () => {
+
+    // The fraud the two records exist to make visible: the backend is given a signed reading the
+    // driver was never shown. Every signature in both records is perfectly valid.
+    const name   = "iso2-ac-eim-meter";
+    const record = structuredClone(transactions[name]);
+
+    record.meterValues[2].sampledValue[0].value = "1549";
+    record.meterValues[2].sampledValue[0].signedMeterValue.signedMeterData =
+        "00".repeat(64);   // signed by the meter for the backend, never shown to the car
+
+    const check = backendCheckFor(sessions[name] ?? [], record);
+
+    assert.equal(check.verdict, "reported-differently");
+    assert.match(check.explanation, /never\s+showed this car/);
+});
+
+
+test("a backend record for another session is refused rather than compared", () => {
+
+    const record = structuredClone(transactions["iso2-ac-eim-meter"]);
+    record.v2gSessionId = "1111111111111111";
+
+    const check = backendCheckFor(sessions["iso2-ac-eim-meter"] ?? [], record);
+
+    assert.equal(check.verdict, "unbound");
+    assert.equal(check.backendWh, null, "nothing may be reported from an unbound record");
+    assert.match(check.explanation, /nothing was compared/);
+});
+
+
+test("no backend record is a plain absence, and says where one would come from", () => {
+
+    const check = backendCheckFor(sessions["iso2-ac-eim"] ?? [], null);
+
+    assert.equal(check.verdict, "none");
+    assert.match(check.explanation, /fetched from the CSMS/);
+});
+
+
+test("an unsigned backend record reports its energy and claims nothing more", () => {
+
+    // The ordinary station: it meters, it bills, it does not sign — and the car saw no reading at
+    // all in this EIM session, which is exactly why the backend's account is worth looking at.
+    const check = backendCheckFor(sessions["iso2-ac-eim"] ?? [], transactions["iso2-ac-eim"]);
+
+    assert.equal(check.verdict, "unsigned");
+    assert.equal(check.backendWh, 549n);
+    assert.equal(check.signedValues, 0);
+    assert.equal(energyFor(sessions["iso2-ac-eim"] ?? []).stationWh, null,
+                 "this session showed the car no reading — the backend's is the only one");
 });
 
 

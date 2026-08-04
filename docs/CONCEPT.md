@@ -2131,8 +2131,49 @@ Cheap because B1's event stream already carries everything.
 > number taken from the payload type — and that number is part of what the meter signed and never
 > travels, so reading it wrong fails every -20 verification for a reason nothing on the wire explains.
 >
-> **Still open in B3:** the third leg — OCPP `MeterValues` from the CSMS — which is what would make
-> §4.3's comparison three-way rather than two-way.
+> **And the third leg, still 2026-08-03 — with the one thing it cannot be yet said first.** The
+> station now records what it would report to its operator: an OCPP-shaped transaction of
+> `MeterValue` / `SampledValue` / `SignedMeterValue`, checked into the corpus as
+> `Session.ocpp-transactions.json`, and the app compares it. **It is not an independent third
+> measurement**, because it comes from the station — the same party as the `MeterInfo` on the wire.
+> Its energy agreeing with the wire's is arithmetic, not evidence, and the app says exactly that
+> rather than showing a third green tick. Independence arrives when the record comes from the CSMS,
+> which is a different party and is not in this repository; `source` on the record is what
+> distinguishes the two, and every sentence the app produces depends on it.
+>
+> **One real question survives without a CSMS, and it is the one worth having.** OCPP carries the
+> meter's own signature in `SignedMeterValue.signedMeterData`; ISO 15118 carries it in
+> `SigMeterReading`. If those are the same 64 bytes, **the station reported the reading it showed**.
+> If they differ, one of the two was signed for an audience that was not expected to compare — a
+> station billing the backend for a figure the driver never saw, which is the fraud this whole
+> chapter is about and is invisible from either record alone. That comparison needs **no key at all**:
+> it is byte equality between two things the reader already holds, and it works with the only kind of
+> record available before a CSMS is wired up.
+>
+> Making that checkable forced a real change in the station: it now reads and signs **once per
+> charge-loop iteration**, and the one value goes to both the wire and the backend record. Signing
+> twice would have produced two perfectly valid ECDSA signatures over one reading and quietly
+> destroyed the only comparison the record enables.
+>
+> **The binding is checked first and refuses rather than guesses.** OCPP meter values belong to a
+> transaction, not to an ISO 15118 session, so the record carries `v2gSessionId` and the app compares
+> nothing at all when it does not match — a difference found against some other charge is worse than
+> no answer. Finding the session id took two tries: the SupportedAppProtocol handshake has no session,
+> and `SessionSetupReq` carries **all zeros** because the car does not know the id until the station
+> assigns it in the response. Either mistake makes every record look unbound.
+>
+> **What the recording can show that the wire cannot.** The recorder is handed *to* the station rather
+> than derived from the frames afterwards, so the corpus contains something no reconstruction could:
+> in `iso2-ac-eim`, an EIM session at a station with no signing meter, the car is shown **no reading
+> at all** while the backend is told 183, 366 and 549 Wh — and the driver is billed on the last one.
+> That is the ordinary arrangement in the field, and it is the clearest argument for the whole
+> chapter.
+>
+> **What is not built:** anything that fetches from a real CSMS. `sessionScreen` takes the record as a
+> parameter and nothing supplies one yet, because that is an integration with a system outside this
+> repository. The shape is OCPP 2.0.1's so a real emitter can produce it without translation, and
+> `Ocpp/OcppTransactionRecord.cs` says plainly that it is ~40 lines of record shape rather than an
+> OCPP implementation — nothing here is checked against an OCPP schema, unlike the ISO 15118 XSDs.
 
 ### Deferred by request
 
