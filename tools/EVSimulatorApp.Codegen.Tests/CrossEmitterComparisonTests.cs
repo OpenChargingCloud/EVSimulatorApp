@@ -36,7 +36,7 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
     public class CrossEmitterComparisonTests
     {
         private static (string, string)[] AppProtocolSchema() =>
-            EmitterHarness.RealSchemaSet("Vanaheimr.V2G.Exi.Prototype")
+            EmitterHarness.RealSchemaSet("WWCP_ISO15118_EXI")
                           .Where(f => f.Name.Contains("AppProtocol"))
                           .Select(f => (f.Name, f.Xsd))
                           .ToArray();
@@ -81,7 +81,7 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
         [Test]
         public void SwiftAndCSharpAgreeAcrossTheWholeIso2Set()
         {
-            var schema = EmitterHarness.RealSchemaSet("Vanaheimr.V2G.Exi.Iso15118_2")
+            var schema = EmitterHarness.RealSchemaSet("WWCP_ISO15118_2")
                                        .Select(f => (f.Name, f.Xsd))
                                        .ToArray();
 
@@ -99,7 +99,7 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
         [Test]
         public void KotlinAndCSharpAgreeAcrossTheWholeIso2Set()
         {
-            var schema = EmitterHarness.RealSchemaSet("Vanaheimr.V2G.Exi.Iso15118_2")
+            var schema = EmitterHarness.RealSchemaSet("WWCP_ISO15118_2")
                                        .Select(f => (f.Name, f.Xsd))
                                        .ToArray();
 
@@ -119,12 +119,12 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
         /// silent misreading of the grammar is two independent emitters agreeing.
         /// </para>
         /// </summary>
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages", "CommonMessagesCodec")]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.DC",             "DCCodec")]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.AC",             "ACCodec")]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.ACDP",           "ACDPCodec")]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.AC_DER_IEC",      "AcDerIecCodec")]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.AC_DER_SAE",      "AcDerSaeCodec")]
+        [TestCase("WWCP_ISO15118_20.CommonMessages", "CommonMessagesCodec")]
+        [TestCase("WWCP_ISO15118_20.DC",             "DCCodec")]
+        [TestCase("WWCP_ISO15118_20.AC",             "ACCodec")]
+        [TestCase("WWCP_ISO15118_20.ACDP",           "ACDPCodec")]
+        [TestCase("WWCP_ISO15118_20.AC_DER_IEC",      "AcDerIecCodec")]
+        [TestCase("WWCP_ISO15118_20.AC_DER_SAE",      "AcDerSaeCodec")]
         public void SwiftAndCSharpAgreeAcrossAnIso20Set(string project, string codec)
         {
             var schema = EmitterHarness.RealSchemaSet(project)
@@ -147,13 +147,13 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
         /// one grammar is not evidence that the grammar was read correctly, just that it was read
         /// the same way twice. Swift's answer to the same problem was to refuse the set outright.
         /// </remarks>
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages", "CommonMessagesCodec")]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.DC",             "DCCodec")]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.AC",             "ACCodec")]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.ACDP",           "ACDPCodec")]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.AC_DER_IEC",     "AcDerIecCodec")]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.AC_DER_SAE",     "AcDerSaeCodec")]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.WPT",            "WPTCodec")]
+        [TestCase("WWCP_ISO15118_20.CommonMessages", "CommonMessagesCodec")]
+        [TestCase("WWCP_ISO15118_20.DC",             "DCCodec")]
+        [TestCase("WWCP_ISO15118_20.AC",             "ACCodec")]
+        [TestCase("WWCP_ISO15118_20.ACDP",           "ACDPCodec")]
+        [TestCase("WWCP_ISO15118_20.AC_DER_IEC",     "AcDerIecCodec")]
+        [TestCase("WWCP_ISO15118_20.AC_DER_SAE",     "AcDerSaeCodec")]
+        [TestCase("WWCP_ISO15118_20.WPT",            "WPTCodec")]
         public void KotlinAndCSharpAgreeAcrossAnIso20Set(string project, string codec)
         {
             var schema = EmitterHarness.RealSchemaSet(project)
@@ -209,14 +209,14 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
         /// mistake, which they do, because both read the same table.
         /// </para>
         /// </remarks>
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_2",                  "Iso15118_2Codec",     true)]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages",  "CommonMessagesCodec", true)]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.DC",              "DCCodec",             true)]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.AC",              "ACCodec",             true)]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.ACDP",            "ACDPCodec",           true)]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.AC_DER_IEC",      "AcDerIecCodec",       true)]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.AC_DER_SAE",      "AcDerSaeCodec",       true)]
-        [TestCase("Vanaheimr.V2G.Exi.Iso15118_20.WPT",             "WPTCodec",            false)]
+        [TestCase("WWCP_ISO15118_2",                  "Iso15118_2Codec",     true)]
+        [TestCase("WWCP_ISO15118_20.CommonMessages",  "CommonMessagesCodec", true)]
+        [TestCase("WWCP_ISO15118_20.DC",              "DCCodec",             true)]
+        [TestCase("WWCP_ISO15118_20.AC",              "ACCodec",             true)]
+        [TestCase("WWCP_ISO15118_20.ACDP",            "ACDPCodec",           true)]
+        [TestCase("WWCP_ISO15118_20.AC_DER_IEC",      "AcDerIecCodec",       true)]
+        [TestCase("WWCP_ISO15118_20.AC_DER_SAE",      "AcDerSaeCodec",       true)]
+        [TestCase("WWCP_ISO15118_20.WPT",             "WPTCodec",            false)]
         public void EveryBackEndRoutesEachDocumentIndexToTheSameMessage(
             string project, string codec, bool hasSwift)
         {
@@ -262,7 +262,7 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
         [Test]
         public void DocumentIndexMapDetectsASwapInTheGeneratedSource()
         {
-            var schema = EmitterHarness.RealSchemaSet("Vanaheimr.V2G.Exi.Iso15118_20.AC")
+            var schema = EmitterHarness.RealSchemaSet("WWCP_ISO15118_20.AC")
                                        .Select(f => (f.Name, f.Xsd))
                                        .ToArray();
 

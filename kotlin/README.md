@@ -60,21 +60,21 @@ line and left alone. Run these from the repository root:
 
 ```bash
 dotnet run --project tools/EVSimulatorApp.Codegen -c Release -- \
-  --xsd libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Prototype/Schemas/V2G_CI_AppProtocol.xsd \
+  --xsd libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI/Schemas/V2G_CI_AppProtocol.xsd \
   --out kotlin/exi-appprotocol/src/main/kotlin/cloud/charging/v2g/appprotocol \
   --lang kotlin --namespace cloud.charging.v2g.appprotocol --codec SupportedAppProtocolCodec
 ```
 
 ```bash
 dotnet run --project tools/EVSimulatorApp.Codegen -c Release -- \
-  --xsd "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDef.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgBody.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDataTypes.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgHeader.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/xmldsig-core-schema.xsd" \
+  --xsd "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgDef.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgBody.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgDataTypes.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgHeader.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/xmldsig-core-schema.xsd" \
   --out kotlin/exi-iso2/src/main/kotlin/cloud/charging/v2g/iso2 \
   --lang kotlin --namespace cloud.charging.v2g.iso2 --codec Iso15118_2Codec
 ```
 
 ```bash
 dotnet run --project tools/EVSimulatorApp.Codegen -c Release -- \
-  --xsd "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonMessages.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonTypes.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/xmldsig-core-schema.xsd" \
+  --xsd "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.CommonMessages/Schemas/V2G_CI_CommonMessages.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.CommonMessages/Schemas/V2G_CI_CommonTypes.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.CommonMessages/Schemas/xmldsig-core-schema.xsd" \
   --out kotlin/exi-iso20-common/src/main/kotlin/cloud/charging/v2g/iso20/common \
   --lang kotlin --namespace cloud.charging.v2g.iso20.common --codec CommonMessagesCodec
 ```

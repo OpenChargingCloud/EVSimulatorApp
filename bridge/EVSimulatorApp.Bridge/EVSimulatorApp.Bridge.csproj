@@ -22,11 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_2/Vanaheimr.V2G.Exi.Iso15118_2.csproj" />
-    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages.csproj" />
-    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_20.AC/Vanaheimr.V2G.Exi.Iso15118_20.AC.csproj" />
-    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_20.DC/Vanaheimr.V2G.Exi.Iso15118_20.DC.csproj" />
-    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Prototype/Vanaheimr.V2G.Exi.Prototype.csproj" />
+    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/WWCP_ISO15118_2.csproj" />
+    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.CommonMessages/WWCP_ISO15118_20.CommonMessages.csproj" />
+    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.AC/WWCP_ISO15118_20.AC.csproj" />
+    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.DC/WWCP_ISO15118_20.DC.csproj" />
+    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI/WWCP_ISO15118_EXI.csproj" />
   </ItemGroup>
 
 </Project>

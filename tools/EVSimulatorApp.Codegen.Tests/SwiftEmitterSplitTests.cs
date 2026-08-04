@@ -32,7 +32,7 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
     {
         private static IReadOnlyList<GeneratedFile> AppProtocol() =>
             EmitterHarness.Emit(SwiftCodecEmitter.Instance, "app", "SupportedAppProtocolCodec",
-                EmitterHarness.RealSchemaSet("Vanaheimr.V2G.Exi.Prototype")
+                EmitterHarness.RealSchemaSet("WWCP_ISO15118_EXI")
                               .Where(f => f.Name.Contains("AppProtocol"))
                               .Select(f => (f.Name, f.Xsd))
                               .ToArray());
@@ -147,7 +147,7 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
             // reference to check an implementation against. Guessing here would produce bytes no
             // oracle has ever seen — see CodecEmitter's note and kotlin/README's "Unvalidated
             // construct".
-            var set = EmitterHarness.RealSchemaSet("Vanaheimr.V2G.Exi.Iso15118_20.WPT")
+            var set = EmitterHarness.RealSchemaSet("WWCP_ISO15118_20.WPT")
                                     .Select(f => (f.Name, f.Xsd))
                                     .ToArray();
 

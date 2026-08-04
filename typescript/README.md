@@ -59,7 +59,7 @@ pass as the C#, Kotlin and Swift codecs:
 
 ```bash
 dotnet run --project tools/EVSimulatorApp.Codegen -c Release -- \
-  --xsd libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Prototype/Schemas/V2G_CI_AppProtocol.xsd \
+  --xsd libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI/Schemas/V2G_CI_AppProtocol.xsd \
   --out typescript/src/appprotocol \
   --lang typescript --namespace cloud.charging.v2g.appprotocol --codec SupportedAppProtocolCodec
 ```
@@ -69,7 +69,7 @@ payload type and its own copy of the XMLDSig schema:
 
 ```bash
 dotnet run --project tools/EVSimulatorApp.Codegen -c Release -- \
-  --xsd "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonMessages.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonTypes.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/xmldsig-core-schema.xsd" \
+  --xsd "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.CommonMessages/Schemas/V2G_CI_CommonMessages.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.CommonMessages/Schemas/V2G_CI_CommonTypes.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_20.CommonMessages/Schemas/xmldsig-core-schema.xsd" \
   --out typescript/src/iso20common \
   --lang typescript --namespace cloud.charging.v2g.iso20.common --codec CommonMessagesCodec \
   --fragments "AbsolutePriceSchedule CertificateInstallationReq MeteringConfirmationReq OEMProvisioningCertificateChain PnC_AReqAuthorizationMode SignedInstallationData SignedInfo"

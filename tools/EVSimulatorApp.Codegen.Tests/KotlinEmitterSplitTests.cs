@@ -183,7 +183,7 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
             var files = EmitterHarness.Emit(KotlinCodecEmitter.Instance, 
                 "cloud.charging.v2g.iso2", "Iso15118_2Codec",
                 ["AuthorizationReq", "MeteringReceiptReq", "SalesTariff", "SignedInfo"],
-                EmitterHarness.RealSchemaSet("Vanaheimr.V2G.Exi.Iso15118_2"));
+                EmitterHarness.RealSchemaSet("WWCP_ISO15118_2"));
 
             // The size that motivated the split: one file per type over a real set is ~100 files.
             Assert.That(files.Count, Is.GreaterThan(50));
@@ -207,7 +207,7 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
         {
             var files = EmitterHarness.Emit(KotlinCodecEmitter.Instance, 
                 "cloud.charging.v2g.iso2", "Iso15118_2Codec", [],
-                EmitterHarness.RealSchemaSet("Vanaheimr.V2G.Exi.Iso15118_2"));
+                EmitterHarness.RealSchemaSet("WWCP_ISO15118_2"));
 
             var reads = 0;
             foreach (var f in files)

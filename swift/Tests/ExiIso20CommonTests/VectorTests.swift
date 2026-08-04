@@ -26,7 +26,7 @@ final class ExiIso20CommonVectorTests: XCTestCase {
 
     private static func loadVectors() throws -> [(name: String, bytes: [UInt8])] {
         let url = try repositoryRoot().appendingPathComponent(
-            "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Tests/Vectors/Iso15118_20.CommonMessages.vectors.json")
+            "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/Iso15118_20.CommonMessages.vectors.json")
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
         guard let raw = json?["vectors"] as? [[String: Any]] else {
             throw XCTSkip("vector file has no 'vectors' array: \(url.path)")

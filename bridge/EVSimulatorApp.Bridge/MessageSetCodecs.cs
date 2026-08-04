@@ -10,7 +10,7 @@ namespace EVSimulatorApp.Bridge;
 /// <b>The payload type is not enough, and that is a fact about ISO 15118 rather than about this
 /// code.</b> <c>0x8001</c> carries both the SupportedAppProtocol handshake and every ISO 15118-2
 /// message — the handshake happens before a protocol has been agreed, so it cannot have a payload
-/// type of its own. The dispatcher in <c>Vanaheimr.V2G.Exi.Dispatch</c> resolves it by position: SAP
+/// type of its own. The dispatcher in <c>WWCP_ISO15118_EXI_Dispatch</c> resolves it by position: SAP
 /// is what comes first, and everything after it is -2. Here the message's own name resolves it,
 /// because the events are built from a record of the session rather than from a live socket.
 /// </para>

@@ -121,7 +121,7 @@ mechanism is the right one.
 
 | Component | Location | LOC | State |
 |---|---|---|---|
-| EXI source generator | `Vanaheimr.V2G.Exi.SourceGenerator` | 4,093 | XSD → grammar plan → C#/Kotlin/Swift; fail-loud |
+| EXI source generator | `WWCP_ISO15118_EXI_SourceGenerator` | 4,093 | XSD → grammar plan → C#/Kotlin/Swift; fail-loud |
 | ↳ XSD reader + grammar builder (language-neutral) | `Xsd/`, `Grammar/` | ~1,220 | reusable for any target language — *after* being neutralised, §5 Phase 1 |
 | ↳ C# emitter | `Emit/CodecEmitter.cs` | 2,335 | the reference back end |
 | ↳ Kotlin emitter | `Emit/KotlinCodecEmitter.cs` | 2,393 | added 2026-07-29 |
@@ -2472,7 +2472,7 @@ isn't lost.
       assumption rather than tested it.
 
     So RFC 8032 §7.4's nine published vectors are now checked in
-    (`Vanaheimr.V2G.Exi.Tests/Vectors/Ed448.rfc8032.vectors.json`, extracted mechanically by
+    (`WWCP_ISO15118_EXI_Tests/Vectors/Ed448.rfc8032.vectors.json`, extracted mechanically by
     `tools/rfc8032-ref/`) and run against both back ends. **That corpus is the acceptance test for
     whichever library is chosen**: a candidate reproduces the standard's own signatures byte for
     byte, or it is not a candidate. It also settles the API question that prompted the search — a

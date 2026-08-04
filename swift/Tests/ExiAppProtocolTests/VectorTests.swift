@@ -34,7 +34,7 @@ final class AppProtocolVectorTests: XCTestCase {
 
     private static func loadVectors() throws -> [Vector] {
         let url = try repositoryRoot()
-            .appendingPathComponent("libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Tests/Vectors/AppProtocol.vectors.json")
+            .appendingPathComponent("libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/AppProtocol.vectors.json")
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
         guard let raw = json?["vectors"] as? [[String: Any]] else {
             throw XCTSkip("vector file has no 'vectors' array: \(url.path)")

@@ -49,10 +49,10 @@ generate() {
 # ---- ISO 15118 AppProtocol ----------------------------------------------------------------
 generate 'kotlin/exi-appprotocol/src/main/kotlin/cloud/charging/v2g/appprotocol' \
     'cloud.charging.v2g.appprotocol' 'SupportedAppProtocolCodec' '' \
-    "$libs/Vanaheimr.V2G.Exi.Prototype/Schemas/V2G_CI_AppProtocol.xsd"
+    "$libs/WWCP_ISO15118_EXI/Schemas/V2G_CI_AppProtocol.xsd"
 
 # ---- ISO 15118-2 --------------------------------------------------------------------------
-s="$libs/Vanaheimr.V2G.Exi.Iso15118_2/Schemas"
+s="$libs/WWCP_ISO15118_2/Schemas"
 generate 'kotlin/exi-iso2/src/main/kotlin/cloud/charging/v2g/iso2' \
     'cloud.charging.v2g.iso2' 'Iso15118_2Codec' \
     'AuthorizationReq MeteringReceiptReq SalesTariff SignedInfo' \
@@ -66,7 +66,7 @@ generate 'kotlin/exi-iso2/src/main/kotlin/cloud/charging/v2g/iso2' \
 # needs it; without it a port produces signatures that verify locally and nowhere else.
 generate 'kotlin/exi-xmldsig/src/main/kotlin/cloud/charging/v2g/xmldsig' \
     'cloud.charging.v2g.xmldsig' 'XmlDsigCodec' 'SignedInfo' \
-    "$libs/Vanaheimr.V2G.Exi.XmlDsig/Schemas/xmldsig-core-schema.xsd"
+    "$libs/WWCP_ISO15118_XMLDSig/Schemas/xmldsig-core-schema.xsd"
 
 # ---- ISO 15118-20 -------------------------------------------------------------------------
 # name | schema | package/directory suffix | codec | fragments
@@ -82,7 +82,7 @@ sets=(
 
 for entry in "${sets[@]}"; do
     IFS='|' read -r name xsd dir codec frag <<< "$entry"
-    s="$libs/Vanaheimr.V2G.Exi.Iso15118_20.$name/Schemas"
+    s="$libs/WWCP_ISO15118_20.$name/Schemas"
 
     xsds=("$s/$xsd")
     # The DER sets layer their own schema on top of V2G_CI_AC.xsd; the others have just the two.
