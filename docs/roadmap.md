@@ -4,7 +4,7 @@
 
 Last updated: **2026-08-03**. Authoritative per-phase detail lives in
 [`docs/prompts/`](prompts/README.md) (the phase prompts + their status table) and the
-[`README.md`](../README.md); this file is the bird's-eye plan and the "why".
+[`README.md`](../libs/WWCP_ISO15118/README.md); this file is the bird's-eye plan and the "why".
 
 ## Current status
 
@@ -143,14 +143,14 @@ What exists today, at a glance:
 
 | Component | State |
 |---|---|
-| ✅ [BitReader/BitWriter](../WWCP_ISO15118_EXI/Exi/BitReader.cs) | Bit-packed streams, MSB-first |
-| ✅ [ExiPrimitives](../WWCP_ISO15118_EXI/Exi/ExiPrimitives.cs) + `ExiStringTable` | Unsigned/signed integer, binary, boolean, n-bit, string values incl. local+global value tables (decode-side; encode is miss-only, matching cbV2G) |
-| ✅ [V2GTP](../WWCP_ISO15118_EXI/V2GTP/V2GTP.cs) + [Dispatch](../WWCP_ISO15118_EXI_Dispatch/V2GTPDispatcher.cs) | 8-byte transport header; payload-type → codec dispatcher over all seven sets |
-| ✅ [SourceGenerator](../WWCP_ISO15118_EXI_SourceGenerator/ExiCodecGenerator.cs) | `IIncrementalGenerator`: XSD set → grammar plan → C# document + fragment codecs; fail-loud on unknown constructs; emits block-scoped namespaces |
+| ✅ [BitReader/BitWriter](../libs/WWCP_ISO15118/WWCP_ISO15118_EXI/Exi/BitReader.cs) | Bit-packed streams, MSB-first |
+| ✅ [ExiPrimitives](../libs/WWCP_ISO15118/WWCP_ISO15118_EXI/Exi/ExiPrimitives.cs) + `ExiStringTable` | Unsigned/signed integer, binary, boolean, n-bit, string values incl. local+global value tables (decode-side; encode is miss-only, matching cbV2G) |
+| ✅ [V2GTP](../libs/WWCP_ISO15118/WWCP_ISO15118_V2GTP/V2GTP_Header.cs) + [Dispatch](../libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Dispatch/V2GTPDispatcher.cs) | 8-byte transport header; payload-type → codec dispatcher over all seven sets |
+| ✅ [SourceGenerator](../libs/WWCP_ISO15118/WWCP_ISO15118_EXI_SourceGenerator/ExiCodecGenerator.cs) | `IIncrementalGenerator`: XSD set → grammar plan → C# document + fragment codecs; fail-loud on unknown constructs; emits block-scoped namespaces |
 | ✅ ISO 15118-2 codec | All 17 message pairs **byte-exact vs cbV2G**; signed `AuthorizationReq` byte-exact; `SignedInfo` fragment cross-checked vs EXIficient |
 | ✅ ISO 15118-20 codecs (×5) | CommonMessages/DC/AC/WPT/ACDP all generate + compile + byte-exact vs cbV2G; XMLDSig for CommonMessages/DC/AC (ECDSA-P521/SHA-512 **and** Ed448 via BouncyCastle) |
 | ✅ ISO 15118-20 Amd 1 AC DER (×2) | `AC_DER_IEC`/`AC_DER_SAE` — grammar variants of AC, not further message sets; cross-validated vs EXIficient (decode direction), no cbV2G reference exists. Codec only, no session wiring — see [Completed extras](#completed-extras) |
-| ✅ [Simulation](../Vanaheimr.V2G.Simulation/) (Phase 5) | Full in-repo stack over loopback: **SLAC** pairing (real UDP match) → **SDP** discovery seam → **TLS** (two backends: .NET SslStream + BouncyCastle -20-faithful P-521/Ed448 mutual TLS) → SAP → -2/-20 AC/DC sessions to SessionStop; a full-stack SLAC→SDP→TLS→session E2E; CLI with stage/backend flags. Live vs Josev: all four -20 energy modes + both control modes, PnC both directions in both protocols, cert-install, pause/resume, renegotiation, signed tariffs |
+| ✅ [Simulation](../simulation/Vanaheimr.V2G.Simulation/) (Phase 5) | Full in-repo stack over loopback: **SLAC** pairing (real UDP match) → **SDP** discovery seam → **TLS** (two backends: .NET SslStream + BouncyCastle -20-faithful P-521/Ed448 mutual TLS) → SAP → -2/-20 AC/DC sessions to SessionStop; a full-stack SLAC→SDP→TLS→session E2E; CLI with stage/backend flags. Live vs Josev: all four -20 energy modes + both control modes, PnC both directions in both protocols, cert-install, pause/resume, renegotiation, signed tariffs |
 | ✅ Test infrastructure | Vector-driven (JSON), bit-exact diff on failure; property-based round-trips (CsCheck); reference oracles pinned under `tools/` |
 
 The original "decisive weakness" (self-encoded seed vectors that only proved internal

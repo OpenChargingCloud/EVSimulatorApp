@@ -133,7 +133,7 @@ Rules that fall out of this and must be enforced in the simulation:
   `ChangeCipherSpec` dummy records break EVCCs that don't expect them). In .NET this is not
   exposed the way OpenSSL exposes it — verify Schannel's behaviour, note as a deviation if it
   cannot be turned off.
-- These belong in [`TlsOptions.cs`](../Vanaheimr.V2G.Simulation/Transport/TlsOptions.cs) as
+- These belong in [`TlsOptions.cs`](../simulation/Vanaheimr.V2G.Simulation/Transport/TlsOptions.cs) as
   two explicit named profiles, never the library default — the guide's core lesson is that
   letting the TLS stack auto-select (highest version + "best" curve) is exactly what breaks.
 
@@ -265,4 +265,4 @@ certificates in `MutualTlsLoopbackTests` therefore stay.
 - [`libs/WWCP_ISO15118/`](../libs/WWCP_ISO15118) — vendored WWCP stack providing the PKI
   builder (`WWCP_ISO15118_PKI`, incl. the Vehicle branch), SDP, SLAC, and V2GTP.
 - Codec-level XMLDSig / signature suite: the "XMLDSig" sections of the top-level
-  [README.md](../README.md).
+  [README.md](../libs/WWCP_ISO15118/README.md).
