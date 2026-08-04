@@ -1,3 +1,20 @@
+/*
+ * Copyright (c) 2021-2026 GraphDefined GmbH <achim.friedland@graphdefined.com>
+ * This file is part of EVSimulatorApp
+ *
+ * Licensed under the Affero GPL license, Version 3.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.gnu.org/licenses/agpl.html
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // @ts-check
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -20,7 +37,7 @@ import { rowsFor, detailFor, statusOf, hexLines,
 const repositoryRoot = (() => {
     let directory = dirname(fileURLToPath(import.meta.url));
     for (;;) {
-        try { readFileSync(join(directory, "libs/Vanaheimr.V2G.Exi/CLAUDE.md")); return directory; }
+        try { readFileSync(join(directory, "EVSimulatorApp.slnx")); return directory; }
         catch { /* keep walking */ }
         const parent = dirname(directory);
         if (parent === directory) throw new Error("repository root not found");
@@ -727,14 +744,21 @@ test("the -20 station's signed reading is read and checked too, not quietly skip
 
 // ── what the station told its backend ─────────────────────────────────────────────────────────
 
+// The OCPP transaction corpus is the ISO15118ConformanceTests repo's — the C# session tests record
+// it. These backend-vs-car checks read it from the parent that carries this app, and skip standalone.
 /** @type {Record<string, any>} */
-const transactions = JSON.parse(readFileSync(
-    join(repositoryRoot,
-         "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.ocpp-transactions.json"),
-    "utf8")).transactions;
+let transactions = {};
+let skipNoOcpp = false;
+try {
+    transactions = JSON.parse(readFileSync(
+        join(repositoryRoot, "../ISO15118ConformanceTests.Simulation/Vectors/Session.ocpp-transactions.json"),
+        "utf8")).transactions;
+} catch {
+    skipNoOcpp = "OCPP transaction corpus absent — it lives in the ISO15118ConformanceTests repo";
+}
 
 
-test("the signed readings the backend got are the ones this car saw", async () => {
+test("the signed readings the backend got are the ones this car saw", { skip: skipNoOcpp }, async () => {
 
     for (const name of ["iso2-ac-eim-meter", "iso20-dc-eim-meter"]) {
 
@@ -751,7 +775,7 @@ test("the signed readings the backend got are the ones this car saw", async () =
 });
 
 
-test("a station that reports one figure and shows another is caught, with no key at all", () => {
+test("a station that reports one figure and shows another is caught, with no key at all", { skip: skipNoOcpp }, () => {
 
     // The fraud the two records exist to make visible: the backend is given a signed reading the
     // driver was never shown. Every signature in both records is perfectly valid.
@@ -769,7 +793,7 @@ test("a station that reports one figure and shows another is caught, with no key
 });
 
 
-test("a backend record for another session is refused rather than compared", () => {
+test("a backend record for another session is refused rather than compared", { skip: skipNoOcpp }, () => {
 
     const record = structuredClone(transactions["iso2-ac-eim-meter"]);
     record.v2gSessionId = "1111111111111111";
@@ -791,7 +815,7 @@ test("no backend record is a plain absence, and says where one would come from",
 });
 
 
-test("an unsigned backend record reports its energy and claims nothing more", () => {
+test("an unsigned backend record reports its energy and claims nothing more", { skip: skipNoOcpp }, () => {
 
     // The ordinary station: it meters, it bills, it does not sign — and the car saw no reading at
     // all in this EIM session, which is exactly why the backend's account is worth looking at.
