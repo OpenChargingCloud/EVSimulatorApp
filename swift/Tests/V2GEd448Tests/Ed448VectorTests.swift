@@ -55,7 +55,7 @@ final class Ed448VectorTests: XCTestCase {
 
     static func vectors() throws -> [Vector] {
         let url = try repositoryRoot().appendingPathComponent(
-            "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Tests/Vectors/Ed448.rfc8032.vectors.json")
+            "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Tests/Vectors/Ed448.rfc8032.vectors.json")
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
         guard let raw = json?["vectors"] as? [[String: Any]] else {
             throw XCTSkip("vector file has no 'vectors' array: \(url.path)")

@@ -30,7 +30,7 @@ const vectorsDirectory = (() => {
         if (parent === directory) throw new Error("repository root not found");
         directory = parent;
     }
-    return join(directory, "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Tests/Vectors");
+    return join(directory, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Tests/Vectors");
 })();
 
 function existsSync(path: string): boolean {

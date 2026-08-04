@@ -39,7 +39,7 @@ const repositoryRoot = (() => {
 
 const corpus = (file: string): { name: string; expectedHex: string }[] =>
     JSON.parse(readFileSync(
-        join(repositoryRoot, "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Tests/Vectors", file),
+        join(repositoryRoot, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Tests/Vectors", file),
         "utf8")).vectors;
 
 const hex = (bytes: Uint8Array) => [...bytes].map(b => b.toString(16).padStart(2, "0")).join(" ");

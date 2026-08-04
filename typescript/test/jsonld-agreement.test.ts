@@ -45,7 +45,7 @@ const repositoryRoot = (() => {
     }
 })();
 
-const vectorsDirectory = join(repositoryRoot, "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Tests/Vectors");
+const vectorsDirectory = join(repositoryRoot, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Tests/Vectors");
 const read = (name: string) => JSON.parse(readFileSync(join(vectorsDirectory, name), "utf8"));
 
 const documents = read("JsonLd.documents.json").sets as Record<string, Record<string, JsonObject>>;

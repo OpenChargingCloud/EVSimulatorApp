@@ -20,7 +20,7 @@ class VectorTest {
         while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory) {
             dir = dir.parentFile ?: error("repository root not found from ${File(".").absolutePath}")
         }
-        val f = File(dir, "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Tests/Vectors/Iso15118_20.DC.vectors.json")
+        val f = File(dir, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Tests/Vectors/Iso15118_20.DC.vectors.json")
         assertTrue(f.isFile, "vector corpus not found at $f")
         JsonParser.parseString(f.readText()).asJsonObject
             .getAsJsonArray("vectors").map { it.asJsonObject }

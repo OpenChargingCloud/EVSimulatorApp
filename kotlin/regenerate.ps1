@@ -14,7 +14,7 @@
 
 $ErrorActionPreference = 'Stop'
 $root  = Split-Path -Parent $PSScriptRoot
-$proj  = Join-Path $root 'libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen/Vanaheimr.V2G.Exi.Codegen.csproj'
+$proj  = Join-Path $root 'libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Codegen/Vanaheimr.V2G.Exi.Codegen.csproj'
 $libs  = Join-Path $root 'libs/Vanaheimr.V2G.Exi'
 
 dotnet build $proj -c Release -v q --nologo

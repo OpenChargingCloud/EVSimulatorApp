@@ -24,7 +24,7 @@
     <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation/Vanaheimr.V2G.Simulation.csproj" />
 
     <!-- V2GTP's 8-byte header: the only thing that says where a frame ends. -->
-    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Prototype/Vanaheimr.V2G.Exi.Prototype.csproj" />
+    <ProjectReference Include="../../libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Prototype/Vanaheimr.V2G.Exi.Prototype.csproj" />
   </ItemGroup>
 
 </Project>

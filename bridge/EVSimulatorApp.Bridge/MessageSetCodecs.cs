@@ -42,20 +42,20 @@ public static class MessageSetCodecs
 
         return (payloadType, messageName.StartsWith("SupportedAppProtocol", StringComparison.Ordinal)) switch
         {
-            ("0x8001", true)  => Vanaheimr.V2G.AppProtocol.Generated.SupportedAppProtocolCodecJson.ToJSON(
-                                     Vanaheimr.V2G.AppProtocol.Generated.SupportedAppProtocolCodec.DecodeAny(payload, out _)),
+            ("0x8001", true)  => cloud.charging.open.protocols.ISO15118.AppProtocol.Generated.SupportedAppProtocolCodecJson.ToJSON(
+                                     cloud.charging.open.protocols.ISO15118.AppProtocol.Generated.SupportedAppProtocolCodec.DecodeAny(payload, out _)),
 
-            ("0x8001", false) => Vanaheimr.V2G.Iso15118_2.Generated.Iso2CodecJson.ToJSON(
-                                     Vanaheimr.V2G.Iso15118_2.Generated.Iso2Codec.DecodeAny(payload, out _)),
+            ("0x8001", false) => cloud.charging.open.protocols.ISO15118_2.Generated.Iso2CodecJson.ToJSON(
+                                     cloud.charging.open.protocols.ISO15118_2.Generated.Iso2Codec.DecodeAny(payload, out _)),
 
-            ("0x8002", _)     => Vanaheimr.V2G.Iso15118_20.CommonMessages.Generated.CommonMessagesCodecJson.ToJSON(
-                                     Vanaheimr.V2G.Iso15118_20.CommonMessages.Generated.CommonMessagesCodec.DecodeAny(payload, out _)),
+            ("0x8002", _)     => cloud.charging.open.protocols.ISO15118_20.CommonMessages.Generated.CommonMessagesCodecJson.ToJSON(
+                                     cloud.charging.open.protocols.ISO15118_20.CommonMessages.Generated.CommonMessagesCodec.DecodeAny(payload, out _)),
 
-            ("0x8003", _)     => Vanaheimr.V2G.Iso15118_20.AC.Generated.AcCodecJson.ToJSON(
-                                     Vanaheimr.V2G.Iso15118_20.AC.Generated.AcCodec.DecodeAny(payload, out _)),
+            ("0x8003", _)     => cloud.charging.open.protocols.ISO15118_20.AC.Generated.AcCodecJson.ToJSON(
+                                     cloud.charging.open.protocols.ISO15118_20.AC.Generated.AcCodec.DecodeAny(payload, out _)),
 
-            ("0x8004", _)     => Vanaheimr.V2G.Iso15118_20.DC.Generated.DcCodecJson.ToJSON(
-                                     Vanaheimr.V2G.Iso15118_20.DC.Generated.DcCodec.DecodeAny(payload, out _)),
+            ("0x8004", _)     => cloud.charging.open.protocols.ISO15118_20.DC.Generated.DcCodecJson.ToJSON(
+                                     cloud.charging.open.protocols.ISO15118_20.DC.Generated.DcCodec.DecodeAny(payload, out _)),
 
             _ => throw new NotSupportedException(
                      $"payload type '{payloadType}' is not a message set this build carries."),

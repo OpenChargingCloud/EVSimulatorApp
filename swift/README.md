@@ -300,8 +300,8 @@ generated files it no longer produces and leaves hand-written ones alone, identi
 their first line.
 
 ```bash
-dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release -- \
-  --xsd libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Prototype/Schemas/V2G_CI_AppProtocol.xsd \
+dotnet run --project libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Codegen -c Release -- \
+  --xsd libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Prototype/Schemas/V2G_CI_AppProtocol.xsd \
   --out swift/Sources/ExiAppProtocol \
   --lang swift --namespace cloud.charging.v2g.appprotocol --codec SupportedAppProtocolCodec
 ```
@@ -309,8 +309,8 @@ dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release
 ISO 15118-2 — note the schema order, which decides declaration order in the output:
 
 ```bash
-dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release -- \
-  --xsd "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDef.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgBody.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDataTypes.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgHeader.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/xmldsig-core-schema.xsd" \
+dotnet run --project libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Codegen -c Release -- \
+  --xsd "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDef.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgBody.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgDataTypes.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/V2G_CI_MsgHeader.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Iso15118_2/Schemas/xmldsig-core-schema.xsd" \
   --out swift/Sources/ExiIso2 \
   --lang swift --namespace cloud.charging.v2g.iso2 --codec Iso15118_2Codec
 ```
@@ -319,8 +319,8 @@ The standalone W3C XMLDSig grammar — not a message set, and the only target he
 single schema that no session ever carries. See the Plug & Charge section for why it exists:
 
 ```bash
-dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release -- \
-  --xsd libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.XmlDsig/Schemas/xmldsig-core-schema.xsd \
+dotnet run --project libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Codegen -c Release -- \
+  --xsd libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.XmlDsig/Schemas/xmldsig-core-schema.xsd \
   --out swift/Sources/ExiXmlDsig \
   --lang swift --namespace ExiXmlDsig --codec XmlDsigCodec --fragments SignedInfo
 ```
