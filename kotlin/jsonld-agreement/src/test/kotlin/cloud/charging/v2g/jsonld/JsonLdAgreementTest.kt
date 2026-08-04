@@ -102,7 +102,7 @@ class JsonLdAgreementTest {
         while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory)
             dir = dir.parentFile ?: error("repository root not found")
 
-        File(dir, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Tests/Vectors")
+        File(dir, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Tests/Vectors")
     }
 
     private val documents: JsonObject by lazy {

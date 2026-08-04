@@ -23,7 +23,7 @@ final class V2GTPDispatcherTests: XCTestCase {
     /// The first vector of a corpus, as bytes.
     private static func firstVector(_ corpus: String) throws -> [UInt8] {
         let url = try repositoryRoot().appendingPathComponent(
-            "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Tests/Vectors/\(corpus).vectors.json")
+            "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Tests/Vectors/\(corpus).vectors.json")
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
         guard let raw = json?["vectors"] as? [[String: Any]],
               let hex = raw.first?["expectedHex"] as? String else {

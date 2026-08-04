@@ -26,7 +26,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 proj='tools/EVSimulatorApp.Codegen/EVSimulatorApp.Codegen.csproj'
 # The schema sets live in the WWCP_ISO15118 submodule; only the port back ends are in this repo.
-libs='libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new'
+libs='libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118'
 
 dotnet build "$proj" -c Release -v q --nologo
 

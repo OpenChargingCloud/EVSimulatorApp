@@ -35,7 +35,7 @@ class Ed448RfcVectorTest {
         while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory) {
             dir = dir.parentFile ?: error("repository root not found from ${File(".").absolutePath}")
         }
-        val f = File(dir, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Tests/Vectors/Ed448.rfc8032.vectors.json")
+        val f = File(dir, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Tests/Vectors/Ed448.rfc8032.vectors.json")
         assertTrue(f.isFile, "RFC 8032 vector corpus not found at $f")
         JsonParser.parseString(f.readText()).asJsonObject
             .getAsJsonArray("vectors").map { it.asJsonObject }

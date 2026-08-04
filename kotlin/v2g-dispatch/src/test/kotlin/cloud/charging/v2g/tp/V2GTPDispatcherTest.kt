@@ -29,7 +29,7 @@ class V2GTPDispatcherTest {
 
     /** The first vector of [corpus], as the raw EXI payload bytes. */
     private fun firstPayload(corpus: String): ByteArray {
-        val f = File(repoRoot, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Tests/Vectors/$corpus")
+        val f = File(repoRoot, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Tests/Vectors/$corpus")
         assertTrue(f.isFile, "vector corpus not found at $f")
         val hex = JsonParser.parseString(f.readText()).asJsonObject
             .getAsJsonArray("vectors").first().asJsonObject

@@ -102,7 +102,7 @@ final class JsonLdAgreementTests: XCTestCase {
             precondition(parent != directory, "repository root not found")
             directory = parent
         }
-        return directory.appendingPathComponent("libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Tests/Vectors")
+        return directory.appendingPathComponent("libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/Vanaheimr.V2G.Exi.Tests/Vectors")
     }()
 
     private lazy var documents: JsonObject = {
