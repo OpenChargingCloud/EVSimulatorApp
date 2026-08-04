@@ -64,9 +64,34 @@ dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release
   --lang typescript --namespace cloud.charging.v2g.appprotocol --codec SupportedAppProtocolCodec
 ```
 
+ISO 15118-20 arrived on 2026-08-04 — CommonMessages, AC and DC, each its own set with its own V2GTP
+payload type and its own copy of the XMLDSig schema:
+
+```bash
+dotnet run --project libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Codegen -c Release -- \
+  --xsd "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonMessages.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonTypes.xsd;libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/xmldsig-core-schema.xsd" \
+  --out typescript/src/iso20common \
+  --lang typescript --namespace cloud.charging.v2g.iso20.common --codec CommonMessagesCodec \
+  --fragments "AbsolutePriceSchedule CertificateInstallationReq MeteringConfirmationReq OEMProvisioningCertificateChain PnC_AReqAuthorizationMode SignedInstallationData SignedInfo"
+```
+
+AC and DC follow the same pattern — swap `CommonMessages` for `AC` / `DC` in the schema names, the
+output path (`iso20ac` / `iso20dc`), the namespace and the codec (`ACCodec` / `DCCodec`), with
+`--fragments "AC_ChargeParameterDiscoveryRes SignedInfo"` and its DC twin. The lists mirror
+`<ExiFragmentElements>` in the matching C# project, as they do for the other back ends.
+
+**Generating them found an emitter bug three years of schema old.** `ChildParams` spelled an
+optional type `Type?` — how Kotlin and Swift write one, and a syntax error in TypeScript, where `?`
+marks an optional parameter or property and never a type. ISO 15118-2 has no inline `xs:choice`
+anywhere, so no file had ever exercised the path; the first that would not parse was -20
+CommonMessages' `AuthorizationReqType`. Regenerating `iso2/`, `appprotocol/` and `xmldsig/` after the
+fix leaves every file byte-identical, which is the check that the fix reached only the broken path.
+
 Every AppProtocol vector encodes to cbV2G's bytes and decodes back; every ISO 15118-2 vector decodes
 and re-encodes byte-identically, which reaches the `V2G_Message` wrapper, the `BodyType` substitution
-group, attributes, simple content, optional runs and bounded lists.
+group, attributes, simple content, optional runs and bounded lists. Every -20 vector does the same
+per set, plus the DC messages a live Josev station sent — kept in a separate corpus on purpose, since
+those are interoperability evidence rather than conformance evidence.
 
 Three shapes differ from the other back ends, and none changes a byte:
 

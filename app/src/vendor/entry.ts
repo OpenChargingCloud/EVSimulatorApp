@@ -10,6 +10,7 @@ import { MeteringReceiptReqType } from "@open-charging-cloud/v2g-exi/src/iso2/Me
 import { PaymentDetailsReqType } from "@open-charging-cloud/v2g-exi/src/iso2/PaymentDetailsReqType.ts";
 
 import type { SignedInfoType as Iso2SignedInfo } from "@open-charging-cloud/v2g-exi/src/iso2/SignedInfoType.ts";
+import type { SignedInfoType as Iso20SignedInfo } from "@open-charging-cloud/v2g-exi/src/iso20common/SignedInfoType.ts";
 import { XmlDsigCodec } from "@open-charging-cloud/v2g-exi/src/xmldsig/XmlDsigCodec.ts";
 import { SignedInfoType } from "@open-charging-cloud/v2g-exi/src/xmldsig/SignedInfoType.ts";
 import { CanonicalizationMethodType } from "@open-charging-cloud/v2g-exi/src/xmldsig/CanonicalizationMethodType.ts";
@@ -18,6 +19,13 @@ import { ReferenceType } from "@open-charging-cloud/v2g-exi/src/xmldsig/Referenc
 import { TransformsType } from "@open-charging-cloud/v2g-exi/src/xmldsig/TransformsType.ts";
 import { TransformType } from "@open-charging-cloud/v2g-exi/src/xmldsig/TransformType.ts";
 import { DigestMethodType } from "@open-charging-cloud/v2g-exi/src/xmldsig/DigestMethodType.ts";
+
+// ISO 15118-20 CommonMessages. Only this set, of the three: it is where AuthorizationReq lives, and
+// the -20 signature this project produces covers a fragment of it. AC and DC have signable fragments
+// too (their ChargeParameterDiscoveryRes), and nothing in this repository signs one — so importing
+// their codecs would add half a megabyte to a WebView bundle to answer a question nobody asks.
+import { CommonMessagesCodec } from "@open-charging-cloud/v2g-exi/src/iso20common/CommonMessagesCodec.ts";
+import { AuthorizationReq } from "@open-charging-cloud/v2g-exi/src/iso20common/AuthorizationReq.ts";
 
 import acEim from "../../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.iso2-ac-eim.trace.json" with { type: "json" };
 import acPnc from "../../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.iso2-ac-pnc.trace.json" with { type: "json" };
@@ -52,6 +60,19 @@ bundleTraces((config: SessionConfig) =>
 
 const V2GTP_HEADER_BYTES = 8;
 
+const bytesOfHex = (hex: string) =>
+    new Uint8Array((hex.match(/.{1,2}/g) ?? []).map(b => parseInt(b, 16)));
+
+/**
+ * Which message set a frame belongs to, from the two bytes that decide it.
+ *
+ * Never guessed from the content. `0x8001` carries the SupportedAppProtocol handshake *and* every
+ * ISO 15118-2 message, and 0x8003 and 0x8004 are two whole grammars seven bits apart — decoding a
+ * frame with the wrong set yields a message that looks fine.
+ */
+const payloadTypeOf = (frame: Uint8Array): number =>
+    frame.length < V2GTP_HEADER_BYTES ? 0 : (frame[2] << 8) | frame[3];
+
 /**
  * The digest a signed message's own frame actually produces.
  *
@@ -76,19 +97,10 @@ async function digestOfFrame(frameHex: string): Promise<string | null> {
 
     try {
 
-        const bytes = new Uint8Array((frameHex.match(/.{1,2}/g) ?? []).map(b => parseInt(b, 16)));
+        const bytes = bytesOfHex(frameHex);
         if (bytes.length <= V2GTP_HEADER_BYTES) return null;
 
-        const decoded = Iso15118_2Codec.decodeAny(bytes.slice(V2GTP_HEADER_BYTES));
-        if (!(decoded instanceof V2G_Message)) return null;
-
-        const element = decoded.body.bodyElement;
-        const fragment = element instanceof AuthorizationReqType
-                             ? Iso15118_2Codec.encodeFragment_AuthorizationReq(element)
-                       : element instanceof MeteringReceiptReqType
-                             ? Iso15118_2Codec.encodeFragment_MeteringReceiptReq(element)
-                       : null;
-
+        const fragment = fragmentOf(bytes);
         if (fragment === null) return null;
 
         const digest = await crypto.subtle.digest("SHA-256", fragment as BufferSource);
@@ -168,7 +180,15 @@ function subjectPublicKeyInfo(der: Uint8Array): Uint8Array | null {
 
 
 /** The -2 `SignedInfo`, in the standalone-xmldsig type graph its signature was computed over. */
-function toStandalone(s: Iso2SignedInfo): SignedInfoType {
+/**
+ * The SignedInfo of either protocol, as the standalone-xmldsig codec's own type.
+ *
+ * Structural rather than per-protocol: -2 and -20 CommonMessages each generate their own
+ * `SignedInfoType` from their own copy of `xmldsig-core-schema.xsd`, and the two classes are
+ * identical field for field. Both are signed in the *standalone* grammar, so both convert here and
+ * one encoder serves them.
+ */
+function toStandalone(s: Iso2SignedInfo | Iso20SignedInfo): SignedInfoType {
     return new SignedInfoType(
         s.id,
         new CanonicalizationMethodType(s.canonicalizationMethod.algorithm, s.canonicalizationMethod.aNY),
@@ -185,7 +205,101 @@ function toStandalone(s: Iso2SignedInfo): SignedInfoType {
 
 
 /**
- * Whether a signed ISO 15118-2 message was signed by the contract certificate the session presented.
+ * The octets a signed message's own signature covers, re-encoded from the frame.
+ *
+ * Two protocols, and they differ in *what* is signed rather than merely in how. ISO 15118-2 signs
+ * the whole body element — `AuthorizationReq`, `MeteringReceiptReq`. ISO 15118-20 signs a piece of
+ * one: `PnC_AReqAuthorizationMode`, the part of an `AuthorizationReq` carrying the challenge and the
+ * contract chain, referenced from the header by its `Id`. Encoding the -20 request whole would
+ * produce a digest that matches nothing and looks like tampering.
+ *
+ * `null` for everything else, and there is plenty: -20 AC and DC have signable fragments this build
+ * deliberately does not carry, and -2 has three fragment encoders rather than one per message.
+ */
+function fragmentOf(frame: Uint8Array): Uint8Array | null {
+
+    const payload = frame.slice(V2GTP_HEADER_BYTES);
+
+    if (payloadTypeOf(frame) === 0x8001) {
+        const decoded = Iso15118_2Codec.decodeAny(payload);
+        if (!(decoded instanceof V2G_Message)) return null;
+
+        const element = decoded.body.bodyElement;
+        return element instanceof AuthorizationReqType
+                   ? Iso15118_2Codec.encodeFragment_AuthorizationReq(element)
+             : element instanceof MeteringReceiptReqType
+                   ? Iso15118_2Codec.encodeFragment_MeteringReceiptReq(element)
+             : null;
+    }
+
+    if (payloadTypeOf(frame) === 0x8002) {
+        const decoded = CommonMessagesCodec.decodeAny(payload);
+        return decoded instanceof AuthorizationReq && decoded.pnC_AReqAuthorizationMode !== null
+                   ? CommonMessagesCodec.encodeFragment_PnC_AReqAuthorizationMode(
+                         decoded.pnC_AReqAuthorizationMode)
+                   : null;
+    }
+
+    return null;
+}
+
+
+/**
+ * The header signature of a frame of either protocol, and the contract certificate to check it with.
+ *
+ * The two protocols put the certificate in different places, and the difference is not cosmetic. In
+ * -2 it arrives in an earlier `PaymentDetailsReq` and the signed message never carries it — so the
+ * caller has to supply that frame. In -20 the chain travels *inside* the signed `AuthorizationReq`,
+ * in the very fragment the signature covers, so the message is self-contained and the caller passes
+ * the same frame twice.
+ *
+ * That is what the station does in each case, which is the standard this is held to — and it does
+ * not make -20's answer weaker: a chain covered by the signature it authenticates cannot be swapped
+ * without breaking the signature. What neither protocol's answer says is whether the certificate is
+ * one anybody should trust.
+ */
+function signatureAndKeyOf(signedFrame: Uint8Array, certificateFrame: Uint8Array):
+    { signedInfo: Iso2SignedInfo | Iso20SignedInfo; value: Uint8Array; spki: Uint8Array } | null {
+
+    if (payloadTypeOf(signedFrame) === 0x8001) {
+
+        const details = Iso15118_2Codec.decodeAny(certificateFrame.slice(V2GTP_HEADER_BYTES));
+        if (!(details instanceof V2G_Message)) return null;
+        const chain = details.body.bodyElement;
+        if (!(chain instanceof PaymentDetailsReqType)) return null;
+
+        const spki = subjectPublicKeyInfo(chain.contractSignatureCertChain.certificate);
+        if (spki === null) return null;
+
+        const signed = Iso15118_2Codec.decodeAny(signedFrame.slice(V2GTP_HEADER_BYTES));
+        if (!(signed instanceof V2G_Message)) return null;
+        const signature = signed.header.signature;
+        if (signature === null || signature === undefined) return null;
+
+        return { signedInfo: signature.signedInfo, value: signature.signatureValue.value, spki };
+    }
+
+    if (payloadTypeOf(signedFrame) === 0x8002) {
+
+        const signed = CommonMessagesCodec.decodeAny(signedFrame.slice(V2GTP_HEADER_BYTES));
+        if (!(signed instanceof AuthorizationReq)) return null;
+
+        const mode = signed.pnC_AReqAuthorizationMode;
+        const signature = signed.header.signature;
+        if (mode === null || signature === null || signature === undefined) return null;
+
+        const spki = subjectPublicKeyInfo(mode.contractCertificateChain.certificate);
+        if (spki === null) return null;
+
+        return { signedInfo: signature.signedInfo, value: signature.signatureValue.value, spki };
+    }
+
+    return null;
+}
+
+
+/**
+ * Whether a signed message was signed by the contract certificate the session presented.
  *
  * The digest says a signature covers this content; this says **who** covered it. The certificate is
  * not taken on the message's word — it comes from the `PaymentDetailsReq` the EV sent earlier in the
@@ -209,31 +323,18 @@ async function verifySignatureOfFrame(signedFrameHex: string,
 
     try {
 
-        const bytesOf = (h: string) =>
-            new Uint8Array((h.match(/.{1,2}/g) ?? []).map(b => parseInt(b, 16)));
-
-        const details = Iso15118_2Codec.decodeAny(bytesOf(certificateFrameHex).slice(V2GTP_HEADER_BYTES));
-        if (!(details instanceof V2G_Message)) return null;
-        const chain = details.body.bodyElement;
-        if (!(chain instanceof PaymentDetailsReqType)) return null;
-
-        const spki = subjectPublicKeyInfo(chain.contractSignatureCertChain.certificate);
-        if (spki === null) return null;
-
-        const signed = Iso15118_2Codec.decodeAny(bytesOf(signedFrameHex).slice(V2GTP_HEADER_BYTES));
-        if (!(signed instanceof V2G_Message)) return null;
-        const signature = signed.header.signature;
-        if (signature === null || signature === undefined) return null;
+        const found = signatureAndKeyOf(bytesOfHex(signedFrameHex), bytesOfHex(certificateFrameHex));
+        if (found === null) return null;
 
         const key = await crypto.subtle.importKey(
-            "spki", spki as BufferSource, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+            "spki", found.spki as BufferSource, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
 
         // ISO 15118 carries the signature as raw r‖s, which is exactly what WebCrypto expects — the
         // DER-wrapped form every other ECDSA API defaults to would be rejected here.
         return await crypto.subtle.verify(
             { name: "ECDSA", hash: "SHA-256" }, key,
-            signature.signatureValue.value as BufferSource,
-            XmlDsigCodec.encodeFragment_SignedInfo(toStandalone(signature.signedInfo)) as BufferSource);
+            found.value as BufferSource,
+            XmlDsigCodec.encodeFragment_SignedInfo(toStandalone(found.signedInfo)) as BufferSource);
 
     } catch {
         return null;

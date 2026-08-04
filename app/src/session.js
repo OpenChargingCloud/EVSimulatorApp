@@ -542,8 +542,9 @@ export async function digestCheckFor(event, deriveDigest) {
 
     if (derived === null)
         return { verdict: "unchecked", claimed, derived: null,
-                 explanation: "Not checked: this build has no fragment encoder for this message. "
-                            + "The TypeScript codec covers ISO 15118-2 only." };
+                 explanation: "Not checked: this build has no fragment encoder for this message. It "
+                            + "carries ISO 15118-2 and -20 CommonMessages; the -20 AC and DC sets "
+                            + "have signable fragments too, and nothing here signs one." };
 
     if (claimed === null)
         return { verdict: "unchecked", claimed, derived,
@@ -598,25 +599,30 @@ export async function signerCheckFor(event, events, verify) {
         return { verdict: "unchecked",
                  explanation: "Not checked: this build cannot verify a signature." };
 
-    // The certificate arrives in PaymentDetailsReq, and only in a Contract session. Its absence is
-    // the ordinary case for EIM and is not a fault.
-    const details = events.find(e => e.kind === "message"
-                                  && String(e.messageName ?? "").startsWith("PaymentDetailsReq")
-                                  && typeof e.exi === "string");
+    // Where the certificate is depends on the protocol, and the difference is not cosmetic.
+    //
+    // -2 sends the contract chain in an earlier PaymentDetailsReq and the signed message never
+    // carries it, so it has to be found in the stream. -20 puts the chain *inside* the signed
+    // AuthorizationReq — in the very fragment the signature covers — so the message answers for
+    // itself and the same frame serves as both. Each is what that protocol's station does.
+    const certificate = String(event.payloadType) === "0x8001"
+        ? events.find(e => e.kind === "message"
+                        && String(e.messageName ?? "").startsWith("PaymentDetailsReq")
+                        && typeof e.exi === "string")?.exi
+        : event.exi;
 
-    if (details === undefined)
+    if (certificate === undefined)
         return { verdict: "unchecked",
                  explanation: "No contract certificate in this session — nothing to check the "
                             + "signature against. A PaymentDetailsReq carries it, and only a "
                             + "Plug & Charge session sends one." };
 
-    const ok = await verify(event.exi, String(details.exi));
+    const ok = await verify(event.exi, String(certificate));
 
     if (ok === null)
         return { verdict: "unchecked",
                  explanation: "Not checked: this build could not re-encode the signed element or "
-                            + "read the certificate's public key. The TypeScript codec covers "
-                            + "ISO 15118-2 only." };
+                            + "read the certificate's public key." };
 
     return ok
         ? { verdict: "signed-by-contract",

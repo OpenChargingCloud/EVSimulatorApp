@@ -2175,6 +2175,49 @@ Cheap because B1's event stream already carries everything.
 > `Ocpp/OcppTransactionRecord.cs` says plainly that it is ~40 lines of record shape rather than an
 > OCPP implementation — nothing here is checked against an OCPP schema, unlike the ISO 15118 XSDs.
 
+> **The -20 codecs for TypeScript, 2026-08-04 — and the sentence they delete.** Until now this back
+> end had ISO 15118-2 and nothing else, so **every -20 message in the inspector answered
+> `unchecked`**: a digest it could not re-derive, a signature it could not verify, and an honest note
+> saying so. `src/iso20common/`, `src/iso20ac/` and `src/iso20dc/` are the same generator pass the
+> other three back ends use, held to the same vector corpora — plus the DC messages a live Josev
+> station sent, kept in a separate corpus because those are interoperability evidence and not
+> conformance evidence.
+>
+> **-20 signs something different, and reading it as -2 would look like tampering.** ISO 15118-2
+> signs the whole body element; -20 signs a *part* of one — `PnC_AReqAuthorizationMode`, the
+> challenge and the contract chain inside an `AuthorizationReq`, referenced from the header by `Id`.
+> Digesting the request whole produces a value that matches nothing, and on a screen that reads as a
+> forged message rather than as a mistake in the reader.
+>
+> **And the certificate is somewhere else.** -2 sends the chain in an earlier `PaymentDetailsReq`, so
+> the check has to reach back through the stream; -20 puts it inside the very fragment the signature
+> covers, so the message answers for itself. That is not the weaker arrangement — a chain covered by
+> the signature that authenticates it cannot be swapped without breaking it — and looking for a
+> `PaymentDetailsReq` in a -20 session finds nothing, which would have reported every -20 signature
+> as unchecked for a reason that has nothing to do with -20.
+>
+> **The dual-grammar trap holds here too**, and it is sharper: CommonMessages carries its own copy of
+> `xmldsig-core-schema.xsd` and generates a perfectly usable `encodeFragment_SignedInfo` — and using
+> it rejects a valid signature, because what was signed is the *standalone* grammar again. A test
+> requires the set's own form to fail, for the same reason its -2 twin does.
+>
+> **Generating them found an emitter bug three years of schema old.** The TypeScript emitter spelled
+> an optional type `Type?` — how Kotlin and Swift write one, and a syntax error in TypeScript, where
+> `?` marks an optional parameter or property and never a type. ISO 15118-2 has no inline `xs:choice`
+> anywhere, so nothing had ever taken that path; the first file that would not parse was -20
+> CommonMessages' `AuthorizationReqType`, whose EIM/PnC branches are exactly such a choice.
+> Regenerating `iso2/`, `appprotocol/` and `xmldsig/` after the fix leaves every file byte-identical
+> — the check that it reached only the broken path.
+>
+> Measured in a browser against the recorded -20 PnC session: `digest -> match`, reproducing the
+> value C# computed, and `signer -> signed-by-contract`. Both said `unchecked` the day before.
+>
+> **Still not carried:** the -20 AC and DC fragment encoders. They exist in the generated codecs, and
+> the bundle imports only CommonMessages — the other two sets would add half a megabyte to a WebView
+> to answer a question nothing in this project asks, since nothing signs an
+> `AC_ChargeParameterDiscoveryRes`. The inspector says which sets it has rather than claiming -20 as
+> a whole.
+
 ### Deferred by request
 
 Charging curves, battery model, DER, V2H/BPT scenarios, WPT/ACDP. DIN 70121 stays on the

@@ -410,7 +410,7 @@ test("not being able to check is not the same as checking and failing", async ()
     // A bundle that cannot re-encode this message — a -20 body, or one with no fragment encoder.
     const noEncoder = await digestCheckFor(signed, async () => null);
     assert.equal(noEncoder.verdict, "unchecked");
-    assert.match(noEncoder.explanation, /ISO 15118-2 only/);
+    assert.match(noEncoder.explanation, /-20 AC and DC sets/);
 
     // An unsigned message has nothing to check and says so without alarm.
     const plain = (sessions["iso2-ac-eim"] ?? []).find(
@@ -482,7 +482,34 @@ test("a signature from the wrong key is named as such, not blurred into 'uncheck
 
     const cannot = await signerCheckFor(signed, events, async () => null);
     assert.equal(cannot.verdict, "unchecked");
-    assert.match(cannot.explanation, /ISO 15118-2 only/);
+    assert.match(cannot.explanation, /could not re-encode the signed element/);
+});
+
+
+test("a -20 signed message answers for itself, and a -2 one cannot", async () => {
+
+    // Where the contract chain lives differs, and the check has to follow it. -2 sends it in an
+    // earlier PaymentDetailsReq; -20 puts it inside the signed AuthorizationReq, in the very
+    // fragment the signature covers. Looking for a PaymentDetailsReq in a -20 session finds nothing
+    // and would report every -20 signature as unchecked.
+    const iso20  = sessions["iso20-dc-pnc"] ?? [];
+    const signed = iso20.find((/** @type {any} */ e) => e?.json?.header?.signature);
+
+    assert.notEqual(signed, undefined, "the -20 PnC corpus should carry a signed message");
+    assert.equal(signed.payloadType, "0x8002");
+    assert.equal(iso20.some((/** @type {any} */ e) =>
+                     String(e.messageName ?? "").startsWith("PaymentDetailsReq")), false,
+                 "-20 has no PaymentDetailsReq at all — that message is -2's");
+
+    /** @type {string[]} */
+    const seen = [];
+    const check = await signerCheckFor(signed, iso20, async (signedHex, certHex) => {
+        seen.push(certHex);
+        return true;
+    });
+
+    assert.equal(check.verdict, "signed-by-contract");
+    assert.deepEqual(seen, [signed.exi], "the -20 message must be its own certificate source");
 });
 
 
