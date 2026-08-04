@@ -1,5 +1,7 @@
 # PKI & certificate model for the -20 simulation
 
+> **Note:** references below to `tools/…`, the interop-run notes (`2026-…`), the reference encoders, the conformance test projects and the assumed-values sweep point into the **ISO15118ConformanceTests** conformance repository — the parent that carries this app as a submodule — not into this repository.
+
 Design note for Phase 5: which certificates the EVCC/SECC use, on which layer, and how the
 test PKI is built. The target is a simulation that **starts at the TLS handshake** — for
 ISO 15118-20 that means **mutual TLS**, which pulls certificate handling into scope
@@ -102,7 +104,7 @@ Wiring notes for the simulation:
   verified at the application layer during -20 Plug & Charge authorization.
 - The builder can generate at test time (nothing sensitive committed, no expiry maintenance),
   consistent with the project's "no real certificates checked in" rule; the current
-  [`TestData/TestCertificate.cs`](../Vanaheimr.V2G.Simulation.Tests/TestData/TestCertificate.cs)
+  `TestData/TestCertificate.cs`
   self-signed P-256 cert stays fine for the -2/TLS-1.2 path but is superseded by the builder's
   strict-20 chains for the mutual-TLS work.
 

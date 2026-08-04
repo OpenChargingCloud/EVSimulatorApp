@@ -1,5 +1,7 @@
 # ISO 15118-20 Amendment 1 — AC DER (distributed energy resources)
 
+> **Note:** references below to `tools/…`, the interop-run notes (`2026-…`), the reference encoders, the conformance test projects and the assumed-values sweep point into the **ISO15118ConformanceTests** conformance repository — the parent that carries this app as a submodule — not into this repository.
+
 Date: **2026-07-25**. Status: **codec implemented, externally cross-validated against EXIficient
 (decode direction); not wired into the session layer.**
 
@@ -84,7 +86,7 @@ Consequences:
 
 With cbexigen unusable (next section), the oracle is **EXIficient** — a generic W3C EXI 1.0
 processor with no shared lineage with cbV2G/cbexigen or our generator. Harness and full evidence:
-[`tools/exificient-ref/`](../tools/exificient-ref/README.md).
+`tools/exificient-ref/`.
 
 **Calibrated first.** Since no cbV2G ground truth exists for AC DER, the setup was validated on a
 case where it does: a plain, non-DER `AC_ChargeParameterDiscoveryReq` produced by our AC codec.

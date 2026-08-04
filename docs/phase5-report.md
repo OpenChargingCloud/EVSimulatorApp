@@ -1,12 +1,14 @@
 # Phase 5 closing report — EV↔EVSE simulation & interop
 
+> **Note:** references below to `tools/…`, the interop-run notes (`2026-…`), the reference encoders, the conformance test projects and the assumed-values sweep point into the **ISO15118ConformanceTests** conformance repository — the parent that carries this app as a submodule — not into this repository.
+
 Date: **2026-07-21**, updated through **2026-07-25** (the follow-up-work section at the end tracks
 everything after the original closing date — it has since closed the entire feature-gap list).
 Scope: `docs/prompts/phase5.md` (EV↔EVSE session simulation over real TCP/TLS, SLAC/SDP front
 stages, and interop against an independent stack). This report is the Definition-of-Done item 7:
 codec/sequence discrepancies found, timing findings, and the honest list of known gaps.
 Companion docs: [`roadmap.md`](roadmap.md), [`pki-model.md`](pki-model.md),
-[`interop-runs/`](interop-runs/).
+`interop-runs/`.
 
 ## 1. What Phase 5 delivered
 
@@ -59,7 +61,7 @@ The headline value of interop against an independent stack is finding things the
   choice as an EE-terminated optional run (matching cbexigen's `decode_iso20_TransformType`) and
   promoting a lone repeating child's bound to the plan level. The signed frame now round-trips
   byte-for-byte; all cbV2G vectors stay byte-exact. Full write-up:
-  [`interop-runs/2026-07-21-iso20-dc-pnc-notls/`](interop-runs/2026-07-21-iso20-dc-pnc-notls/notes.md).
+  `interop-runs/2026-07-21-iso20-dc-pnc-notls/`.
 
 - **String value tables — watched, not triggered.** EXIficient *may* emit value-table hits where
   cbV2G is always miss-only; a hit our decoder mishandled would be a classic interop gap. Across all

@@ -1,5 +1,7 @@
 # Counterparties — whose EV and EVSE we can test against
 
+> **Note:** references below to `tools/…`, the interop-run notes (`2026-…`), the reference encoders, the conformance test projects and the assumed-values sweep point into the **ISO15118ConformanceTests** conformance repository — the parent that carries this app as a submodule — not into this repository.
+
 Everything in this repository is held to corpora **we** generate. That is the right shape for a
 port — four back ends cannot drift if they are compared as text — and it has one blind spot it can
 never see past: *both sides agreeing on the same mistake.* `CONCEPT.md` §1.3 puts a number on it —
@@ -22,7 +24,7 @@ checkable from a README.*
 | [EVerest](https://github.com/EVerest/everest-core) | **EV and EVSE** | DIN 70121, -2, -20 | cbV2G — *ours* — at HEAD; **OpenV2G** in the `:main` demo image, see below (car side: Josev) | C++ / C / Python | Apache-2.0 |
 
 All four now have a harness, and none has been run against yet — Josev remains the only counterparty
-with recorded sessions (`libs/Vanaheimr.V2G.Exi/docs/interop-runs/`). The harnesses share one
+with recorded sessions (`docs/interop-runs/` in the ISO15118ConformanceTests repo). The harnesses share one
 vocabulary of environment variables and one recorder; what differs is the bring-up and what each run
 can prove.
 
@@ -30,7 +32,7 @@ can prove.
 
 ## tux-evse/iso15118-simulator-rs
 
-**Harness: [`libs/Vanaheimr.V2G.Exi/tools/interop-tux-evse/`](../libs/Vanaheimr.V2G.Exi/tools/interop-tux-evse/README.md)**
+**Harness: `tools/interop-tux-evse/`**
 — built 2026-08-01, not yet run against them.
 
 A scenario runner with a **web UI** (`devtools`, injector on `:1234`, responder on `:1235`), exposing
@@ -82,7 +84,7 @@ would have invented three messages that do not exist and then reported them miss
 
 ## EDF-Lab/eVDriveFlow
 
-**Harness: [`libs/Vanaheimr.V2G.Exi/tools/interop-evdriveflow/`](../libs/Vanaheimr.V2G.Exi/tools/interop-evdriveflow/README.md)**
+**Harness: `tools/interop-evdriveflow/`**
 — built 2026-08-01, not yet run against them.
 
 ISO 15118-**20** Edition 1, DC bidirectional power transfer, **dynamic** control mode, **TLS 1.3 with
@@ -114,7 +116,7 @@ question when nothing connects.
 
 ## EVerest
 
-**Harness: [`libs/Vanaheimr.V2G.Exi/tools/interop-everest/`](../libs/Vanaheimr.V2G.Exi/tools/interop-everest/README.md)**
+**Harness: `tools/interop-everest/`**
 — built 2026-08-01, not yet run against them.
 
 The Linux Foundation Energy stack, and the widest surface of the four:
@@ -142,7 +144,7 @@ whose `EvseV2G` links `libopenv2g.so.1` — no libcbv2g in the image at all. Ope
 codebase from cbexigen, so those runs *were* independent-codec results in both directions, which is the
 opposite of what this paragraph predicted. A tag is not a version; pin the digest
 (`manager@sha256:89799fb3…`). Full account in
-[`2026-08-02-everest-iso2-dc-full-charge`](../libs/Vanaheimr.V2G.Exi/docs/interop-runs/2026-08-02-everest-iso2-dc-full-charge/notes.md).
+`2026-08-02-everest-iso2-dc-full-charge`.
 
 **Only one half is new, and it is worth being precise.** Their *charger* is new; their *car* is Josev
 in a different wrapper. So the forward direction is where the findings are, and a green reverse run

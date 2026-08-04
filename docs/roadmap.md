@@ -1,5 +1,7 @@
 # Roadmap & status
 
+> **Note:** references below to `tools/…`, the interop-run notes (`2026-…`), the reference encoders, the conformance test projects and the assumed-values sweep point into the **ISO15118ConformanceTests** conformance repository — the parent that carries this app as a submodule — not into this repository.
+
 Last updated: **2026-08-03**. Authoritative per-phase detail lives in
 [`docs/prompts/`](prompts/README.md) (the phase prompts + their status table) and the
 [`README.md`](../README.md); this file is the bird's-eye plan and the "why".
@@ -36,7 +38,7 @@ Josev stack in every direction Josev supports — the feature-gap list is **empt
 
 En route, the live runs caught and fixed **~15 real conformance bugs** invisible to loopback on our side
 and documented **~12 Josev bugs/gaps**. The full story: [Phase 5 closing report](phase5-report.md) (DoD
-scorecard + honest-gaps ledger) and the per-run write-ups under [`docs/interop-runs/`](interop-runs/).
+scorecard + honest-gaps ledger) and the per-run write-ups under `docs/interop-runs/`.
 
 The scope of that claim is worth stating precisely: **validated against Josev**, which is one live peer.
 Two peers of the same lineage cannot show what they have agreed to be wrong about, and ~15 fixes from
@@ -60,7 +62,7 @@ state C when the station asks for its cable check — our EVCC ran a **complete 
 against `EvseV2G`**: 36 exchanges through PreCharge, the CurrentDemand loop, WeldingDetection and
 SessionStop, every response `OK`, and the flow report's verdict on the route was *"matches the declared
 flow exactly"*. The first complete charging session this project has run against a station somebody
-else wrote ([`2026-08-02-everest-iso2-dc-full-charge`](interop-runs/2026-08-02-everest-iso2-dc-full-charge/notes.md)).
+else wrote (`2026-08-02-everest-iso2-dc-full-charge`).
 
 **And it counted for more than planned.** Every note on this counterparty said its `EvseV2G` sits on
 cbV2G — the encoder our corpus is generated from — so that byte agreement with it would be agreement
@@ -75,26 +77,26 @@ are pinned by digest now, and the lesson is cheaper to learn here than in a conf
 ServiceSelection, ScheduleExchange, DC_CableCheck, DC_PreCharge, the DC_ChargeLoop and
 DC_WeldingDetection to SessionStop, every response `OK`, route identical to our own recorded -20
 session. That sequence had never been answered by anything but our own SECC
-([`2026-08-03-everest-iso20-dc-full-charge`](interop-runs/2026-08-03-everest-iso20-dc-full-charge/notes.md)).
+(`2026-08-03-everest-iso20-dc-full-charge`).
 
 **And in Dynamic mode.** The same station, the same day, with the EV stating energy needs and limits
 instead of picking a schedule — and their power supply showing the difference: 400 V/120 A at the
 setpoint our car named in Scheduled, 500 V/125 A at the operating point their station chose from our
 envelope in Dynamic
-([`2026-08-03-everest-iso20-dc-dynamic`](interop-runs/2026-08-03-everest-iso20-dc-dynamic/notes.md)).
+(`2026-08-03-everest-iso20-dc-dynamic`).
 
 **And over mutual TLS 1.3.** The same station again, this time with `ENFORCE_TLS` and
 `enforce_tls_1_3`: a complete -20 DC charge on the profile's own cipher suites, our EVCC validating
 their SECC chain against a supplied trust anchor and their SECC validating ours.
 [`docs/pki-model.md`](pki-model.md) has pinned -20 to a mutual TLS 1.3 handshake since it was written,
 and **our own tests were the only thing that had ever checked it**
-([`2026-08-03-everest-iso20-dc-tls13`](interop-runs/2026-08-03-everest-iso20-dc-tls13/notes.md)).
+(`2026-08-03-everest-iso20-dc-tls13`).
 
 **And through their multiplexer.** `IsoMux` in front of both backends, one TCP port, one process: an
 ISO 15118-2 charge and an ISO 15118-20 charge minutes apart, routed on the namespace our car offered in
 `SupportedAppProtocolReq`. The closest thing to a real charger this project has met, since a station in
 the field does not know which protocol is about to arrive
-([`2026-08-03-everest-isomux-dc`](interop-runs/2026-08-03-everest-isomux-dc/notes.md)). What it could not
+(`2026-08-03-everest-isomux-dc`). What it could not
 show is a multiplexer *choosing*: our EVCC offered one protocol per session, so the case of a car that
 offers both with priorities had never been exercised. Closed later the same day in loopback and in the
 corpus — see [the multi-protocol offer](#what-remains) — with the live IsoMux rerun still open.
@@ -105,7 +107,7 @@ told `FAILED_WrongEnergyTransferMode`: our -2 EVCC **hard-coded** the energy tra
 messages earlier. EVerest's AC SIL is single-phase and was right to refuse. Fixed the same day, with the
 offer named in the refusal when nothing matches; ISO 15118-2 AC then completes, run twice. **-20 AC gets
 nine phases and stops at a contactor their SIL expects its own EV module to close**
-([`2026-08-03-everest-ac`](interop-runs/2026-08-03-everest-ac/notes.md)).
+(`2026-08-03-everest-ac`).
 
 That is the third defect of the same shape in three days — **a value taken from our own assumption where
 the protocol supplies one** — after the unread response code and the unbounded poll. All three were
@@ -196,7 +198,7 @@ a charge; the other two stop somewhere worth naming:
   (`NO_CONNECTOR_AVAILABLE`), where a deployment would have OCPP. And **-20 PnC cannot be run against
   them at all** — `auth_services.push_back(…PnC)` is commented out in `Evse15118D20` with
   *"Currently Plug&amp;Charge is not supported and ignored"*, so that item moves off this list and onto
-  theirs ([`2026-08-03-everest-pnc`](interop-runs/2026-08-03-everest-pnc/notes.md)). One real wall remains: **their -20 AC expects their own EV module to
+  theirs (`2026-08-03-everest-pnc`). One real wall remains: **their -20 AC expects their own EV module to
   close the contactor**, so getting past `PowerDelivery(Start)` there means driving their EV-side
   hardware simulation and not only the car's CP line. **MCS stays parked:** `config-sil-mcs.yaml` is
   not in 2025.10 either.
@@ -227,7 +229,7 @@ charges through EVerest's `IsoMux` from a two-entry offer, and the second one �
 array order and returns on the first namespace starting with `-20`. Our EVCC followed their answered
 SchemaID (2) into the -20 machine rather than its own ranking, which is exactly what the feature is
 for; a car that had chosen its machine first would have spoken -2 at a -20 backend
-([`2026-08-03-everest-isomux-both`](interop-runs/2026-08-03-everest-isomux-both/notes.md)). Their
+(`2026-08-03-everest-isomux-both`). Their
 `SupportedAppProtocolRes` for that offer is byte-identical to the one our own SECC records in the
 `iso2-ac-eim-sapboth` trace.
 
@@ -330,7 +332,7 @@ have already landed are in [Completed extras](#completed-extras) below:
   `03350be` codec commit. **Standing up an EVerest node is done** — `EvseV2G` has been run twice
   (2026-08-02) from `ghcr.io/everest/everest-demo/manager:main`, which needs no `everest-core` build,
   so this task is now a matter of repeating an existing recipe
-  ([`tools/interop-everest/`](../tools/interop-everest/README.md)). `Evse15118D20` and `IsoMux` are
+  (`tools/interop-everest/`). `Evse15118D20` and `IsoMux` are
   configuration changes away.
 
 ### Completed extras
@@ -395,14 +397,14 @@ or the one added later, silently unchecked.
 our own SECC, and our own SECC never says FAILED. The corpus is silent on this by construction, and so
 is every replay built on it. It took a station that says it — which is the §1.3 argument in one
 paragraph, arrived at the hard way. Full account:
-[`docs/interop-runs/2026-08-01-edf-iso20-dc-notls/`](interop-runs/2026-08-01-edf-iso20-dc-notls/notes.md).
+`docs/interop-runs/2026-08-01-edf-iso20-dc-notls/`.
 
 **Exercised in the field the next day, by a different peer.** On 2026-08-02 EVerest's `EvseV2G`
 answered `CableCheckRes` with `FAILED`, and the session ended on that line instead of continuing into
 PreCharge. Two unrelated stacks, two protocols, and both refuse at the **cable check** — it is the first
 message where a station has to consult hardware, and a peer arriving over TCP has none. So it is the
 natural first `FAILED` of any bench run, and the one a fixture built from our own SECC will never
-contain: [`2026-08-02-everest-iso2-dc-mqtt-auth/`](interop-runs/2026-08-02-everest-iso2-dc-mqtt-auth/notes.md).
+contain: `2026-08-02-everest-iso2-dc-mqtt-auth/`.
 
 #### ✅ The ongoing-poll deadline (2026-08-02)
 
@@ -426,7 +428,7 @@ ports have no clock on their `Evcc2` and use a monotonic one.
 Writing the test made that concrete — the station had to answer the poll *outside* `Secc2`/`Secc20Dc`,
 because their sequence guards reject a second `AuthorizationReq`. A station that never moves on is not
 a thing either of our state machines can be. Full account:
-[`docs/interop-runs/2026-08-02-everest-iso2-dc-notls/`](interop-runs/2026-08-02-everest-iso2-dc-notls/notes.md).
+`docs/interop-runs/2026-08-02-everest-iso2-dc-notls/`.
 
 The rerun against the same station later that day, this time authorized, is the other half of the
 evidence: seven authorization polls and 35 cable-check polls, both far inside the limit, and the guard
@@ -439,7 +441,7 @@ Three findings of one shape in three days made the fourth worth *looking* for ra
 counterparty to trip over. Every place either EVCC puts a value into a request, checked against "did the
 station already tell us this?" — and the answer written down either way, because a sweep that records
 only its hits cannot be repeated. Full account, including the eleven places that were already correct:
-[`docs/assumed-values-sweep.md`](assumed-values-sweep.md).
+`docs/assumed-values-sweep.md`.
 
 **Four found, all fixed:**
 
@@ -486,7 +488,7 @@ nothing made only of our own parts can tell them apart. Grouped with
 taken from our own assumption where the protocol supplies one.** The sweep that followed is
 [its own entry](#-the-sweep-for-the-fourth-2026-08-03).
 
-Full account: [`2026-08-03-everest-ac`](interop-runs/2026-08-03-everest-ac/notes.md).
+Full account: `2026-08-03-everest-ac`.
 
 #### ✅ The Dynamic EVCC (2026-08-03)
 
@@ -520,7 +522,7 @@ is the capability, not a test. Named here rather than left to be found:
 [port Dynamic to the two ports](#what-remains).
 
 Live the same day, against `Evse15118D20`:
-[`2026-08-03-everest-iso20-dc-dynamic/`](interop-runs/2026-08-03-everest-iso20-dc-dynamic/notes.md).
+`2026-08-03-everest-iso20-dc-dynamic/`.
 
 #### ✅ An image tag is not a version (2026-08-03)
 
@@ -546,7 +548,7 @@ Three consequences, in both directions:
 **Every run write-up now records the image digest**, and "which build is this actually" is a question
 the harness READMEs ask before the first byte, with the `ldd`/`release.json` commands to answer it.
 Full account:
-[`docs/interop-runs/2026-08-03-everest-iso20-dc-full-charge/`](interop-runs/2026-08-03-everest-iso20-dc-full-charge/notes.md).
+`docs/interop-runs/2026-08-03-everest-iso20-dc-full-charge/`.
 
 #### ✅ MCS — Megawatt Charging System (2026-07-25)
 
@@ -579,7 +581,7 @@ headline figures rather than values read out of the Amendment text.
 
 *Concrete since 2026-08-01:* EVerest ships **`config/config-sil-mcs.yaml`**, so the live counterpart
 for MCS is a named configuration rather than a hope, and the harness to drive it exists
-([`tools/interop-everest/`](../tools/interop-everest/README.md)). It is deliberately last in that
+(`tools/interop-everest/`). It is deliberately last in that
 harness's scenario order — the plain -2 and -20 sessions have to be clean before a service-id question
 is worth asking — but it is the first thing that could turn "not externally validated" above into
 either a confirmation or a finding.
@@ -714,9 +716,9 @@ question for each is **what a disagreement with it would prove**:
 
 | Counterparty | Harness | EXI lineage | What a disagreement means |
 |---|---|---|---|
-| [tux-evse/iso15118-simulator-rs](https://github.com/tux-evse/iso15118-simulator-rs) (Rust, -2) | [`tools/interop-tux-evse/`](../tools/interop-tux-evse/README.md) | cbexigen — **ours** | never EXI, by construction: sequencing, framing or timing |
-| [EDF-Lab/eVDriveFlow](https://github.com/EDF-Lab/eVDriveFlow) (Python, **-20 Ed. 1**) | [`tools/interop-evdriveflow/`](../tools/interop-evdriveflow/README.md) | **OpenEXI — independent** | either layer: the only counterparty that is an oracle for both |
-| [EVerest](https://github.com/EVerest/everest-core) (C/C++/Python, DIN/-2/-20) | [`tools/interop-everest/`](../tools/interop-everest/README.md) | cbV2G — **ours** — at HEAD; **OpenV2G — independent** in the `:main` demo image we ran (car side: Josev) | as run: either layer. At HEAD: station-side sequencing/timing only. Car side little either way — `PyEvJosev` is Josev in a wrapper |
+| [tux-evse/iso15118-simulator-rs](https://github.com/tux-evse/iso15118-simulator-rs) (Rust, -2) | `tools/interop-tux-evse/` | cbexigen — **ours** | never EXI, by construction: sequencing, framing or timing |
+| [EDF-Lab/eVDriveFlow](https://github.com/EDF-Lab/eVDriveFlow) (Python, **-20 Ed. 1**) | `tools/interop-evdriveflow/` | **OpenEXI — independent** | either layer: the only counterparty that is an oracle for both |
+| [EVerest](https://github.com/EVerest/everest-core) (C/C++/Python, DIN/-2/-20) | `tools/interop-everest/` | cbV2G — **ours** — at HEAD; **OpenV2G — independent** in the `:main` demo image we ran (car side: Josev) | as run: either layer. At HEAD: station-side sequencing/timing only. Car side little either way — `PyEvJosev` is Josev in a wrapper |
 
 What each is actually *for*, beyond the byte question:
 
@@ -736,9 +738,9 @@ What each is actually *for*, beyond the byte question:
   *Since 2026-08-02 it is also the only counterparty we have completed a charge against.* Both walls
   fell to the same idea — their whole module graph is addressable over MQTT
   (`everest/<module_id>/<impl_id>/var` and `/cmd`, plus a bare-string external interface for the car
-  simulator). [`mqtt-authorize.sh`](../tools/interop-everest/mqtt-authorize.sh) publishes their own
+  simulator). `mqtt-authorize.sh` publishes their own
   token on their own topic, triggered by the HLC;
-  [`sil-car.sh`](../tools/interop-everest/sil-car.sh) plugs their simulated car in and moves its CP
+  `sil-car.sh` plugs their simulated car in and moves its CP
   line to state C when the station starts its cable check. Neither patches a line of EVerest.
 
 **Shared machinery, so a fourth harness is mostly a README.** One vocabulary of environment variables
