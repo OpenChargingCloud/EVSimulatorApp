@@ -58,7 +58,7 @@ write path has the mirror of it: `value >>> i`, never `>>`.
 pass as the C#, Kotlin and Swift codecs:
 
 ```bash
-dotnet run --project libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Codegen -c Release -- \
+dotnet run --project tools/EVSimulatorApp.Codegen -c Release -- \
   --xsd libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Prototype/Schemas/V2G_CI_AppProtocol.xsd \
   --out typescript/src/appprotocol \
   --lang typescript --namespace cloud.charging.v2g.appprotocol --codec SupportedAppProtocolCodec
@@ -68,7 +68,7 @@ ISO 15118-20 arrived on 2026-08-04 — CommonMessages, AC and DC, each its own s
 payload type and its own copy of the XMLDSig schema:
 
 ```bash
-dotnet run --project libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Codegen -c Release -- \
+dotnet run --project tools/EVSimulatorApp.Codegen -c Release -- \
   --xsd "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonMessages.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/V2G_CI_CommonTypes.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/new/Vanaheimr.V2G.Exi.Iso15118_20.CommonMessages/Schemas/xmldsig-core-schema.xsd" \
   --out typescript/src/iso20common \
   --lang typescript --namespace cloud.charging.v2g.iso20.common --codec CommonMessagesCodec \

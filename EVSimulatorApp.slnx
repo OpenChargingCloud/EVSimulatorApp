@@ -38,5 +38,7 @@
     <Project Path="pairing/EVSimulatorApp.Pairing.Tests/EVSimulatorApp.Pairing.Tests.csproj" />
     <Project Path="pairing/EVSimulatorApp.Pairing/EVSimulatorApp.Pairing.csproj" />
     <Project Path="pairing/EVSimulatorApp.Pi/EVSimulatorApp.Pi.csproj" />
+  <Project Path="tools/EVSimulatorApp.Codegen/EVSimulatorApp.Codegen.csproj" />
+  <Project Path="tools/EVSimulatorApp.Codegen.Tests/EVSimulatorApp.Codegen.Tests.csproj" />
   </Folder>
 </Solution>

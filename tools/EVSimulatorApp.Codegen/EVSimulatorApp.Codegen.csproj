@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>cloud.charging.open.protocols.ISO15118.EXI.Codegen</RootNamespace>
+    <AssemblyName>EVSimulatorApp.Codegen</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    The EXI codec generator lives in WWCP_ISO15118, but only its C# back end is of any use to a
+    .NET consumer. The Kotlin, Swift and TypeScript back ends exist for this app's ports and
+    nobody else, so they live here — Emit/ next to this file — and the shared parts come from the
+    submodule as linked source.
+
+    Linked rather than referenced, for the same reason the generator's own driver did it: the
+    SourceGenerator project targets netstandard2.0, is an analyzer (IncludeBuildOutput=false),
+    and carries a Roslyn dependency this tool must not. Excluding exactly the two Roslyn-bound
+    files is the standing proof of that claim — if the front end ever grows a Roslyn dependency,
+    this project stops compiling.
+
+    The cost of the split is real and worth naming: CodecEmitter is the base class all four back
+    ends specialise, and it stays on the other side of the submodule boundary. A change to it is
+    a change to two repositories.
+  -->
+  <PropertyGroup>
+    <ExiGenerator>..\..\libs\Vanaheimr.V2G.Exi\libs\WWCP_ISO15118\new\Vanaheimr.V2G.Exi.SourceGenerator</ExiGenerator>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(ExiGenerator)\Xsd\**\*.cs"     LinkBase="Linked\Xsd" />
+    <Compile Include="$(ExiGenerator)\Grammar\**\*.cs" LinkBase="Linked\Grammar" />
+    <Compile Include="$(ExiGenerator)\Emit\**\*.cs"    LinkBase="Linked\Emit" />
+    <Compile Remove="$(ExiGenerator)\**\obj\**\*.cs" />
+    <Compile Remove="$(ExiGenerator)\**\bin\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Everything the generator declares is internal, and the emitters are compiled into this
+         assembly rather than referenced, so the tests have to be let in explicitly. -->
+    <InternalsVisibleTo Include="EVSimulatorApp.Codegen.Tests" />
+  </ItemGroup>
+
+</Project>

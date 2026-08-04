@@ -3,7 +3,7 @@ import PackageDescription
 
 // Swift EXI codecs for ISO 15118-2 / -20 — the third back end of the shared generator, next to
 // the C# and Kotlin ones. Only `ExiRuntime` is hand-written; every codec module that follows is
-// emitted by `Vanaheimr.V2G.Exi.Codegen --lang swift` and checked in, as on the Kotlin side.
+// emitted by `EVSimulatorApp.Codegen --lang swift` and checked in, as on the Kotlin side.
 //
 // One target per message set (rather than one big module) for the same reason `kotlin/` splits:
 // the -20 sets are tens of thousands of generated lines, and Swift's type checker degrades badly

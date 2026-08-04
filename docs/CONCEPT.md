@@ -986,7 +986,7 @@ Kotlin tree in this repo, `8d8d8c4`):
 
 - **`ICodecEmitter` seam**, with the C# spelling of a type and the C# nullability rule moved into
   `Emit/CSharpSyntax.cs`.
-- **`Vanaheimr.V2G.Exi.Codegen`** — a Roslyn-free driver, because a Roslyn incremental generator
+- **`EVSimulatorApp.Codegen`** — a Roslyn-free driver, because a Roslyn incremental generator
   can only contribute C# to its own compilation. It links `Xsd/`, `Grammar/`, `Emit/` but *not*
   the two Roslyn-bound files, so the front end's independence is enforced by the build.
 - **`KotlinCodecEmitter`** + a Kotlin EXI runtime (`kotlin/exi-runtime`), scoped to what

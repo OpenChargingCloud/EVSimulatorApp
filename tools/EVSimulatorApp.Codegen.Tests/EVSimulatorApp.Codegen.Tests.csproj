@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="4.2.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../EVSimulatorApp.Codegen/EVSimulatorApp.Codegen.csproj" />
+  </ItemGroup>
+
+  <!--
+    Every one of these tests is differential: the Kotlin and Swift back ends are asserted against
+    what the C# back end emits for the same schema. That is what caught a TypeScript emitter
+    spelling an optional type the way Kotlin does. The comparison therefore needs the C# emitter
+    too, which arrives through the linked sources in EVSimulatorApp.Codegen.
+
+    EmitterHarness stays in WWCP_ISO15118 — its own C# emitter tests use it — and is linked here
+    rather than copied, so the two sides cannot drift into disagreeing about what "emit this
+    schema" means.
+  -->
+  <ItemGroup>
+    <Compile Include="..\..\libs\Vanaheimr.V2G.Exi\libs\WWCP_ISO15118\new\Vanaheimr.V2G.Exi.Tests\Infrastructure\EmitterHarness.cs"
+             LinkBase="Linked" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,4 @@
+# Shell scripts run under bash — on Linux and macOS natively, under WSL on Windows. CRLF breaks
+# them at the first line ("$'\r': command not found"), and core.autocrlf on a Windows checkout
+# would introduce it silently. Pin them to LF regardless.
+*.sh text eol=lf
