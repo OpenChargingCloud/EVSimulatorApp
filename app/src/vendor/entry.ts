@@ -27,12 +27,16 @@ import { DigestMethodType } from "@open-charging-cloud/v2g-exi/src/xmldsig/Diges
 import { CommonMessagesCodec } from "@open-charging-cloud/v2g-exi/src/iso20common/CommonMessagesCodec.ts";
 import { AuthorizationReq } from "@open-charging-cloud/v2g-exi/src/iso20common/AuthorizationReq.ts";
 
-// Checked-in copies of three recordings from the canonical corpus, which lives with the C# session
+// Checked-in copies of six recordings from the canonical corpus, which lives with the C# session
 // tests that record it — in the ISO15118ConformanceTests repository, the parent that carries this
 // app as a submodule. Copies because a build cannot skip: the tests reach for the corpus and skip
 // standalone, but this import either resolves or there is no bundle. `app/test/traces.test.js` is
 // the drift guard — under the conformance checkout it holds each copy byte-identical to the corpus.
-import acEim from "./traces/Session.iso2-ac-eim.trace.json" with { type: "json" };
+//
+// The -2 AC EIM slot holds the *metered* recording: same twelve exchanges, same message order, 21 of
+// its 24 frames byte-identical to the plain one — the three that differ are the ChargingStatusRes
+// carrying a signed reading. See the note below.
+import acEim from "./traces/Session.iso2-ac-eim-meter.trace.json" with { type: "json" };
 import acPnc from "./traces/Session.iso2-ac-pnc.trace.json" with { type: "json" };
 import dcEim from "./traces/Session.iso2-dc-eim.trace.json" with { type: "json" };
 import acEim20 from "./traces/Session.iso20-ac-eim.trace.json" with { type: "json" };
@@ -59,6 +63,19 @@ import dcPnc20 from "./traces/Session.iso20-dc-pnc.trace.json" with { type: "jso
  * into this bundle — 743 kB to 1.9 MB, and that is the cost of the feature rather than of the demo —
  * next to which a recording is 7–10 kB. Not bundling them would have meant carrying every -20 codec
  * and still refusing every -20 session.
+ *
+ * ## Why the -2 AC EIM slot is the metered recording
+ *
+ * `session.js`'s `meterCheckFor` verifies a station's signed reading against the key the session
+ * announced, and it is the only claim in the inspector that is *checked* rather than displayed. It
+ * had never been reachable here: the key rides `sessionStarted.meterKey`, which this bundle's own
+ * back end did not emit until 2026-08-05, and no bundled recording carried a signed reading anyway.
+ * So the path existed, was tested against C#'s corpus, and was dead in the app.
+ *
+ * The key is keyed `protocol/mode/authorization`, and the metered recording is *the same session* —
+ * same twelve exchanges, same message order, 21 of 24 frames byte-identical — so it takes the slot
+ * rather than needing one. What the demo gains is the three frames that differ: a real P-256
+ * signature over the station's own reading, bound to this session, checked in the WebView.
  */
 const TRACES: Record<string, unknown> = {
     "iso15118-2/ac/eim":   acEim,

@@ -1,10 +1,14 @@
 {
   "schemaVersion": 3,
   "generator": "Vanaheimr.V2G.Simulation.Tests.Traces.SessionTraceCorpusTests.RegenerateTheCorpus",
-  "name": "iso2-ac-eim",
+  "name": "iso2-ac-eim-meter",
   "protocol": "iso15118-2",
   "mode": "ac",
-  "note": "AC, external payment, happy path: SAP, setup, service discovery, authorization poll, charge-parameter discovery, three charging-status cycles, stop.",
+  "note": "AC, EIM, with a signing meter fitted: every ChargingStatusRes carries a MeterInfo whose SigMeterReading is a real P-256 signature over the station\u0027s own reading, bound to this session. The first recorded session a vehicle could verify a station\u0027s meter from.",
+  "meterKey": {
+    "x": "8df1dbff9ad6faf3951ee551fc3983c9b00c52e5ee37c1864698f1fbc8f48884",
+    "y": "41a9a14496be6e552fe391b91ae69bc0745f1a30a141be2fe1e830b38aa5cbea"
+  },
   "exchanges": [
     {
       "index": 0,
@@ -107,7 +111,8 @@
       "response": {
         "payloadType": "0x8001",
         "message": "ChargingStatusResType",
-        "frame": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40018000000"
+        "frame": "01fe8001000000738098020282c3034383c40450c0002d1114a905090ca914c4000818ac829c549a54686e62620b7010201d62da7863c68084c9ed015778fdb6f8926208fbe2d5b0ecff9d20189906e5b78f81bce251e54fe27431616b89407b796f41a032a21865a5457b95359f830d931203cb5b281840000000",
+        "meterSignature": "3ac5b4f0c78d010993da02aef1fb6df124c411f7c5ab61d9ff3a4031320dcb6f1f0379c4a3ca9fc4e862c2d71280f6f2de8340654430cb4a8af72a6b3f061b26"
       }
     },
     {
@@ -120,7 +125,8 @@
       "response": {
         "payloadType": "0x8001",
         "message": "ChargingStatusResType",
-        "frame": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40018000000"
+        "frame": "01fe8001000000738098020282c3034383c40450c0002d1114a905090ca914c4000818ac829c549a54686e62620ee02020507c6a8cf4d60e18990af3a10304a4ae31b0b0c8f378db6f955ef5fecc13d337273b79f5bd605d061584c07578cd9b5e169a3bd208fb28067059e853c8aa9dcd1203cb5b281840000000",
+        "meterSignature": "a0f8d519e9ac1c313215e7420609495c63616191e6f1b6df2abdebfd9827a66e4e76f3eb7ac0ba0c2b0980eaf19b36bc2d3477a411f6500ce0b3d0a791553b9a"
       }
     },
     {
@@ -133,7 +139,8 @@
       "response": {
         "payloadType": "0x8001",
         "message": "ChargingStatusResType",
-        "frame": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40018000000"
+        "frame": "01fe8001000000738098020282c3034383c40450c0002d1114a905090ca914c4000818ac829c549a54686e62620a5040201f5836025ab94b526f9dfa628342e3b09754eb4eb7f90feb9797b296077d9f038934e90e333920da1be1f00098cf49c318206c1fa1a3eac646b7b20106234cb11203cb5b281840000000",
+        "meterSignature": "3eb06c04b57296a4df3bf4c50685c7612ea9d69d6ff21fd72f2f652c0efb3e071269d21c667241b437c3e001319e93863040d83f4347d58c8d6f64020c469962"
       }
     },
     {

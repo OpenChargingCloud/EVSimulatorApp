@@ -43,7 +43,7 @@ const repositoryRoot = (() => {
 })();
 
 /** The recordings `app/src/vendor/entry.ts` bundles — keep the two lists in step. */
-const BUNDLED = ["iso2-ac-eim", "iso2-ac-pnc", "iso2-dc-eim",
+const BUNDLED = ["iso2-ac-eim-meter", "iso2-ac-pnc", "iso2-dc-eim",
                  "iso20-ac-eim", "iso20-dc-eim", "iso20-dc-pnc"];
 
 const canonical = name => readFileSync(join(repositoryRoot,
@@ -55,6 +55,10 @@ const skipNoCorpus = (() => {
 })();
 
 
+const bundled = name => JSON.parse(readFileSync(
+    join(repositoryRoot, `app/src/vendor/traces/Session.${name}.trace.json`), "utf8"));
+
+
 test("every bundled demo trace is byte-identical to the canonical corpus", { skip: skipNoCorpus }, () => {
 
     for (const name of BUNDLED)
@@ -62,4 +66,33 @@ test("every bundled demo trace is byte-identical to the canonical corpus", { ski
             readFileSync(join(repositoryRoot, `app/src/vendor/traces/Session.${name}.trace.json`), "utf8"),
             canonical(name),
             `${name}: app/src/vendor/traces/ is stale — re-copy it from the conformance corpus`);
+});
+
+
+/**
+ * The demo can still demonstrate the one claim the inspector *checks*.
+ *
+ * `session.js`'s `meterCheckFor` verifies a station's signed reading against the key the session
+ * announced — everything else in the inspector is displayed rather than verified. Reaching it needs
+ * two things from the same recording, and the -2 AC EIM slot holds the metered session so that it
+ * has both. Swapping the plain recording back in would take nothing away that is visible on screen
+ * and would silently remove the only verdict in the app that can come out wrong.
+ *
+ * Reads the bundled copies, so it holds standalone too — where the corpus is absent and the
+ * byte-identity check above skips.
+ */
+test("a bundled recording brings both halves of a meter check: a key and a signed reading", () => {
+
+    const trace = bundled("iso2-ac-eim-meter");
+
+    assert.match(trace.meterKey?.x ?? "", /^[0-9a-f]{64}$/, "no meter key to check a reading against");
+    assert.match(trace.meterKey?.y ?? "", /^[0-9a-f]{64}$/);
+
+    const signed = trace.exchanges
+        .flatMap(exchange => [exchange.request, exchange.response])
+        .filter(frame => frame?.meterSignature);
+
+    // Three, one per charge-loop sample: a single reading would verify and say nothing about a
+    // register that has to advance.
+    assert.ok(signed.length >= 3, `only ${signed.length} signed readings are bundled`);
 });
