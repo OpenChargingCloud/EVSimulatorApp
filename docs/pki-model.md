@@ -167,16 +167,22 @@ their own focused tests below.
 
 The mutual-TLS path is implemented (`Vanaheimr.V2G.Simulation`): `TlsOptions` carries the EVCC
 client certificate + SECC "require & validate client cert"; `TcpV2GClient`/`TcpV2GListener`
-present/require them. The `Vanaheimr.V2G.Simulation.Tests` project references the WWCP PKI
-builder and generates a hierarchy at test time (`TestData/V2GTestPki.cs`, BouncyCastle →
-`X509Certificate2` via in-memory PKCS#12), then runs -20 AC/DC sessions over a bilaterally
-authenticated `SslStream` (`E2E/MutualTlsLoopbackTests.cs`): SECC leaf = server, Vehicle leaf =
-client, both anchored to the shared V2G Root, plus a negative test (certless client rejected).
+present/require them. The E2E coverage lives in the **ISO15118ConformanceTests** repository
+(`ISO15118ConformanceTests.Simulation`, which is the former `Vanaheimr.V2G.Simulation.Tests`): it
+references the WWCP PKI builder and generates a hierarchy at test time (`TestData/V2GTestPki.cs`,
+BouncyCastle → `X509Certificate2` via in-memory PKCS#12), then runs -20 AC/DC sessions over a
+bilaterally authenticated `SslStream` (`E2E/MutualTlsLoopbackTests.cs`): SECC leaf = server, Vehicle
+leaf = client, both anchored to the shared V2G Root, plus a negative test (certless client rejected).
+What stays here is `Vanaheimr.V2G.Simulation.Tests`, the unit tests of the transport's own decisions —
+backend selection and the `TlsOptions` → `BcTlsOptions` bridge (`Transport/TlsBackendTests.cs`,
+`Transport/TlsOptionsBridgeTests.cs`).
 
 **Two TLS backends (selectable).** Windows Schannel cannot use P-521 certificates for TLS
 (verified: P-256 mutual TLS succeeds on TLS 1.3/1.2, **P-521 fails** "Authentication failed"
 server-side; OpenSSL-backed .NET on Linux does support it). So the simulation offers two TLS
-backends, both exposing a plain `Stream`:
+backends, both exposing a plain `Stream`, and `TlsOptions.Backend` says which one carries a session
+(`Transport/TlsBackend.cs`; `TlsPlatform.ResolveBackend` is the arbiter, and `V2G_TLS_BACKEND` is the
+same switch for a run that cannot edit the caller):
 
 - **.NET `SslStream`** (default, `TlsOptions`) — fast, platform-native; on Windows limited to
   Schannel-supported curves, so its mutual-TLS tests use P-256 to exercise the mechanism.
@@ -189,6 +195,27 @@ backends, both exposing a plain `Stream`:
 
 So the Schannel P-521 limitation is a property of one backend, not a project gap: pick the
 BouncyCastle backend for the secp521r1/Ed448 -20 TLS profile, the .NET backend otherwise.
+
+**The Windows client-chain trap, and why the choice is the caller's.** Schannel builds and validates
+the client chain *locally* before the handshake and refuses to present one whose root the machine does
+not trust — `Die Zertifikatkette wurde von einer nicht vertrauenswürdigen Zertifizierungsstelle
+ausgestellt`, upstream of the wire. Every V2G test PKI is exactly that, so on Windows a -20 mutual-TLS
+client could not be exercised at all without installing a throwaway root machine-wide (measured
+2026-08-05 against everest-core 2026.02.1; Finding 4 of that run's notes). The managed backend has no
+trust store in the path: it sends the chain and leaves path building to the peer, which is what -2/-20
+expect anyway. Setting `TlsOptions.Backend = BouncyCastle` is therefore the fix, and it also buys the
+suite pin and secp521r1 that Schannel cannot give. The offline proof of the route is
+`E2E/Iso20BackendOptInLoopbackTests.cs` in the conformance repository: a strict-20 P-521 hierarchy,
+configured entirely through `TlsOptions`, running -20 AC and DC sessions to completion on Windows with
+nothing installed anywhere.
+
+`Auto` deliberately does **not** make that call by itself. It answers "can this platform serve the
+session at all", and Windows passes that test — it does TLS 1.3. Widening it to reroute every
+TLS-1.3-with-client-certificate session would break the sessions `SslStream` is uniquely good at: the
+managed backend signs in managed code, so it needs the leaf's private key in process (PKCS#12 imported
+`Exportable`), and a key held by the Windows store or an HSM — which works on Schannel today — would
+start failing in `BcCredentialBridge`. So the capability rule stays automatic and the profile choice
+stays explicit.
 
 ## Suite pinning: what each platform allows
 
@@ -207,6 +234,7 @@ Consequences the code encodes:
 
 - macOS routes TLS-1.3-only sessions to the BouncyCastle backend (`Transport/TlsPlatform.cs`)
   rather than letting them downgrade — a TLS-1.2 "-20 session" would be silently non-conformant.
+  That is the only automatic diversion; anywhere else the managed backend is asked for by name.
 - Where suites cannot be pinned, `TlsAssert` records what was negotiated instead of failing.
   Measured unpinned: -2 gets `TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384` on **both** platforms — a
   real profile deviation (the profile wants AES-128-CBC) — while -20 gets

@@ -24,6 +24,7 @@
   <Folder Name="/simulation/">
     <Project Path="simulation/Vanaheimr.V2G.Simulation/Vanaheimr.V2G.Simulation.csproj" />
     <Project Path="simulation/Vanaheimr.V2G.Simulation.Cli/Vanaheimr.V2G.Simulation.Cli.csproj" />
+    <Project Path="simulation/Vanaheimr.V2G.Simulation.Tests/Vanaheimr.V2G.Simulation.Tests.csproj" />
   </Folder>
   <Folder Name="/experiments/">
     <Project Path="experiments/Vanaheimr.V2G.Experiments.Pqc/Vanaheimr.V2G.Experiments.Pqc.csproj" />
