@@ -751,7 +751,7 @@ let transactions = {};
 let skipNoOcpp = false;
 try {
     transactions = JSON.parse(readFileSync(
-        join(repositoryRoot, "../ISO15118ConformanceTests.Simulation/Vectors/Session.ocpp-transactions.json"),
+        join(repositoryRoot, "../../ISO15118ConformanceTests.Simulation/Vectors/Session.ocpp-transactions.json"),
         "utf8")).transactions;
 } catch {
     skipNoOcpp = "OCPP transaction corpus absent — it lives in the ISO15118ConformanceTests repo";

@@ -150,7 +150,7 @@ public sealed class RecordedStation : IAsyncDisposable
             directory = directory.Parent;
 
         var path = Path.Combine(directory?.FullName ?? throw new DirectoryNotFoundException("repository root"),
-                                "../ISO15118ConformanceTests.Simulation/Vectors",
+                                "../../ISO15118ConformanceTests.Simulation/Vectors",
                                 $"Session.{name}.trace.json");
 
         if (!File.Exists(path))

@@ -88,7 +88,7 @@ struct SessionTrace: Decodable {
         }
 
         let file = dir.appendingPathComponent(
-            "../ISO15118ConformanceTests.Simulation/Vectors/Session.\(name).trace.json")
+            "../../ISO15118ConformanceTests.Simulation/Vectors/Session.\(name).trace.json")
 
         let trace = try JSONDecoder().decode(SessionTrace.self, from: Data(contentsOf: file))
 

@@ -22,7 +22,7 @@ class V2GRevocationTest {
         var dir = File(".").absoluteFile
         while (!File(dir, "EVSimulatorApp.slnx").isFile)
             dir = dir.parentFile ?: error("repository root not found")
-        val file = File(dir, "../ISO15118ConformanceTests.Simulation/" +
+        val file = File(dir, "../../ISO15118ConformanceTests.Simulation/" +
                              "Vectors/Certificate.chain.vectors.json")
         JsonParser.parseString(file.readText()).asJsonObject.getAsJsonObject("revocation")
     }

@@ -116,7 +116,7 @@ class SessionConfigTest {
     fun `a trace runner replays the recorded session`() {
 
         val traceFile = File(repositoryRoot,
-            "../ISO15118ConformanceTests.Simulation/Vectors")
+            "../../ISO15118ConformanceTests.Simulation/Vectors")
             .listFiles { f -> f.name.startsWith("Session.") && f.name.endsWith(".trace.json") }!!
             .sortedBy { it.name }
             .first()

@@ -67,7 +67,7 @@ public class SessionEventStreamTests
     /// that replay it therefore run under conformance and skip when the app is checked out alone.
     /// </summary>
     private static string TraceDirectory =>
-        Path.Combine(RepositoryRoot, "../ISO15118ConformanceTests.Simulation/Vectors");
+        Path.Combine(RepositoryRoot, "../../ISO15118ConformanceTests.Simulation/Vectors");
 
     private static string CorpusPath =>
         Path.Combine(RepositoryRoot, "bridge/EVSimulatorApp.Bridge.Tests/Vectors", CorpusFile);

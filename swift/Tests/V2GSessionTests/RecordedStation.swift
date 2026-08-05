@@ -197,7 +197,7 @@ final class RecordedStation: @unchecked Sendable {
     static func load(_ name: String) throws -> JsonObject {
 
         let file = repositoryRoot.appendingPathComponent(
-            "../ISO15118ConformanceTests.Simulation/Vectors/Session.\(name).trace.json")
+            "../../ISO15118ConformanceTests.Simulation/Vectors/Session.\(name).trace.json")
 
         return try JsonValue.parse(String(contentsOf: file, encoding: .utf8)) as! JsonObject
     }

@@ -51,7 +51,7 @@ class EvSimulatorPluginTest {
      * payload with a marshalled `JSObject` — the design this module rejects — left it green.
      */
     private fun events(): List<BridgeEvent> =
-        File(repositoryRoot, "../ISO15118ConformanceTests.Simulation/Vectors")
+        File(repositoryRoot, "../../ISO15118ConformanceTests.Simulation/Vectors")
             .listFiles { f -> f.name.startsWith("Session.") && f.name.endsWith(".trace.json") }!!
             .sortedBy { it.name }
             .flatMap {

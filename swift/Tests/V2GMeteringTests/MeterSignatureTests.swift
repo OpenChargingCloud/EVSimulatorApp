@@ -39,7 +39,7 @@ final class MeterSignatureTests: XCTestCase {
                 dir.appendingPathComponent("EVSimulatorApp.slnx").path) { break }
         }
         let url = dir.appendingPathComponent(
-            "../ISO15118ConformanceTests.Simulation/Vectors/Meter.signing.vectors.json")
+            "../../ISO15118ConformanceTests.Simulation/Vectors/Meter.signing.vectors.json")
         guard let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any],
               let raw = json["vectors"] as? [[String: Any]]
         else { throw XCTSkip("meter corpus not found at \(url.path)") }

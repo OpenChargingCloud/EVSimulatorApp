@@ -6,7 +6,7 @@ import XCTest
 ///
 /// Written because a live peer needed it: EVerest's `EvseV2G` answered 1170 authorization polls with
 /// `OK`/`Ongoing` and this EVCC had nothing that would ever stop
-/// (`../docs/interop-runs/2026-08-02-everest-iso2-dc-notls/`). The trace corpus
+/// (`../../docs/interop-runs/2026-08-02-everest-iso2-dc-notls/`). The trace corpus
 /// cannot contain such a station, because our own SECC always finishes.
 final class OngoingGuardTests: XCTestCase {
 

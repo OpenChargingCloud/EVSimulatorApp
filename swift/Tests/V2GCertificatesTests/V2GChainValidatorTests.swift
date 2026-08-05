@@ -34,7 +34,7 @@ final class V2GChainValidatorTests: XCTestCase {
                 atPath: dir.appendingPathComponent("EVSimulatorApp.slnx").path) { break }
         }
         let file = dir.appendingPathComponent(
-            "../ISO15118ConformanceTests.Simulation/Vectors/Certificate.chain.vectors.json")
+            "../../ISO15118ConformanceTests.Simulation/Vectors/Certificate.chain.vectors.json")
         return try JSONDecoder().decode(Corpus.self, from: try Data(contentsOf: file))
     }
 

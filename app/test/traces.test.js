@@ -46,7 +46,7 @@ const repositoryRoot = (() => {
 const BUNDLED = ["iso2-ac-eim", "iso2-ac-pnc", "iso2-dc-eim"];
 
 const canonical = name => readFileSync(join(repositoryRoot,
-    `../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`), "utf8");
+    `../../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`), "utf8");
 
 const skipNoCorpus = (() => {
     try { canonical(BUNDLED[0]); return false; }

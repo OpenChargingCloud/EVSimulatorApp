@@ -34,7 +34,7 @@ const repositoryRoot = (() => {
 // tests that record it, in the parent that carries this app as a submodule. These replay checks
 // therefore run under conformance and skip when the app is checked out on its own.
 const trace = (name: string): SessionTrace => JSON.parse(readFileSync(join(repositoryRoot,
-    `../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`),
+    `../../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`),
     "utf8"));
 
 const skipNoTraces = (() => {

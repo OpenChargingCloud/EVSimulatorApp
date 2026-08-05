@@ -7,7 +7,7 @@ import ExiIso2
 /// What this -2 EVCC does when the station answers with a `FAILED` code.
 ///
 /// The -2 half of the gap eVDriveFlow exposed in the -20 EVCC on 2026-08-01
-/// (`../docs/interop-runs/2026-08-01-edf-iso20-dc-notls/`, finding 3). Same hole,
+/// (`../../docs/interop-runs/2026-08-01-edf-iso20-dc-notls/`, finding 3). Same hole,
 /// invisible for the same reason: our own SECC never answers FAILED, so the trace corpus — this port's
 /// whole oracle — contains no such response.
 final class Evcc2FailureTests: XCTestCase {

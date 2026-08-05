@@ -35,7 +35,7 @@ const sessions: Record<string, unknown[]> =
 // tests that record it, in the parent that carries this app as a submodule. These C#-vs-port replay
 // checks therefore run under conformance and skip when the app is checked out on its own.
 const trace = (name: string): SessionTrace =>
-    read(`../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`);
+    read(`../../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`);
 
 const skipNoTraces = (() => {
     try { trace("iso2-ac-eim"); return false; }

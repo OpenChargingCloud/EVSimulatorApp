@@ -25,7 +25,7 @@ final class V2GCertificateTests: XCTestCase {
                 atPath: dir.appendingPathComponent("EVSimulatorApp.slnx").path) { break }
         }
         let file = dir.appendingPathComponent(
-            "../ISO15118ConformanceTests.Simulation/Vectors/Session.pnc-material.json")
+            "../../ISO15118ConformanceTests.Simulation/Vectors/Session.pnc-material.json")
 
         let material = try JSONDecoder().decode(Material.self, from: try Data(contentsOf: file))
         let der = stride(from: 0, to: material.certificate.count, by: 2).map { i -> UInt8 in
