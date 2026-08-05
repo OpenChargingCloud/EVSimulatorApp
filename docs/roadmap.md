@@ -172,6 +172,18 @@ Everything the roadmap targeted is done — see [`phase5-report.md`](phase5-repo
 scorecard. What is left over is either a **structural non-goal** (no independent counterpart exists to
 validate against), a small cleanup, or a next step that one of the new counterparties has opened up:
 
+**⬜ HIGH PRIORITY — wire ISO 15118-20 through the TypeScript port end to end.** The -20 codecs
+arrived for TypeScript on 2026-08-04 (CommonMessages, AC, DC — generated, byte-exact, JSON-LD
+included; see `typescript/README.md`), but the bridge still dispatches `0x8001` only: a -20 frame
+becomes a named error event, the -20 corpus sessions sit outside `DECODABLE`, and
+`typescript/test/replay.test.ts` still carries the now-stale comment that the -20 sets are not
+generated. The work: dispatch the -20 payload types (`0x8002`–`0x8004`) in
+`typescript/src/bridge/replay.ts`, move the -20 sessions into `DECODABLE` — the test that must
+fail on that day is already written and says so — refresh that comment, and decide WPT/ACDP/AC-DER
+for TypeScript explicitly rather than by drift (probably "not until a session machine exists
+anywhere", but decided). Signing: WebCrypto covers P-521; Ed448 stays native-side by design
+(concept §3.3). Until this lands, TypeScript is the one port on which "-2 **and** -20" is not true.
+
 **⬜ Get further with the three new counterparties.** All four have now been run. One of them completes
 a charge; the other two stop somewhere worth naming:
 

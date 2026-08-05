@@ -73,6 +73,6 @@ that proves the simulator behaves the way the standard and the field expect.
 ## Licence
 
 The C# throughout — this repository's own projects and the `WWCP_ISO15118` codec submodule
-([`libs/WWCP_ISO15118/LICENSE`](libs/WWCP_ISO15118/LICENSE)) — is AGPL-3.0. The generated
-Kotlin/Swift/TypeScript ports carry no licence header yet; that one is the code generator's to emit,
-a pending change. Check the header of the file you are looking at.
+([`libs/WWCP_ISO15118/LICENSE`](libs/WWCP_ISO15118/LICENSE)) — is AGPL-3.0, as are the generated
+Kotlin/Swift/TypeScript ports, whose header the code generator emits. Check the header of the
+file you are looking at.

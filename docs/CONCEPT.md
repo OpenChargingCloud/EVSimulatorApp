@@ -575,8 +575,9 @@ Five certificate roles, per `docs/pki-model.md` and the CharIN V2G 2nd-gen CP:
 
 **UI model — a "Vehicle Wallet" tab:**
 
-- **Import**: PKCS#12 (`.p12`), PEM bundle, DER. Via file picker, QR (for small material),
-  clipboard, or pull from a local dev PKI service on the RPi.
+- **Import**: PKCS#12 (`.p12`), PEM bundle, DER. Via file picker, QR, clipboard, or pull from a
+  local dev PKI service on the RPi. QR import may carry key material — a deliberate, fenced
+  exception to the pairing rule, designed in §4.7.
 - **Generate on device**: keypair in Keychain/Keystore → CSR export → sign externally →
   re-import the leaf. This is the realistic OEM flow and it is the only one that keeps the
   private key from ever existing off-device.
@@ -826,9 +827,11 @@ one, so the rest of these still apply:
 - **Restrict targets by default** to private / link-local ranges. The intended counterpart is a Pi
   on your own network; a QR pointing at a public host is suspicious by construction and should
   require an explicit override (and is out of scope anyway, §8).
-- **Certificates and private keys are never transmitted** because of a scan. The QR may carry a
-  *public* fingerprint (`root`, `meter`); it can never carry or request key material, and it must
-  not be able to select which contract certificate is used for signing without confirmation.
+- **The pairing code never carries or requests key material.** It may carry a *public*
+  fingerprint (`root`, `meter`), and it must not be able to select which contract certificate is
+  used for signing without confirmation. Key material moves only over the separate wallet-import
+  payload (§4.7), which the pairing scanner refuses — so the property that matters here survives
+  that feature: no *pairing* scan can ever move a key.
 - **Optional payload signature** (`sig`): if the app already trusts a root, it can verify the QR
   itself, giving authenticated pairing. Nice-to-have, not v1.
 
@@ -944,6 +947,65 @@ Two follow-on possibilities worth recording:
   shows the verification succeeding and failing (expired slot, wrong secret, replayed code), is a
   genuinely good teaching device — and slots straight into the teaching mode (§7.8) and the
   negative-test catalogue (§6.3).
+
+### 4.7 Wallet import over QR — key material as a deliberate exception
+
+**Decision (2026-08-05): a QR code may carry contract-certificate material *including private
+keys* — as a second, fenced payload kind that the pairing scanner refuses.** §4.5's rule said
+"never"; this section narrows that rule to the pairing code and opens a separate, deliberately
+guarded door for the wallet. The reason is what this app is: a debugging tool, whose users move
+test credentials between a PKI and a phone all day and know what a private key is. The §4.1
+preference order stands — generate-on-device remains the realistic OEM flow and the only one
+under which the key never exists off-device — but a hard "never" optimised for a threat
+(production contract keys) that the tool's own scope already excludes: real chargers are out of
+scope (§8 #5), and the intended counterpart is a test PKI.
+
+The framing mirrors §4.5. The pairing QR stands in for the *plug*; the wallet-import QR stands
+in for the **factory**. A real EV's credentials arrive by manufacturing provisioning and then
+-20 `CertificateInstallation` — and the wire path is implemented and live here (§1.1), but it
+cannot bootstrap its own precondition, the OEM provisioning credential, which in a real car is
+installed at the factory a phone does not have. An out-of-band install stands in for exactly
+that step. Naming what it replaces is what keeps it principled rather than a convenience hole,
+same as the plug/SLAC/SDP table in §4.5.
+
+Five rules keep it defensible, each doing a different job:
+
+- **A separate payload kind, a separate screen.** Wallet material rides `…/evsim/wallet#…`
+  (alias `v2gsim://wallet#…`), parsed only by the wallet tab's own import screen. The pairing
+  scanner refuses it, and the wallet scanner refuses pairing codes — both refusals pinned by
+  tests. §4.5's security property survives verbatim: no *pairing* scan can ever move key
+  material. What selects the capability is the user's declared intent — standing in the wallet,
+  having chosen Import — never the content of whatever was scanned. That is the "never
+  auto-execute" rule wearing a second hat.
+- **The code alone is never the credential.** The payload is an encrypted container (PKCS#12,
+  or an AES-GCM envelope over PEM/DER), and the passphrase travels on another channel — typed,
+  spoken, or, for the Pi's dev-PKI page, derived from the pairing secret both ends already
+  share. A QR on a display is a broadcast: it ends up in camera rolls, screen-shares and
+  bug-report screenshots, and it must be worthless there. §4.6 applies the same reasoning to
+  the TOTP secret — only *derived* material may be displayed — and this is that rule, applied
+  to the wallet.
+- **Imported-by-QR is a permanent, visible property of the key.** The §3.4 keystore already
+  makes the protection level a value; a key that arrived by QR is recorded and displayed as
+  software-held and **disclosed by transport** — its bytes existed on a screen, so it can never
+  claim hardware backing, and the wallet says so for as long as the key exists. The
+  confirmation sheet shows subject, issuer, curve, validity and fingerprints before anything
+  lands; a silent import does not exist.
+- **Test material by honesty, not by detection.** The app cannot distinguish a test key from a
+  production one, so it does not pretend to. Chains rooting in the in-repo test PKI
+  (`WWCP_ISO15118_PKI`, including its `Evil/` factory) are recognised and labelled as such;
+  any other root imports behind a louder sheet stating plainly that a key imported this way is
+  to be treated as disclosed. The users are people debugging an ISO 15118 stack; the sheet's
+  job is to make "informed" true at the moment of the tap, not to refuse the tap.
+- **Capacity is a real limit, and truncation is not the answer.** A P-256 leaf plus key fits
+  one code comfortably; P-521/Ed448 with a chain gets tight (a version-40 QR holds just under
+  3 KB of binary); the post-quantum experiment's material does not fit at all. Beyond one code:
+  multi-part codes — an encrypted container split across n scans is useless until complete, so
+  the partial-exposure story stays intact — or the §4.1 dev-PKI pull, whose QR then carries
+  only a one-time token and a private-range endpoint, inheriting §4.5's target rules unchanged.
+
+What this deliberately does **not** change: the pairing payload v1 (§8 #12) is untouched; the
+in-band -2/-20 `CertificateInstallation` messages stay the standard's answer and the thing
+being simulated; and a scan still configures nothing until a human taps.
 
 ---
 
@@ -1811,6 +1873,11 @@ Done so far, in Swift's `V2GCertificates`: reading certificates and chains, the 
 its install verdicts, and chain validation against it. The use case that drove it is scanning a QR
 code to install a contract certificate and its chain, then charging with it.
 
+That scan now includes the key half: §4.7 (2026-08-05) opens a fenced wallet-import payload —
+key material, encrypted, on its own URI kind. B2 owns its parser, the two-way refusal tests
+against the pairing scanner, the import sheet, and the disclosed-by-transport marking in the
+§3.4 store.
+
 **The dependency question, decided.** This is the Swift package's first third-party *package*
 dependency — `swift-certificates`, which brings `swift-asn1` and `swift-crypto`. C# and Kotlin both
 use their platform's X.509; writing our own only in Swift would have made it the outlier in the risky
@@ -2500,6 +2567,10 @@ isn't lost.
       the cheapest thing for a hostile code to offer.
 
     Still worth doing: checking whether the V2G additions interest OCPP v2.1 itself.
+
+    **A second payload kind followed (2026-08-05): wallet import (§4.7)** — key material,
+    encrypted, parsed only by the wallet's own import screen and refused by the pairing
+    scanner. The v1 pairing schema is untouched by it.
 13. **Tier-2 in-band TOTP — do it or not (§4.6).** Echoing the TOTP into -20
     `SessionSetupReq.EVCCID` is a deliberate deviation for demo value, and it has no -2
     counterpart. Worth deciding explicitly rather than drifting into it.
