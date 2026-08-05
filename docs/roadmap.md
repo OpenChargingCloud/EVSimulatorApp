@@ -136,7 +136,7 @@ detail and what stays parked in [Completed extras](#completed-extras), which als
 | Addition | Status |
 |---|---|
 | **AC DER** (-20 Amendment 1) — two AC grammar variants (`AC_DER_IEC`, `AC_DER_SAE`); cross-validated against EXIficient (decode direction). **No session wiring** (payload type / `ProtocolNamespace` live in the amendment text we don't have). [`docs/ac-der.md`](ac-der.md) | ✅ codec done |
-| **MCS** (Megawatt Charging System) — `Secc20Mcs`/`Evcc20Mcs`: the DC message set under service ids 8/9 with a megawatt envelope; no codec work needed. **Ids taken from EVerest, not validated against a live MCS counterpart.** | ✅ done |
+| **MCS** (Megawatt Charging System) — `Secc20Mcs`/`Evcc20Mcs`: the DC message set under service ids 8/9 with a megawatt envelope; no codec work needed. **Ids validated live against EVerest 2026.02.1 (2026-08-05); the power envelope is still unvalidated.** | ✅ done |
 | **PQC experiments** — ML-KEM-1024 TLS session + ML-DSA-87 signatures, BC ↔ .NET cross-validated, with the EXI/CBOR/JSON size verdict. **Wire-non-conformant by design**, never a production default. [`docs/experiments/pqc.md`](experiments/pqc.md) | ✅ experiment done |
 
 What exists today, at a glance:
@@ -608,20 +608,23 @@ otherwise invisible from outside — and it is the *only* thing distinguishing a
 one on the wire. A megawatt vehicle at a plain DC charger falls back to service 2/6 rather than
 aborting; the second test pins that, so MCS support is strictly additive.
 
-**Not externally validated.** The service ids and connector values are taken from EVerest's
-`libiso15118`, whose neighbouring values (AC=1, DC=2, DC_BPT=6) match ours exactly — but nothing here
-has been byte-diffed or run against a live MCS counterpart, and the physical limits are plausible
-headline figures rather than values read out of the Amendment text.
+**The ids are validated; the envelope is not.** *(updated 2026-08-05)* The service ids and connector
+values were taken from EVerest's `libiso15118`, whose neighbouring values (AC=1, DC=2, DC_BPT=6) match
+ours exactly. That guess is now a result: three complete sessions against everest-core **2026.02.1**'s
+`config-sil-mcs.yaml`, where their `Evse15118D20` read **service id 8 back as MCS** and carried the
+session through on the DC message set. The **physical limits** remain plausible headline figures rather
+than values read out of the Amendment text, and the run could not test them — their SIL clamps to its
+own 22 kW whatever is offered.
 
-**Parked:** the limits and behavioural detail from the Amendment text, and a live run against
-`Evse15118D20` — the only maintained stack that implements MCS (see the counterpart-tracking task).
+That run did find something, and it was on our side: `Evcc20Mcs` overrode only
+`PreferredEnergyServiceIds`, because the EV-side charge parameters in `Evcc20Dc` were literals where the
+station side's were already `virtual`. So the truck selected service 8 and then declared an ordinary DC
+envelope — their EvseManager logged `dc_ev_maximum_power_limit: 50000.0` under an MCS service. Nothing
+failed; the declaration simply contradicted the service. `Evcc20Dc`'s limits are now `virtual` the way
+`Secc20Dc`'s are, and `Evcc20Mcs` overrides them to the same 3.75 MW / 3000 A / 1250 V the SECC offers.
 
-*Concrete since 2026-08-01:* EVerest ships **`config/config-sil-mcs.yaml`**, so the live counterpart
-for MCS is a named configuration rather than a hope, and the harness to drive it exists
-(`tools/interop-everest/`). It is deliberately last in that
-harness's scenario order — the plain -2 and -20 sessions have to be clean before a service-id question
-is worth asking — but it is the first thing that could turn "not externally validated" above into
-either a confirmation or a finding.
+**Parked:** the limits and behavioural detail from the Amendment text, and a counterpart that will
+actually hold us to a megawatt envelope rather than clamping it away.
 
 #### ✅ Post-quantum crypto experiments (2026-07-23)
 
@@ -770,8 +773,9 @@ What each is actually *for*, beyond the byte question:
 - **EVerest** — the implementation most likely to be on the other end of a real charger, so "works
   against EVerest" is closer to a market claim than a test result. `modules/EVSE/Evse15118D20` is where
   -20 lives now (`libiso15118` was archived 2026-02-26 and folded in); `IsoMux` answers -2 and -20 behind
-  one endpoint. `config/config-sil-mcs.yaml` would be **the first live counterpart our MCS support has
-  ever had** — see the MCS line in Phase 5.
+  one endpoint. `config/config-sil-mcs.yaml` was, on 2026-08-05, **the first live counterpart our MCS
+  support has ever had** — it validated the service ids and left the power envelope untested (their SIL
+  clamps to 22 kW); see the MCS entry under [Completed extras](#completed-extras).
   *Since 2026-08-02 it is also the only counterparty we have completed a charge against.* Both walls
   fell to the same idea — their whole module graph is addressable over MQTT
   (`everest/<module_id>/<impl_id>/var` and `/cmd`, plus a bare-string external interface for the car
