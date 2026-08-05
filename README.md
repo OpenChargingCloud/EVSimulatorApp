@@ -1,4 +1,4 @@
-# EVSimulatorApp
+# ISO/IEC 15118 EV Simulator App
 
 An app that **simulates an electric vehicle** speaking ISO 15118-2 and -20 — the SupportedAppProtocol
 handshake, the -2/-20 charging sessions, Plug & Charge, signed metering, the -20 TLS/PKI — against a
@@ -70,7 +70,7 @@ repo `Vanaheimr.V2G.Exi.git`) carries EVSimulatorApp as a submodule and holds th
 runs this stack against independent stacks (Josev, EVerest, EVDriveFlow, TuxEVSE). That is the harness
 that proves the simulator behaves the way the standard and the field expect.
 
-## Licence
+## License
 
 The C# throughout — this repository's own projects and the `WWCP_ISO15118` codec submodule
 ([`libs/WWCP_ISO15118/LICENSE`](libs/WWCP_ISO15118/LICENSE)) — is AGPL-3.0, as are the generated
