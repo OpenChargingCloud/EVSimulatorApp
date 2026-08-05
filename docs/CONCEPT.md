@@ -9,6 +9,12 @@ projections became measurements. Where that happened, the original wording is ke
 is added next to it — the plan being wrong in a specific, dated way is more useful than a document
 that has quietly always been right.
 
+> **Topology note (2026-08-04):** this document predates the repository inversion and partly reads
+> as history. `Vanaheimr.V2G.Exi` — whose content is today the **ISO15118ConformanceTests**
+> conformance repository — was the base repo carrying the codec and the simulation; both now live
+> *here* (`libs/WWCP_ISO15118`, `simulation/`), and the conformance repo wraps this app as a
+> submodule instead. Paths and repo names in older sections are left as written.
+
 ---
 
 ## 0. Executive summary

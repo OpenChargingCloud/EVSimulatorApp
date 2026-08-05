@@ -23,7 +23,7 @@ class SessionConfigTest {
 
     private val repositoryRoot: File by lazy {
         var dir = File(".").absoluteFile
-        while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory)
+        while (!File(dir, "EVSimulatorApp.slnx").isFile)
             dir = dir.parentFile ?: error("repository root not found")
         dir
     }
@@ -116,7 +116,7 @@ class SessionConfigTest {
     fun `a trace runner replays the recorded session`() {
 
         val traceFile = File(repositoryRoot,
-            "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors")
+            "../ISO15118ConformanceTests.Simulation/Vectors")
             .listFiles { f -> f.name.startsWith("Session.") && f.name.endsWith(".trace.json") }!!
             .sortedBy { it.name }
             .first()

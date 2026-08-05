@@ -33,10 +33,10 @@ class VectorTest {
         // Walk up to the repository root, then into the C# test project — the corpus is shared
         // deliberately rather than copied, so the two back ends can never drift apart.
         var dir = File(".").absoluteFile
-        while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory) {
+        while (!File(dir, "EVSimulatorApp.slnx").isFile) {
             dir = dir.parentFile ?: error("repository root not found from ${File(".").absolutePath}")
         }
-        val f = File(dir, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/Iso15118_2.vectors.json")
+        val f = File(dir, "libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/Iso15118_2.vectors.json")
         assertTrue(f.isFile, "vector corpus not found at $f")
         JsonParser.parseString(f.readText()).asJsonObject
             .getAsJsonArray("vectors").map { it.asJsonObject }

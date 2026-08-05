@@ -123,11 +123,11 @@ class RecordedStation(private val trace: JsonObject) : AutoCloseable {
         fun load(name: String): JsonObject {
 
             var dir = File(".").absoluteFile
-            while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory)
+            while (!File(dir, "EVSimulatorApp.slnx").isFile)
                 dir = dir.parentFile ?: error("repository root not found")
 
             val file = File(dir,
-                "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.$name.trace.json")
+                "../ISO15118ConformanceTests.Simulation/Vectors/Session.$name.trace.json")
 
             require(file.isFile) { "no recorded session at $file" }
 

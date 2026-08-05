@@ -14,7 +14,7 @@ final class SessionConfigTests: XCTestCase {
     private lazy var repositoryRoot: URL = {
         var directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         while !FileManager.default.fileExists(
-                atPath: directory.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) {
+                atPath: directory.appendingPathComponent("EVSimulatorApp.slnx").path) {
             let parent = directory.deletingLastPathComponent()
             precondition(parent != directory, "repository root not found")
             directory = parent
@@ -147,7 +147,7 @@ final class SessionConfigTests: XCTestCase {
     func testATraceRunnerReplaysTheRecordedSession() throws {
 
         let traceDirectory = repositoryRoot
-            .appendingPathComponent("libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors")
+            .appendingPathComponent("../ISO15118ConformanceTests.Simulation/Vectors")
 
         let traceFile = try FileManager.default
             .contentsOfDirectory(atPath: traceDirectory.path)

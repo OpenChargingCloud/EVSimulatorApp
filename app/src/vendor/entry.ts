@@ -27,9 +27,14 @@ import { DigestMethodType } from "@open-charging-cloud/v2g-exi/src/xmldsig/Diges
 import { CommonMessagesCodec } from "@open-charging-cloud/v2g-exi/src/iso20common/CommonMessagesCodec.ts";
 import { AuthorizationReq } from "@open-charging-cloud/v2g-exi/src/iso20common/AuthorizationReq.ts";
 
-import acEim from "../../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.iso2-ac-eim.trace.json" with { type: "json" };
-import acPnc from "../../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.iso2-ac-pnc.trace.json" with { type: "json" };
-import dcEim from "../../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.iso2-dc-eim.trace.json" with { type: "json" };
+// Checked-in copies of three recordings from the canonical corpus, which lives with the C# session
+// tests that record it — in the ISO15118ConformanceTests repository, the parent that carries this
+// app as a submodule. Copies because a build cannot skip: the tests reach for the corpus and skip
+// standalone, but this import either resolves or there is no bundle. `app/test/traces.test.js` is
+// the drift guard — under the conformance checkout it holds each copy byte-identical to the corpus.
+import acEim from "./traces/Session.iso2-ac-eim.trace.json" with { type: "json" };
+import acPnc from "./traces/Session.iso2-ac-pnc.trace.json" with { type: "json" };
+import dcEim from "./traces/Session.iso2-dc-eim.trace.json" with { type: "json" };
 
 /**
  * The bundle's entry point, and the one place that decides which recordings this build carries.
@@ -43,10 +48,10 @@ import dcEim from "../../../libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Test
  *
  * ## Three sessions, and why not six
  *
- * The generator has emitted the SupportedAppProtocol and ISO 15118-2 codecs for TypeScript and not
- * yet the -20 sets. A -20 recording would replay as error events naming payload types, so the plugin
- * refuses that protocol outright rather than delivering it — and bundling a trace it would refuse
- * would be shipping a promise this build cannot keep.
+ * The -20 codecs are generated for TypeScript since 2026-08-04, but the bridge does not carry them
+ * yet (the roadmap's high-priority TODO). A -20 recording would replay as error events naming
+ * payload types, so the plugin refuses that protocol outright rather than delivering it — and
+ * bundling a trace it would refuse would be shipping a promise this build cannot keep.
  */
 const TRACES: Record<string, unknown> = {
     "iso15118-2/ac/eim": acEim,
@@ -86,9 +91,9 @@ const payloadTypeOf = (frame: Uint8Array): number =>
  * session, and this function deliberately does not pretend to answer it.
  *
  * It lives in the bundle because the codec does, and the app's other sources are plain ES modules a
- * browser and Node run unaltered. `null` for anything this build cannot re-encode: the -20 sets are
- * not emitted for TypeScript, and only three fragment encoders exist for -2. A caller must be able
- * to tell "not checked" from "wrong", so the absence is a value rather than an exception.
+ * browser and Node run unaltered. `null` for anything this build cannot re-encode: only a handful
+ * of fragment encoders are carried — three for -2, one for -20 CommonMessages. A caller must be
+ * able to tell "not checked" from "wrong", so the absence is a value rather than an exception.
  *
  * Held to the recorded corpus by `typescript/test/digest.test.ts`, which is also the first oracle
  * this back end's fragment encoders have ever had: the digests it reproduces were computed by C#.

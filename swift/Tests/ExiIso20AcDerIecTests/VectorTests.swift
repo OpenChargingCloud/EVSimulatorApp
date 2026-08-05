@@ -13,7 +13,7 @@ import XCTest
 /// So:
 ///
 /// * the `cbV2G@…` vectors are real wire-conformance evidence;
-/// * the `Vanaheimr.V2G.Exi (C#)` ones are a **cross-language agreement check between two ports of
+/// * the `C#` ones are a **cross-language agreement check between two ports of
 ///   one grammar, plus a pin against drift** — passing them says the Swift and C# emitters read the
 ///   schema the same way, and nothing about what a conforming peer would accept.
 ///
@@ -35,14 +35,14 @@ final class ExiIso20AcDerIecVectorTests: XCTestCase {
         for _ in 0..<12 {
             dir.deleteLastPathComponent()
             if FileManager.default.fileExists(atPath:
-                dir.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) { return dir }
+                dir.appendingPathComponent("EVSimulatorApp.slnx").path) { return dir }
         }
         throw XCTSkip("repository root not found from \(#filePath)")
     }
 
     private static func loadVectors() throws -> [Vector] {
         let url = try repositoryRoot().appendingPathComponent(
-            "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/Iso15118_20.AC_DER_IEC.vectors.json")
+            "libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/Iso15118_20.AC_DER_IEC.vectors.json")
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
         guard let raw = json?["vectors"] as? [[String: Any]] else {
             throw XCTSkip("vector file has no 'vectors' array: \(url.path)")

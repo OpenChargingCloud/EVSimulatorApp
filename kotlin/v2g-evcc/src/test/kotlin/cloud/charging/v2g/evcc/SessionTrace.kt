@@ -62,10 +62,10 @@ class SessionTrace(val name: String, val protocol: String, val mode: String,
         fun load(name: String): SessionTrace {
 
             var dir = File(".").absoluteFile
-            while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory)
+            while (!File(dir, "EVSimulatorApp.slnx").isFile)
                 dir = dir.parentFile ?: error("repository root not found")
 
-            val file = File(dir, "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/" +
+            val file = File(dir, "../ISO15118ConformanceTests.Simulation/" +
                                  "Vectors/Session.$name.trace.json")
             require(file.isFile) { "session trace not found at $file" }
 

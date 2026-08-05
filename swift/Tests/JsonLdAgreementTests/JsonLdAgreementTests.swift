@@ -97,12 +97,12 @@ final class JsonLdAgreementTests: XCTestCase {
     private lazy var vectorsDirectory: URL = {
         var directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         while !FileManager.default.fileExists(
-                atPath: directory.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) {
+                atPath: directory.appendingPathComponent("EVSimulatorApp.slnx").path) {
             let parent = directory.deletingLastPathComponent()
             precondition(parent != directory, "repository root not found")
             directory = parent
         }
-        return directory.appendingPathComponent("libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors")
+        return directory.appendingPathComponent("libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors")
     }()
 
     private lazy var documents: JsonObject = {

@@ -36,10 +36,10 @@ final class MeterSignatureTests: XCTestCase {
         for _ in 0..<12 {
             dir.deleteLastPathComponent()
             if FileManager.default.fileExists(atPath:
-                dir.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) { break }
+                dir.appendingPathComponent("EVSimulatorApp.slnx").path) { break }
         }
         let url = dir.appendingPathComponent(
-            "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Meter.signing.vectors.json")
+            "../ISO15118ConformanceTests.Simulation/Vectors/Meter.signing.vectors.json")
         guard let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any],
               let raw = json["vectors"] as? [[String: Any]]
         else { throw XCTSkip("meter corpus not found at \(url.path)") }

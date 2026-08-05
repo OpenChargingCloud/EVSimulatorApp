@@ -58,7 +58,7 @@ public class TotpCorpusTests
         get
         {
             var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "libs/Vanaheimr.V2G.Exi")))
+            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "EVSimulatorApp.slnx")))
                 directory = directory.Parent;
 
             return Path.Combine(directory!.FullName,

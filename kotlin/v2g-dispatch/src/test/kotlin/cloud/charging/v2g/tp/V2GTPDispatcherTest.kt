@@ -21,7 +21,7 @@ class V2GTPDispatcherTest {
 
     private val repoRoot: File by lazy {
         var dir = File(".").absoluteFile
-        while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory) {
+        while (!File(dir, "EVSimulatorApp.slnx").isFile) {
             dir = dir.parentFile ?: error("repository root not found from ${File(".").absolutePath}")
         }
         dir
@@ -29,7 +29,7 @@ class V2GTPDispatcherTest {
 
     /** The first vector of [corpus], as the raw EXI payload bytes. */
     private fun firstPayload(corpus: String): ByteArray {
-        val f = File(repoRoot, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/$corpus")
+        val f = File(repoRoot, "libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/$corpus")
         assertTrue(f.isFile, "vector corpus not found at $f")
         val hex = JsonParser.parseString(f.readText()).asJsonObject
             .getAsJsonArray("vectors").first().asJsonObject

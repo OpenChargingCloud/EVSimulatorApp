@@ -7,7 +7,7 @@ package cloud.charging.v2g.evcc
  * `while (… != Finished)` with no counter and no deadline. Against EVerest's `EvseV2G` on 2026-08-02
  * that meant 1170 `AuthorizationReq` in three minutes: their station answered `OK` with `Ongoing` every
  * time, correctly — nothing had authorized the session — and the car had nothing that would ever make
- * it stop (`libs/Vanaheimr.V2G.Exi/docs/interop-runs/2026-08-02-everest-iso2-dc-notls/`).
+ * it stop (`../docs/interop-runs/2026-08-02-everest-iso2-dc-notls/`).
  *
  * The gap sat between two timeouts that each looked like it covered the case: a per-message timeout
  * fires when a response is *late*, and all 1170 were fast; a cancellation ends the whole session rather

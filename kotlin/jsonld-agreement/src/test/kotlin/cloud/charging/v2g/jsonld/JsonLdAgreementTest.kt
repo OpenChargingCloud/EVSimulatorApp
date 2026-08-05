@@ -99,10 +99,10 @@ class JsonLdAgreementTest {
 
     private val vectorsDirectory: File by lazy {
         var dir = File(".").absoluteFile
-        while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory)
+        while (!File(dir, "EVSimulatorApp.slnx").isFile)
             dir = dir.parentFile ?: error("repository root not found")
 
-        File(dir, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors")
+        File(dir, "libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors")
     }
 
     private val documents: JsonObject by lazy {

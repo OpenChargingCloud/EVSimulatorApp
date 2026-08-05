@@ -21,10 +21,10 @@ class VectorTest {
 
     private val vectors: List<JsonObject> by lazy {
         var dir = File(".").absoluteFile
-        while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory) {
+        while (!File(dir, "EVSimulatorApp.slnx").isFile) {
             dir = dir.parentFile ?: error("repository root not found from ${File(".").absolutePath}")
         }
-        val f = File(dir, "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/Iso15118_20.AC_DER_SAE.vectors.json")
+        val f = File(dir, "libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/Iso15118_20.AC_DER_SAE.vectors.json")
         assertTrue(f.isFile, "vector corpus not found at $f")
         JsonParser.parseString(f.readText()).asJsonObject
             .getAsJsonArray("vectors").map { it.asJsonObject }

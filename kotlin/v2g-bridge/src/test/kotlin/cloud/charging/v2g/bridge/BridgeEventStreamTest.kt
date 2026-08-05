@@ -24,13 +24,13 @@ class BridgeEventStreamTest {
 
     private val repositoryRoot: File by lazy {
         var dir = File(".").absoluteFile
-        while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory)
+        while (!File(dir, "EVSimulatorApp.slnx").isFile)
             dir = dir.parentFile ?: error("repository root not found")
         dir
     }
 
     private val traceDirectory: File
-        get() = File(repositoryRoot, "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors")
+        get() = File(repositoryRoot, "../ISO15118ConformanceTests.Simulation/Vectors")
 
     private val corpus: JsonObject by lazy {
         val file = File(repositoryRoot, "bridge/EVSimulatorApp.Bridge.Tests/Vectors/Bridge.events.json")

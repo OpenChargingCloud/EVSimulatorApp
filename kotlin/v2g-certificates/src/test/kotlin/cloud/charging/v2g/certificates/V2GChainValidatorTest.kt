@@ -25,10 +25,10 @@ class V2GChainValidatorTest {
 
     private val corpus: JsonObject by lazy {
         var dir = File(".").absoluteFile
-        while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory)
+        while (!File(dir, "EVSimulatorApp.slnx").isFile)
             dir = dir.parentFile ?: error("repository root not found")
 
-        val file = File(dir, "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/" +
+        val file = File(dir, "../ISO15118ConformanceTests.Simulation/" +
                              "Vectors/Certificate.chain.vectors.json")
         require(file.isFile) { "chain corpus not found at $file" }
         JsonParser.parseString(file.readText()).asJsonObject

@@ -15,7 +15,7 @@ final class V2GTPDispatcherTests: XCTestCase {
         for _ in 0..<12 {
             dir.deleteLastPathComponent()
             if FileManager.default.fileExists(atPath:
-                dir.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) { return dir }
+                dir.appendingPathComponent("EVSimulatorApp.slnx").path) { return dir }
         }
         throw XCTSkip("repository root not found from \(#filePath)")
     }
@@ -23,7 +23,7 @@ final class V2GTPDispatcherTests: XCTestCase {
     /// The first vector of a corpus, as bytes.
     private static func firstVector(_ corpus: String) throws -> [UInt8] {
         let url = try repositoryRoot().appendingPathComponent(
-            "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/\(corpus).vectors.json")
+            "libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/\(corpus).vectors.json")
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
         guard let raw = json?["vectors"] as? [[String: Any]],
               let hex = raw.first?["expectedHex"] as? String else {

@@ -43,7 +43,7 @@ class LiveSessionRunnerTest {
 
     private val repositoryRoot: File by lazy {
         var dir = File(".").absoluteFile
-        while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory)
+        while (!File(dir, "EVSimulatorApp.slnx").isFile)
             dir = dir.parentFile ?: error("repository root not found")
         dir
     }

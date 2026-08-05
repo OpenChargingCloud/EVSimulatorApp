@@ -137,16 +137,24 @@ public sealed class RecordedStation : IAsyncDisposable
 
 
     /// <summary>One recorded session, from the corpus the simulation tests generate.</summary>
+    /// <remarks>
+    /// The corpus is the ISO15118ConformanceTests repo's — it lives with the C# session tests that
+    /// record it, in the parent that carries this app as a submodule. Tests replaying it therefore
+    /// run under conformance and are ignored when the app is checked out alone.
+    /// </remarks>
     public static JsonNode Load(string name)
     {
 
         var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "libs/Vanaheimr.V2G.Exi")))
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "EVSimulatorApp.slnx")))
             directory = directory.Parent;
 
         var path = Path.Combine(directory?.FullName ?? throw new DirectoryNotFoundException("repository root"),
-                                "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors",
+                                "../ISO15118ConformanceTests.Simulation/Vectors",
                                 $"Session.{name}.trace.json");
+
+        if (!File.Exists(path))
+            Assert.Ignore("session trace corpus absent — it lives in the ISO15118ConformanceTests repo");
 
         return JsonNode.Parse(File.ReadAllText(path))!;
 

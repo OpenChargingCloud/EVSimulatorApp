@@ -25,7 +25,7 @@ final class AppProtocolVectorTests: XCTestCase {
         for _ in 0..<12 {
             dir.deleteLastPathComponent()
             if FileManager.default.fileExists(atPath:
-                dir.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) {
+                dir.appendingPathComponent("EVSimulatorApp.slnx").path) {
                 return dir
             }
         }
@@ -34,7 +34,7 @@ final class AppProtocolVectorTests: XCTestCase {
 
     private static func loadVectors() throws -> [Vector] {
         let url = try repositoryRoot()
-            .appendingPathComponent("libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/AppProtocol.vectors.json")
+            .appendingPathComponent("libs/WWCP_ISO15118/WWCP_ISO15118_EXI_Tests/Vectors/AppProtocol.vectors.json")
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
         guard let raw = json?["vectors"] as? [[String: Any]] else {
             throw XCTSkip("vector file has no 'vectors' array: \(url.path)")

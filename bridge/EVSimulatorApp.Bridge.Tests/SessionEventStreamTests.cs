@@ -54,15 +54,20 @@ public class SessionEventStreamTests
         get
         {
             var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-            while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "libs/Vanaheimr.V2G.Exi")))
+            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "EVSimulatorApp.slnx")))
                 directory = directory.Parent;
 
             return directory?.FullName ?? throw new DirectoryNotFoundException("repository root not found");
         }
     }
 
+    /// <summary>
+    /// The session trace corpus is the ISO15118ConformanceTests repo's — it lives with the C#
+    /// session tests that record it, in the parent that carries this app as a submodule. The tests
+    /// that replay it therefore run under conformance and skip when the app is checked out alone.
+    /// </summary>
     private static string TraceDirectory =>
-        Path.Combine(RepositoryRoot, "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors");
+        Path.Combine(RepositoryRoot, "../ISO15118ConformanceTests.Simulation/Vectors");
 
     private static string CorpusPath =>
         Path.Combine(RepositoryRoot, "bridge/EVSimulatorApp.Bridge.Tests/Vectors", CorpusFile);
@@ -71,6 +76,9 @@ public class SessionEventStreamTests
     /// <summary>Every recorded session, as the event stream it produces.</summary>
     private static JsonObject Produce()
     {
+
+        if (!Directory.Exists(TraceDirectory))
+            Assert.Ignore("session trace corpus absent — it lives in the ISO15118ConformanceTests repo");
 
         var sessions = new JsonObject();
 

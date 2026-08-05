@@ -52,7 +52,7 @@ public class SessionConfigTests
         get
         {
             var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-            while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "libs/Vanaheimr.V2G.Exi")))
+            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "EVSimulatorApp.slnx")))
                 directory = directory.Parent;
 
             return directory?.FullName ?? throw new DirectoryNotFoundException("repository root not found");

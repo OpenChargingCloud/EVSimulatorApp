@@ -2,9 +2,9 @@
 
 The bootstrap half of Track B0 (`docs/CONCEPT.md` §4.5, §4.6). This is the format the **Pi and the
 app must agree on exactly**, and they are the two halves that never run in the same process — so
-it lives here, in the parent repository, rather than in `Vanaheimr.V2G.Exi`. That library is a
-general ISO 15118 stack; pairing is this app's own concept, and the TOTP implementation it reuses
-(`libs/DynamicQRCodes`) is a parent submodule.
+it lives here, beside the app, rather than in the simulation library (`simulation/`). That library
+is a general ISO 15118 stack; pairing is this app's own concept, and the TOTP implementation it
+reuses (`libs/DynamicQRCodes`) is a submodule of this repository.
 
 ```bash
 dotnet test          # from the repository root

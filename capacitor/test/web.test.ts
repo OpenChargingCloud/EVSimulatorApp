@@ -22,7 +22,7 @@ import type { SessionConfig } from "@open-charging-cloud/v2g-exi/src/bridge/plug
 const repositoryRoot = (() => {
     let directory = dirname(fileURLToPath(import.meta.url));
     for (;;) {
-        try { readFileSync(join(directory, "libs/Vanaheimr.V2G.Exi/CLAUDE.md")); return directory; }
+        try { readFileSync(join(directory, "EVSimulatorApp.slnx")); return directory; }
         catch { /* keep walking */ }
         const parent = dirname(directory);
         if (parent === directory) throw new Error("repository root not found");
@@ -30,9 +30,17 @@ const repositoryRoot = (() => {
     }
 })();
 
+// The session trace corpus is the ISO15118ConformanceTests repo's — it lives with the C# session
+// tests that record it, in the parent that carries this app as a submodule. These replay checks
+// therefore run under conformance and skip when the app is checked out on its own.
 const trace = (name: string): SessionTrace => JSON.parse(readFileSync(join(repositoryRoot,
-    `libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.${name}.trace.json`),
+    `../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`),
     "utf8"));
+
+const skipNoTraces = (() => {
+    try { trace("iso2-ac-eim"); return false; }
+    catch { return "session trace corpus absent — it lives in the ISO15118ConformanceTests repo"; }
+})();
 
 const corpus: Record<string, unknown[]> = JSON.parse(readFileSync(join(repositoryRoot,
     "bridge/EVSimulatorApp.Bridge.Tests/Vectors/Bridge.events.json"), "utf8")).sessions;
@@ -59,7 +67,7 @@ function web(recorded = "iso2-ac-eim") {
 const settle = () => new Promise(resume => setTimeout(resume, 50));
 
 
-test("a bundled session arrives as the events the corpus pins", async () => {
+test("a bundled session arrives as the events the corpus pins", { skip: skipNoTraces }, async () => {
 
     const { plugin, received } = web();
 
@@ -90,7 +98,7 @@ test("a bundled session arrives as the events the corpus pins", async () => {
 });
 
 
-test("a protocol this build cannot decode is refused before anything starts", async () => {
+test("a protocol this build cannot decode is refused before anything starts", { skip: skipNoTraces }, async () => {
 
     const { plugin, received } = web("iso20-ac-eim");
 
@@ -115,7 +123,7 @@ test("a session nobody bundled a recording for is refused, and says so", async (
 });
 
 
-test("stopping ends the stream rather than leaving it hanging", async () => {
+test("stopping ends the stream rather than leaving it hanging", { skip: skipNoTraces }, async () => {
 
     const { plugin, received } = web();
     plugin.pace = 5;
@@ -162,7 +170,7 @@ test("stopping ends the stream rather than leaving it hanging", async () => {
  * screen simply stayed empty — no exception, no failing test, nothing to notice but an inspector
  * showing nothing.
  */
-test("every event the web implementation emits is one the adapter accepts", async () => {
+test("every event the web implementation emits is one the adapter accepts", { skip: skipNoTraces }, async () => {
 
     const web = new EvSimulatorWeb();
     web.traces = () => trace("iso2-ac-eim");
@@ -188,7 +196,7 @@ test("every event the web implementation emits is one the adapter accepts", asyn
 });
 
 
-test("stopping twice, or stopping something that never ran, is not an error", async () => {
+test("stopping twice, or stopping something that never ran, is not an error", { skip: skipNoTraces }, async () => {
 
     const { plugin } = web();
     const { sessionId } = await plugin.start({ config: CONFIG });

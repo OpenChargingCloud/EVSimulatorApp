@@ -22,10 +22,10 @@ final class V2GCertificateTests: XCTestCase {
         while dir.pathComponents.count > 1 {
             dir.deleteLastPathComponent()
             if FileManager.default.fileExists(
-                atPath: dir.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) { break }
+                atPath: dir.appendingPathComponent("EVSimulatorApp.slnx").path) { break }
         }
         let file = dir.appendingPathComponent(
-            "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.pnc-material.json")
+            "../ISO15118ConformanceTests.Simulation/Vectors/Session.pnc-material.json")
 
         let material = try JSONDecoder().decode(Material.self, from: try Data(contentsOf: file))
         let der = stride(from: 0, to: material.certificate.count, by: 2).map { i -> UInt8 in

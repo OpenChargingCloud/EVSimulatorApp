@@ -20,7 +20,7 @@ class PairingTotpTest {
 
     private val corpus: JsonObject by lazy {
         var dir = File(".").absoluteFile
-        while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory)
+        while (!File(dir, "EVSimulatorApp.slnx").isFile)
             dir = dir.parentFile ?: error("repository root not found")
 
         val file = File(dir, "pairing/EVSimulatorApp.Pairing.Tests/Vectors/Pairing.totp.vectors.json")

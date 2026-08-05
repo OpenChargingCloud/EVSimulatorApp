@@ -50,7 +50,7 @@ final class PairingCorpusTests: XCTestCase {
     private lazy var cases: [Case] = {
         var directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         while !FileManager.default.fileExists(
-                atPath: directory.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) {
+                atPath: directory.appendingPathComponent("EVSimulatorApp.slnx").path) {
             let parent = directory.deletingLastPathComponent()
             precondition(parent != directory, "repository root not found")
             directory = parent

@@ -185,7 +185,7 @@ final class RecordedStation: @unchecked Sendable {
     static let repositoryRoot: URL = {
         var directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         while !FileManager.default.fileExists(
-                atPath: directory.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) {
+                atPath: directory.appendingPathComponent("EVSimulatorApp.slnx").path) {
             let parent = directory.deletingLastPathComponent()
             precondition(parent != directory, "repository root not found")
             directory = parent
@@ -197,7 +197,7 @@ final class RecordedStation: @unchecked Sendable {
     static func load(_ name: String) throws -> JsonObject {
 
         let file = repositoryRoot.appendingPathComponent(
-            "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.\(name).trace.json")
+            "../ISO15118ConformanceTests.Simulation/Vectors/Session.\(name).trace.json")
 
         return try JsonValue.parse(String(contentsOf: file, encoding: .utf8)) as! JsonObject
     }

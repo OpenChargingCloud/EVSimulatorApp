@@ -9,9 +9,9 @@
 
   <!--
     The dynamic half of the pairing code (docs/CONCEPT.md §4.6) reuses the owner's own AFIR /
-    OCPP v2.1 TOTP implementation rather than reinventing the mechanism. It lives in the parent
-    repository as a submodule, which is also why this project is here and not in
-    Vanaheimr.V2G.Exi: that library is a general ISO 15118 stack, and pairing is this app's concept.
+    OCPP v2.1 TOTP implementation rather than reinventing the mechanism. It lives in this
+    repository as a submodule, which is also why this project is here and not in the simulation
+    library: that library is a general ISO 15118 stack, and pairing is this app's concept.
   -->
   <ItemGroup>
     <ProjectReference Include="../../libs/DynamicQRCodes/TOTP/CSharp/TOTPSharp/TOTPSharp.csproj" />

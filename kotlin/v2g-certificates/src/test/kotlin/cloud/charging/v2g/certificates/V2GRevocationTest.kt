@@ -20,9 +20,9 @@ class V2GRevocationTest {
 
     private val revocation: JsonObject by lazy {
         var dir = File(".").absoluteFile
-        while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory)
+        while (!File(dir, "EVSimulatorApp.slnx").isFile)
             dir = dir.parentFile ?: error("repository root not found")
-        val file = File(dir, "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/" +
+        val file = File(dir, "../ISO15118ConformanceTests.Simulation/" +
                              "Vectors/Certificate.chain.vectors.json")
         JsonParser.parseString(file.readText()).asJsonObject.getAsJsonObject("revocation")
     }

@@ -18,7 +18,7 @@ import cloud.charging.v2g.iso20.dc.Processing
  * **Found live, not by reasoning, and not by this suite.** Until 2026-08-01 no -20 EVCC in this
  * repository read a response code at all, in any of the three languages. eVDriveFlow answered
  * `DC_CableCheckRes` with `FAILED` and the car went on charging
- * (`libs/Vanaheimr.V2G.Exi/docs/interop-runs/2026-08-01-edf-iso20-dc-notls/`).
+ * (`../docs/interop-runs/2026-08-01-edf-iso20-dc-notls/`).
  *
  * The trace corpus — this port's entire oracle — could not have shown it: every recorded response is
  * one our own SECC produced, and our own SECC never says FAILED. So the corpus is silent here by

@@ -47,10 +47,10 @@ class MeterSignatureTest {
 
     private val corpus: JsonObject by lazy {
         var dir = File(".").absoluteFile
-        while (!File(dir, "libs/Vanaheimr.V2G.Exi").isDirectory) {
+        while (!File(dir, "EVSimulatorApp.slnx").isFile) {
             dir = dir.parentFile ?: error("repository root not found")
         }
-        val f = File(dir, "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/" +
+        val f = File(dir, "../ISO15118ConformanceTests.Simulation/" +
                           "Vectors/Meter.signing.vectors.json")
         assertTrue(f.isFile, "meter corpus not found at $f")
         JsonParser.parseString(f.readText()).asJsonObject

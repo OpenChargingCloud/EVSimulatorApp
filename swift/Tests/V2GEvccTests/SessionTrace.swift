@@ -84,11 +84,11 @@ struct SessionTrace: Decodable {
         while dir.pathComponents.count > 1 {
             dir.deleteLastPathComponent()
             if FileManager.default.fileExists(
-                atPath: dir.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) { break }
+                atPath: dir.appendingPathComponent("EVSimulatorApp.slnx").path) { break }
         }
 
         let file = dir.appendingPathComponent(
-            "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.\(name).trace.json")
+            "../ISO15118ConformanceTests.Simulation/Vectors/Session.\(name).trace.json")
 
         let trace = try JSONDecoder().decode(SessionTrace.self, from: Data(contentsOf: file))
 

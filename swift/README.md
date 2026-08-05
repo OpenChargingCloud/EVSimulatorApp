@@ -301,7 +301,7 @@ their first line.
 
 ```bash
 dotnet run --project tools/EVSimulatorApp.Codegen -c Release -- \
-  --xsd libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_EXI/Schemas/V2G_CI_AppProtocol.xsd \
+  --xsd libs/WWCP_ISO15118/WWCP_ISO15118_EXI/Schemas/V2G_CI_AppProtocol.xsd \
   --out swift/Sources/ExiAppProtocol \
   --lang swift --namespace cloud.charging.v2g.appprotocol --codec SupportedAppProtocolCodec
 ```
@@ -310,7 +310,7 @@ ISO 15118-2 — note the schema order, which decides declaration order in the ou
 
 ```bash
 dotnet run --project tools/EVSimulatorApp.Codegen -c Release -- \
-  --xsd "libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgDef.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgBody.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgDataTypes.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgHeader.xsd;libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/xmldsig-core-schema.xsd" \
+  --xsd "libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgDef.xsd;libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgBody.xsd;libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgDataTypes.xsd;libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/V2G_CI_MsgHeader.xsd;libs/WWCP_ISO15118/WWCP_ISO15118_2/Schemas/xmldsig-core-schema.xsd" \
   --out swift/Sources/ExiIso2 \
   --lang swift --namespace cloud.charging.v2g.iso2 --codec Iso15118_2Codec
 ```
@@ -320,7 +320,7 @@ single schema that no session ever carries. See the Plug & Charge section for wh
 
 ```bash
 dotnet run --project tools/EVSimulatorApp.Codegen -c Release -- \
-  --xsd libs/Vanaheimr.V2G.Exi/libs/WWCP_ISO15118/WWCP_ISO15118_XMLDSig/Schemas/xmldsig-core-schema.xsd \
+  --xsd libs/WWCP_ISO15118/WWCP_ISO15118_XMLDSig/Schemas/xmldsig-core-schema.xsd \
   --out swift/Sources/ExiXmlDsig \
   --lang swift --namespace ExiXmlDsig --codec XmlDsigCodec --fragments SignedInfo
 ```

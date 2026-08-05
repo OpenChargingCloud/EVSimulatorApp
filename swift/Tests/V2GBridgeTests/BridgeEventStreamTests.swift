@@ -17,7 +17,7 @@ final class BridgeEventStreamTests: XCTestCase {
     private lazy var repositoryRoot: URL = {
         var directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         while !FileManager.default.fileExists(
-                atPath: directory.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) {
+                atPath: directory.appendingPathComponent("EVSimulatorApp.slnx").path) {
             let parent = directory.deletingLastPathComponent()
             precondition(parent != directory, "repository root not found")
             directory = parent
@@ -35,7 +35,7 @@ final class BridgeEventStreamTests: XCTestCase {
     private func traces() throws -> [JsonObject] {
 
         let directory = repositoryRoot.appendingPathComponent(
-            "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors")
+            "../ISO15118ConformanceTests.Simulation/Vectors")
 
         return try FileManager.default.contentsOfDirectory(atPath: directory.path)
             .filter { $0.hasPrefix("Session.") && $0.hasSuffix(".trace.json") }

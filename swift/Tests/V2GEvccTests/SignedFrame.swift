@@ -120,10 +120,10 @@ enum PncMaterial {
         while dir.pathComponents.count > 1 {
             dir.deleteLastPathComponent()
             if FileManager.default.fileExists(
-                atPath: dir.appendingPathComponent("libs/Vanaheimr.V2G.Exi").path) { break }
+                atPath: dir.appendingPathComponent("EVSimulatorApp.slnx").path) { break }
         }
         let file = dir.appendingPathComponent(
-            "libs/Vanaheimr.V2G.Exi/Vanaheimr.V2G.Simulation.Tests/Vectors/Session.pnc-material.json")
+            "../ISO15118ConformanceTests.Simulation/Vectors/Session.pnc-material.json")
         return try! JSONDecoder().decode(Material.self, from: try! Data(contentsOf: file))
     }
 
