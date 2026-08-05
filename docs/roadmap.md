@@ -464,7 +464,7 @@ station already tell us this?" — and the answer written down either way, becau
 only its hits cannot be repeated. Full account, including the eleven places that were already correct:
 `docs/assumed-values-sweep.md`.
 
-**Four found, all fixed:**
+**Five found, all fixed** (the fifth added 2026-08-05, by a live run — see the note after the list):
 
 - **-2 selected `ServiceID: 1` as a literal** while `ServiceDiscoveryRes` carried the station's own
   ChargeService id. Ours is 1 and every counterparty's has been 1, which is why it survived.
@@ -478,11 +478,27 @@ only its hits cannot be repeated. Full account, including the eleven places that
 - **The SupportedAppProtocol response's `SchemaID` was read by nobody** — which of the offered protocols
   the station accepted. Latent while our offer is one entry, a silent protocol mismatch on the day it is
   not, and that is the day nobody would re-read this function.
+- **`PreferredEnergyServiceIds` was read as a set, never as the ranking its own summary promises.**
+  `SelectEnergyTransferService` walked the *station's* catalogue and took the first entry the EV
+  accepted — `offered.FirstOrDefault(s => preferred.Contains(s.ServiceID))` — so `{ 8, 9 }` and `{ 9, 8 }`
+  were the same object and the station decided. Now it walks the EV's list and asks whether each id is on
+  offer, for the preferred set and the drivable fallback alike. The same shape as the `SchemaID` item: a
+  field that says which of several things we want, consulted by nobody, and invisible for as long as our
+  first choice happens to be the peer's first entry.
 
-**Two of the four could not have been found any other way.** The service id and the SchemaID produce no
-failure against a station that behaves like ours, so neither a live run nor a test built from our own
+**Two of the first four could not have been found any other way.** The service id and the SchemaID produce
+no failure against a station that behaves like ours, so neither a live run nor a test built from our own
 parts would have shown them. That is the case for repeating this after the next protocol feature lands
 instead of waiting to be embarrassed by a peer.
+
+**The fifth is the counter-example, and worth the paragraph.** It was found by a live run — an interop
+probe that reversed the EVCC's MCS preference to reach EVerest's MCS_BPT service, and got the other one
+anyway. It could equally have been found offline, and was not, for a reason worth naming: every loopback
+test we had put our EVCC's first preference first in our own SECC's catalogue too, so "take our best" and
+"take their first" gave the same answer every time. The regression test added with the fix
+(`Secc20McsTests.Evcc_RankingDecides_NotTheStationsCatalogueOrder`) is the first that tells them apart,
+and the lesson generalises: a test whose two sides agree about ordering cannot see an ordering bug.
+Write-up: `docs/interop-runs/2026-08-05-everest-mcs-bpt/` in the conformance-tests repository.
 
 **No fifth**, and that is stated rather than left open: everything else is either the vehicle's own
 description, a schema constant, or already read from the peer.
