@@ -136,3 +136,33 @@ The other one was a divergence between the two emitters: the codec's keyword lis
 which reserves `object` where JavaScript does not, so the codec named XMLDSig's `Object` field
 `object_` while the JSON pass read `value.object`. It loaded and ran, and failed at the first signed
 message with an error a whole file away from the cause. They share one list now.
+
+## The bridge — hand-written, and the fourth port of C#'s `SessionEventStream`
+
+`src/bridge/` is not generated. It turns a recorded session into the event stream a WebView receives:
+each message twice over, as JSON-LD *and* as the raw V2GTP frame, with a monotonic `atMillis` from an
+injected clock. `test/replay.test.ts` holds it to `Bridge.events.json` — the corpus C# produces — as
+**text**, for every recorded session, timings included. A port that read the clock in different places
+would produce the same events with different timings and fail at the second one.
+
+**Both protocols, since 2026-08-05.** `toJSONLD` dispatches `0x8001` to SupportedAppProtocol or
+ISO 15118-2 — the message's own name resolves that pair, because the handshake happens before a
+protocol is agreed and cannot have a payload type of its own — and `0x8002`/`0x8003`/`0x8004` to the
+-20 CommonMessages, AC and DC sets. All twelve recorded sessions now replay character-for-character,
+where three did before.
+
+**WPT and ACDP are deliberately not carried.** No stack anywhere implements a WPT or ACDP *session*,
+so no recording contains one, and each set would add roughly half a megabyte to a WebView bundle. The
+two AC DER variants have no payload type of their own to arrive under. A frame from any of them
+becomes an error event naming the payload type and carrying the frame — the wording is C#'s,
+character for character, so a consumer cannot tell from an event which back end produced the session.
+
+**What wiring -20 cost, and where.** The app bundle went from 743 kB to 1.9 MB, because the bridge
+imports the three -20 codecs and the bundler follows. That is the price of the feature; the demo
+recordings that came with it are 7–10 kB each.
+
+**What it uncovered.** `DECODABLE` was a hand-kept list of three session names while the corpus held
+twelve, and both **meter** recordings sat outside it. Both differed at their first event: this port
+never emitted `sessionStarted.meterKey`, which the other three back ends have carried since
+2026-08-03 — a **-2** gap, invisible for two days because the list did not name the session that
+would have shown it. The list is read from the corpus now.

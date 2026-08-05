@@ -43,7 +43,8 @@ const repositoryRoot = (() => {
 })();
 
 /** The recordings `app/src/vendor/entry.ts` bundles — keep the two lists in step. */
-const BUNDLED = ["iso2-ac-eim", "iso2-ac-pnc", "iso2-dc-eim"];
+const BUNDLED = ["iso2-ac-eim", "iso2-ac-pnc", "iso2-dc-eim",
+                 "iso20-ac-eim", "iso20-dc-eim", "iso20-dc-pnc"];
 
 const canonical = name => readFileSync(join(repositoryRoot,
     `../../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`), "utf8");

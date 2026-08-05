@@ -172,17 +172,26 @@ Everything the roadmap targeted is done — see [`phase5-report.md`](phase5-repo
 scorecard. What is left over is either a **structural non-goal** (no independent counterpart exists to
 validate against), a small cleanup, or a next step that one of the new counterparties has opened up:
 
-**⬜ HIGH PRIORITY — wire ISO 15118-20 through the TypeScript port end to end.** The -20 codecs
-arrived for TypeScript on 2026-08-04 (CommonMessages, AC, DC — generated, byte-exact, JSON-LD
-included; see `typescript/README.md`), but the bridge still dispatches `0x8001` only: a -20 frame
-becomes a named error event, the -20 corpus sessions sit outside `DECODABLE`, and
-`typescript/test/replay.test.ts` still carries the now-stale comment that the -20 sets are not
-generated. The work: dispatch the -20 payload types (`0x8002`–`0x8004`) in
-`typescript/src/bridge/replay.ts`, move the -20 sessions into `DECODABLE` — the test that must
-fail on that day is already written and says so — refresh that comment, and decide WPT/ACDP/AC-DER
-for TypeScript explicitly rather than by drift (probably "not until a session machine exists
-anywhere", but decided). Signing: WebCrypto covers P-521; Ed448 stays native-side by design
-(concept §3.3). Until this lands, TypeScript is the one port on which "-2 **and** -20" is not true.
+**✅ ISO 15118-20 through the TypeScript bridge (2026-08-05).** The -20 codecs arrived for
+TypeScript on 2026-08-04; the bridge still dispatched `0x8001` only, so a -20 frame became a named
+error and the plugin refused the protocol outright. Now `0x8002`/`0x8003`/`0x8004` dispatch to
+CommonMessages/AC/DC in the order C#'s `MessageSetCodecs` uses, and **all twelve recorded sessions
+replay character-for-character into `Bridge.events.json`** — the four-back-end agreement that -2 has
+had now covers -20, PnC, Dynamic and the two-entry SAP offer. TypeScript is no longer the port on
+which "-2 **and** -20" is untrue.
+
+WPT and ACDP stay unbundled **by decision, not by drift**: nothing anywhere implements a WPT or ACDP
+*session*, so no recording contains one, and each set would cost roughly half a megabyte of WebView
+bundle. The AC DER variants have no payload type of their own to arrive under. A frame from any of
+them is still a named error carrying the frame, and that path now has a test of its own — synthetic,
+because the corpus structurally cannot contain one.
+
+**And the hand-kept list was the real finding.** `DECODABLE` named three sessions; the corpus holds
+twelve. Both **meter** recordings sat outside it, and both differed at event 0: this port never
+emitted `sessionStarted.meterKey`, which C#, Kotlin and Swift have all carried since 2026-08-03 —
+**a -2 gap, not a -20 one**, invisible for two days because the list did not include the session that
+would have shown it. `DECODABLE` is now read from the corpus, so a session that exists is a session
+that is checked.
 
 **⬜ Get further with the three new counterparties.** All four have now been run. One of them completes
 a charge; the other two stop somewhere worth naming:

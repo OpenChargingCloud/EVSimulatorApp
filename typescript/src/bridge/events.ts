@@ -40,6 +40,15 @@ export interface SessionStartedEvent extends BridgeEventBase {
     readonly protocol: string;
     /** `ac` or `dc`. */
     readonly mode: string;
+    /**
+     * The station meter's public key, as the two P-256 field elements in hex — absent unless the
+     * session carries signed meter readings.
+     *
+     * Once, at the head of the stream, rather than beside every reading: it is a property of the
+     * station, and repeating it per message would invite a reader to check each reading against the
+     * key that arrived with it — which is no check at all.
+     */
+    readonly meterKey?: { readonly x: string; readonly y: string };
 }
 
 export interface MessageEvent extends BridgeEventBase {

@@ -5,6 +5,12 @@ import { SupportedAppProtocolCodec } from "../appprotocol/SupportedAppProtocolCo
 import { SupportedAppProtocolCodecJson } from "../appprotocol/SupportedAppProtocolCodecJson.Json.ts";
 import { Iso15118_2Codec } from "../iso2/Iso15118_2Codec.ts";
 import { Iso15118_2CodecJson } from "../iso2/Iso15118_2CodecJson.Json.ts";
+import { CommonMessagesCodec } from "../iso20common/CommonMessagesCodec.ts";
+import { CommonMessagesCodecJson } from "../iso20common/CommonMessagesCodecJson.Json.ts";
+import { ACCodec } from "../iso20ac/ACCodec.ts";
+import { ACCodecJson } from "../iso20ac/ACCodecJson.Json.ts";
+import { DCCodec } from "../iso20dc/DCCodec.ts";
+import { DCCodecJson } from "../iso20dc/DCCodecJson.Json.ts";
 
 /**
  * A recorded session, as the event stream a WebView receives.
@@ -15,11 +21,16 @@ import { Iso15118_2CodecJson } from "../iso2/Iso15118_2CodecJson.Json.ts";
  *
  * ## What this back end can and cannot decode
  *
- * The generator has emitted the SupportedAppProtocol and ISO 15118-2 codecs for TypeScript and not
- * yet the -20 sets, so a -20 trace replays as **error events naming the payload type** — which is
- * what every back end does with a frame it cannot place, and is why nothing here special-cases it.
- * Refusing a -20 session before it starts is the *plugin's* job (`capacitor/src/web.ts`), because
- * that is knowable in advance and a stream of errors is not a session.
+ * Both protocols, since 2026-08-05: SupportedAppProtocol, ISO 15118-2, and the three -20 sets a
+ * session actually travels on — CommonMessages, AC and DC. WPT and ACDP are generated for the other
+ * back ends and not for this one, deliberately: no stack anywhere implements a WPT or ACDP *session*
+ * (see `docs/roadmap.md`), so no recorded session contains one, and half a megabyte of WebView bundle
+ * per set would answer a question nobody asks. The same goes for the two AC DER grammar variants,
+ * which have no payload type of their own to arrive under.
+ *
+ * A frame from a set this build does not carry still becomes an **error event naming the payload
+ * type** — what every back end does with a frame it cannot place, and why nothing here special-cases
+ * it.
  *
  * @module
  */
@@ -48,6 +59,8 @@ export interface SessionTrace {
     readonly name: string;
     readonly protocol: string;
     readonly mode: string;
+    /** The station meter's signing key, present only in the sessions that sign meter readings. */
+    readonly meterKey?: { readonly x: string; readonly y: string } | null;
     readonly exchanges: readonly RecordedExchange[];
 }
 
@@ -72,6 +85,17 @@ export function toJSONLD(frame: Uint8Array, payloadType: string, messageName: st
         return messageName.startsWith("SupportedAppProtocol")
             ? SupportedAppProtocolCodecJson.toJSON(SupportedAppProtocolCodec.decodeAny(payload))
             : Iso15118_2CodecJson.toJSON(Iso15118_2Codec.decodeAny(payload));
+
+    // The -20 sets, where the payload type *is* enough: each namespace has one, and a session's
+    // frames arrive under the set they belong to. The order is C#'s `MessageSetCodecs`.
+    if (payloadType === "0x8002")
+        return CommonMessagesCodecJson.toJSON(CommonMessagesCodec.decodeAny(payload));
+
+    if (payloadType === "0x8003")
+        return ACCodecJson.toJSON(ACCodec.decodeAny(payload));
+
+    if (payloadType === "0x8004")
+        return DCCodecJson.toJSON(DCCodec.decodeAny(payload));
 
     // The wording is C#'s, character for character: a consumer reading this in an event stream should
     // not be able to tell which back end produced the session.
@@ -102,6 +126,10 @@ export function replay(trace: SessionTrace, monotonicMillis: () => number): Brid
         name:     trace.name,
         protocol: trace.protocol,
         mode:     trace.mode,
+        // Only when the trace carries one, and spread rather than set to undefined: the corpus's
+        // events have no `meterKey` key at all for a session without a signing meter, and
+        // `JSON.stringify` of an explicit `undefined` drops it — but `deepEqual` would not.
+        ...(trace.meterKey ? { meterKey: { x: trace.meterKey.x, y: trace.meterKey.y } } : {}),
     });
 
     for (const exchange of trace.exchanges) {

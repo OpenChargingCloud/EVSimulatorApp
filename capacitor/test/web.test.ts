@@ -98,19 +98,36 @@ test("a bundled session arrives as the events the corpus pins", { skip: skipNoTr
 });
 
 
-test("a protocol this build cannot decode is refused before anything starts", { skip: skipNoTraces }, async () => {
+/**
+ * An ISO 15118-20 session is delivered, not refused.
+ *
+ * This replaces the test that stood here until 2026-08-05 — *"a protocol this build cannot decode is
+ * refused before anything starts"* — which pinned the plugin's advance refusal of -20 while the sets
+ * were not generated for TypeScript. They are wired through now, so the refusal is gone and the
+ * assertion is its opposite: the session arrives, as messages rather than as errors.
+ */
+test("an ISO 15118-20 session is delivered as messages, not refused", { skip: skipNoTraces }, async () => {
 
     const { plugin, received } = web("iso20-ac-eim");
 
-    await assert.rejects(
-        () => plugin.start({ config: { ...CONFIG, protocol: "iso15118-20" } }),
-        /-20 codecs are not generated for TypeScript yet/);
+    const { sessionId } = await plugin.start({ config: { ...CONFIG, protocol: "iso15118-20" } });
+    assert.match(sessionId, /^web-\d+$/);
 
     await settle();
 
-    // Nothing at all, rather than a session that opens and immediately fills with errors. `replay`
-    // would happily produce those — the judgement that they are not a session belongs here.
-    assert.equal(received.length, 0);
+    const expected = corpus["iso20-ac-eim"]!;
+    assert.equal(received.length, expected.length);
+
+    // No error events at all: the whole point of the wiring is that a -20 session is no longer a
+    // stream of "payload type is not a message set this build carries".
+    assert.equal(received.filter(e => e.kind === "error").length, 0);
+
+    // And the frames arrive on all three sets a -20 AC session travels on — the handshake on 0x8001,
+    // the session's spine on CommonMessages, the energy-transfer half on AC.
+    const sets = new Set(received.filter(e => e.kind === "message").map(e => e.payloadType));
+    assert.deepEqual([...sets].sort(), ["0x8001", "0x8002", "0x8003"]);
+
+    assert.equal(received[received.length - 1].outcome, "completed");
 });
 
 

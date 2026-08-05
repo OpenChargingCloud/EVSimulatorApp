@@ -35,6 +35,9 @@ import { AuthorizationReq } from "@open-charging-cloud/v2g-exi/src/iso20common/A
 import acEim from "./traces/Session.iso2-ac-eim.trace.json" with { type: "json" };
 import acPnc from "./traces/Session.iso2-ac-pnc.trace.json" with { type: "json" };
 import dcEim from "./traces/Session.iso2-dc-eim.trace.json" with { type: "json" };
+import acEim20 from "./traces/Session.iso20-ac-eim.trace.json" with { type: "json" };
+import dcEim20 from "./traces/Session.iso20-dc-eim.trace.json" with { type: "json" };
+import dcPnc20 from "./traces/Session.iso20-dc-pnc.trace.json" with { type: "json" };
 
 /**
  * The bundle's entry point, and the one place that decides which recordings this build carries.
@@ -46,17 +49,24 @@ import dcEim from "./traces/Session.iso2-dc-eim.trace.json" with { type: "json" 
  * producing `app/vendor/ev-simulator.js`, and every other source in `app/` stays plain ES modules
  * that Node runs directly for the tests and a browser runs directly without a build.
  *
- * ## Three sessions, and why not six
+ * ## Six sessions, both protocols
  *
- * The -20 codecs are generated for TypeScript since 2026-08-04, but the bridge does not carry them
- * yet (the roadmap's high-priority TODO). A -20 recording would replay as error events naming
- * payload types, so the plugin refuses that protocol outright rather than delivering it — and
- * bundling a trace it would refuse would be shipping a promise this build cannot keep.
+ * It was three until 2026-08-05, when -20 was wired through the bridge: before that a -20 recording
+ * replayed as error events naming payload types, the plugin refused the protocol outright, and
+ * bundling a trace it would refuse would have been shipping a promise this build could not keep.
+ *
+ * The three that followed are close to free. Wiring -20 pulled the CommonMessages, AC and DC codecs
+ * into this bundle — 743 kB to 1.9 MB, and that is the cost of the feature rather than of the demo —
+ * next to which a recording is 7–10 kB. Not bundling them would have meant carrying every -20 codec
+ * and still refusing every -20 session.
  */
 const TRACES: Record<string, unknown> = {
-    "iso15118-2/ac/eim": acEim,
-    "iso15118-2/ac/pnc": acPnc,
-    "iso15118-2/dc/eim": dcEim,
+    "iso15118-2/ac/eim":   acEim,
+    "iso15118-2/ac/pnc":   acPnc,
+    "iso15118-2/dc/eim":   dcEim,
+    "iso15118-20/ac/eim":  acEim20,
+    "iso15118-20/dc/eim":  dcEim20,
+    "iso15118-20/dc/pnc":  dcPnc20,
 };
 
 bundleTraces((config: SessionConfig) =>

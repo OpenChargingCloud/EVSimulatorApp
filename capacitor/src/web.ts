@@ -81,16 +81,16 @@ export class EvSimulatorWeb extends WebPlugin implements EvSimulatorNative {
             throw this.unavailable(
                 `no recorded ${config.protocol} ${config.mode} session is bundled with this build.`);
 
-        // Refused before anything starts, rather than delivered as a stream of errors. The codecs
-        // this build carries are SupportedAppProtocol and ISO 15118-2; a -20 trace would replay as
-        // twenty-odd error events naming payload types, which is not a session and would look like a
-        // fault rather than a missing feature. `replay` itself does not special-case it — a frame it
-        // cannot place becomes an error, as in every back end — because that judgement belongs here.
-        if (config.protocol !== "iso15118-2")
-            throw this.unavailable(
-                `this build decodes ISO 15118-2 and the SupportedAppProtocol handshake. The -20 `
-              + `codecs are not generated for TypeScript yet, so a ${config.protocol} session would `
-              + `arrive as errors rather than messages.`);
+        // No protocol refusal here since 2026-08-05: both are decoded. What stood in this place —
+        // "the -20 codecs are not generated for TypeScript yet" — refused a whole protocol in
+        // advance, because a -20 trace would have replayed as twenty-odd error events naming payload
+        // types, and that is a fault report rather than a session. The wiring removed the reason,
+        // and a refusal nobody can trigger is worse than none: it would read as a limit that exists.
+        //
+        // What *is* still refused is a session nobody bundled a recording for, above — and a frame
+        // from a set this build does not carry (WPT, ACDP) remains one error event among messages,
+        // which is `replay`'s judgement and not this one's. The difference is knowability: a missing
+        // protocol was knowable before the first byte, a stray frame is not.
 
         // Derived with the stepping clock, then re-stamped on the way out — see the send loop. What
         // the derivation took is not a fact about the session, and the replay's own pace is.

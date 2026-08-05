@@ -43,11 +43,17 @@ const skipNoTraces = (() => {
 })();
 
 
-/** The sessions this build's codecs cover: SupportedAppProtocol and ISO 15118-2. */
-const DECODABLE = ["iso2-ac-eim", "iso2-ac-pnc", "iso2-dc-eim"];
+/**
+ * Every recorded session, because this build now decodes every set they travel on.
+ *
+ * Read from the corpus rather than listed: a hand-kept list is what let `iso2-ac-eim-meter` and the
+ * `-sapboth` pair sit unchecked while three names were, and the meter sessions were the ones with a
+ * field this port did not emit.
+ */
+const DECODABLE = Object.keys(sessions);
 
 
-test("every ISO 15118-2 session produces exactly the events C# produces", { skip: skipNoTraces }, () => {
+test("every recorded session produces exactly the events C# produces", { skip: skipNoTraces }, () => {
 
     let checked = 0;
 
@@ -66,49 +72,111 @@ test("every ISO 15118-2 session produces exactly the events C# produces", { skip
         }
     }
 
-    assert.ok(checked >= 80, `only ${checked} events were compared`);
+    // Every session in the corpus, not a subset of it: a floor that a shrinking DECODABLE could slip
+    // under is the failure this number exists to prevent, and it was 80 while three sessions ran.
+    assert.equal(DECODABLE.length, Object.keys(sessions).length);
+    assert.ok(checked >= 380, `only ${checked} events were compared`);
 });
 
 
 /**
- * A -20 session replays as error events naming the payload type, and says so.
+ * A -20 session decodes on every set it travels on, and each frame under its own payload type.
  *
- * The generator has emitted the SAP and -2 codecs for TypeScript and not yet the -20 sets. That is
- * not hidden: a frame this build cannot place becomes an error carrying the frame, which is what
- * every back end does — and the wording is C#'s, character for character, so a consumer cannot tell
- * from an event which back end produced the session.
+ * This test replaces the one that stood here until 2026-08-05, which asserted the opposite: that a
+ * -20 frame became a named error, because the sets were not generated for TypeScript. Its own
+ * comment said it would fail on the day they were wired through, and it did.
  *
- * When the -20 codecs are generated, this test fails, and the three sessions move into DECODABLE.
+ * What it checks now is the property that made the old one necessary — **a -20 session is not
+ * silently half-read.** All three sets appear (CommonMessages carries the session's spine, AC or DC
+ * the energy-transfer half), nothing falls back to an error, and the session ends `completed`.
  */
-test("an ISO 15118-20 session is not silently wrong — every -20 frame becomes a named error", { skip: skipNoTraces }, () => {
+test("an ISO 15118-20 session decodes on all three sets, each under its own payload type", { skip: skipNoTraces }, () => {
 
-    const produced = replay(trace("iso20-ac-eim"), steppingClock());
+    for (const [name, energySet] of [["iso20-ac-eim", "0x8003"], ["iso20-dc-eim", "0x8004"]] as const) {
 
-    const errors = produced.filter(e => e.kind === "error");
-    const messages = produced.filter(e => e.kind === "message");
+        const produced = replay(trace(name), steppingClock());
 
-    // The handshake decodes. A -20 session opens with SupportedAppProtocol on 0x8001 — the payload
-    // type it shares with every -2 message — and that codec *is* generated for TypeScript. So "a -20
-    // session" is not "no readable frames", and an earlier draft of this test asserting zero messages
-    // was wrong about the protocol rather than about the code.
-    assert.equal(messages.length, 2, "the SupportedAppProtocol exchange should still decode");
-    assert.ok(messages.every(m => m.payloadType === "0x8001"));
+        const errors   = produced.filter(e => e.kind === "error");
+        const messages = produced.filter(e => e.kind === "message");
 
-    assert.ok(errors.length >= 20, `only ${errors.length} errors`);
-    assert.ok(errors.every(e => /0x800[234]/.test(e.detail)), "an error named something other than a -20 set");
+        assert.equal(errors.length, 0, `${name}: ${errors[0]?.detail}`);
 
-    assert.match(errors[0]!.detail,
-                 /^SessionSetupReq \(0x8002\) could not be read: payload type '0x8002' is not a message set this build carries\.$/);
+        // The handshake still arrives on 0x8001 — the payload type it shares with every -2 message,
+        // because it happens before a protocol has been agreed and cannot have one of its own.
+        assert.equal(messages.filter(m => m.payloadType === "0x8001").length, 2,
+                     `${name}: the SupportedAppProtocol exchange`);
+
+        // And the session's own frames on the two -20 sets it uses, never on the other energy set.
+        assert.ok(messages.some(m => m.payloadType === "0x8002"), `${name}: no CommonMessages frame`);
+        assert.ok(messages.some(m => m.payloadType === energySet), `${name}: no ${energySet} frame`);
+
+        const sets = new Set(messages.map(m => m.payloadType));
+        assert.deepEqual([...sets].sort(), ["0x8001", "0x8002", energySet].sort(), `${name}: sets`);
+
+        const last = produced[produced.length - 1]!;
+        assert.equal(last.kind, "sessionFinished");
+        assert.equal((last as { outcome: string }).outcome, "completed", `${name}: outcome`);
+    }
+});
+
+
+/**
+ * A set this build does not carry is still a named error, with the frame attached.
+ *
+ * The refusal path did not stop being reachable when -20 was wired through — WPT (`0x8005`) and ACDP
+ * (`0x8006`) are deliberately not bundled (see `src/bridge/replay.ts`), and a station that sent one
+ * would arrive here. Synthetic, because no recorded session contains such a frame: that is exactly
+ * why the path needs a test of its own rather than a corpus entry.
+ */
+test("a frame from a set this build does not carry becomes a named error carrying the frame", { skip: skipNoTraces }, () => {
+
+    const wpt = trace("iso20-ac-eim") as SessionTrace;
+    const anyFrame = wpt.exchanges.find(e => e.request)!.request!;
+
+    const produced = replay({
+        ...wpt,
+        name: "synthetic-wpt",
+        exchanges: [{ request: { ...anyFrame, payloadType: "0x8005", message: "WPT_FinePositioningReq" } }],
+    }, steppingClock());
+
+    const error = produced.find(e => e.kind === "error")!;
+
+    // The wording is C#'s, character for character: a consumer must not be able to tell from an
+    // event which back end produced the session.
+    assert.match(error.detail,
+                 /^WPT_FinePositioningReq \(0x8005\) could not be read: payload type '0x8005' is not a message set this build carries\.$/);
+
+    // The frame travels with the error, because a decode failure whose bytes are not in the stream
+    // is a report nobody can act on.
+    assert.equal(error.exi, anyFrame.frame.toLowerCase());
 
     // And the stream still ends, marked failed. A consumer that received no ending would wait for
     // one for ever, which is the one outcome worse than a session of errors.
     const last = produced[produced.length - 1]!;
     assert.equal(last.kind, "sessionFinished");
     assert.equal((last as { outcome: string }).outcome, "failed");
+});
 
-    // The frame travels with the error, because a decode failure whose bytes are not in the stream
-    // is a report nobody can act on.
-    assert.ok(errors[0]!.exi!.length > 16);
+
+/**
+ * The signing meter's key rides the first event, and only when there is one.
+ *
+ * Absent from this port until 2026-08-05, and invisible because `DECODABLE` was a hand-kept list of
+ * three sessions that did not include either meter recording. The other three back ends had it.
+ */
+test("a session with a signing meter carries the meter key, and one without carries none", { skip: skipNoTraces }, () => {
+
+    const withMeter = replay(trace("iso2-ac-eim-meter"), steppingClock())[0] as
+        { meterKey?: { x: string; y: string } };
+
+    assert.ok(withMeter.meterKey, "the meter session's first event has no meterKey");
+    assert.match(withMeter.meterKey.x, /^[0-9a-f]{64}$/);
+    assert.match(withMeter.meterKey.y, /^[0-9a-f]{64}$/);
+
+    // Absent rather than null or empty: the corpus's events have no such key at all, and a consumer
+    // reading `"meterKey" in event` must get the same answer from every back end.
+    const without = replay(trace("iso2-ac-eim"), steppingClock())[0]!;
+    assert.ok(!("meterKey" in without), "a session without a signing meter announced a key");
 });
 
 
