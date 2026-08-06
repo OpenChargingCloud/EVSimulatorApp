@@ -217,8 +217,16 @@ a charge; the other two stop somewhere worth naming:
   advertising service 6 at every -20 DC run ever made against it while our EV took service 2. The blocker
   was `PreferredEnergyServiceIds` listing the unidirectional entry first with no way to say otherwise
   except a subclass — and since `Evcc20Ac` is sealed, no subclass could reach AC at all.
-  `PreferBidirectionalService` is the fix, one flag over all three catalogues. Left on the list:
-  `config-sil-dc-isomux-tls.yaml`. **-2 over TLS 1.2 is done**, as the carrier for the PnC run below.
+  `PreferBidirectionalService` is the fix, one flag over all three catalogues.
+  **✅ `IsoMux` over TLS, 2026-08-06** — the last item on this list, and the one that paid best. Their
+  multiplexer serves **TLS 1.2 only** (alert 70 for a 1.3 hello, confirmed with `openssl s_client`) and
+  then routes on the SAP offer regardless, so a dual-stack EV gets a complete **ISO 15118-20 session over
+  TLS 1.2** while a -20 EV that pins its own profile cannot reach the -20 backend at all. TLS is settled
+  before `SupportedAppProtocol` runs, so nothing in that path can object. It also found the mirror of that
+  layering in the harness — a both-protocol offer was pinning its ClientHello to 1.3 — and it narrows the
+  accept-loop report: `IsoMux` kept accepting after two refused handshakes, so that defect is
+  `Evse15118D20`'s alone. **The EVerest list is now empty.** **-2 over TLS 1.2 is done**, as the carrier for
+  the PnC run below.
   **Plug &amp; Charge, 2026-08-03:** our signed -2 `AuthorizationReq` **verified at their station** —
   the second independent stack ever to check one of our contract signatures, after Josev — using
   their own MO credential so no key was generated. Their station also taught us a station-side rule
