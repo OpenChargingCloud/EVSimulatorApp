@@ -208,9 +208,17 @@ a charge; the other two stop somewhere worth naming:
   message. Both walls fell to the same idea: their module graph is addressable over MQTT, so the
   session can be authorized and the simulated car plugged in without patching a line of EVerest.
   Dynamic control mode, mutual TLS 1.3, their `IsoMux` and AC followed the same day. What is left is a
-  list rather than a blocker — **AC BPT** (their `supported_iso_ac_bpt: true`, and our -20 AC BPT arm
-  has never met a station) and `config-sil-dc-isomux-tls.yaml`. **-2 over TLS 1.2 is done**, as the
-  carrier for the PnC run below.
+  list rather than a blocker. **✅ BPT, 2026-08-06:** two complete **DC_BPT** sessions (Scheduled and
+  Dynamic) with their station decoding `Max discharge current 200.000000A` out of our `BPT_DC_*` request,
+  and **AC_BPT** negotiated — their `EvseManager` logs `EV selected service: AC_BPT` and accepts our
+  `BPT_AC_*` parameters — before `PowerDelivery` is refused with `FAILED_ContactorError`, which is the -20
+  AC bound below reached one message further in. **Neither config was changed for it**: `EvseManager`
+  appends the `*_BPT` entry whenever the power supply reports itself bidirectional, so their SIL had been
+  advertising service 6 at every -20 DC run ever made against it while our EV took service 2. The blocker
+  was `PreferredEnergyServiceIds` listing the unidirectional entry first with no way to say otherwise
+  except a subclass — and since `Evcc20Ac` is sealed, no subclass could reach AC at all.
+  `PreferBidirectionalService` is the fix, one flag over all three catalogues. Left on the list:
+  `config-sil-dc-isomux-tls.yaml`. **-2 over TLS 1.2 is done**, as the carrier for the PnC run below.
   **Plug &amp; Charge, 2026-08-03:** our signed -2 `AuthorizationReq` **verified at their station** —
   the second independent stack ever to check one of our contract signatures, after Josev — using
   their own MO credential so no key was generated. Their station also taught us a station-side rule
