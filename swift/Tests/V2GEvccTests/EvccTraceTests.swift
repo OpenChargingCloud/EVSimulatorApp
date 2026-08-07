@@ -231,21 +231,26 @@ final class EvccTraceTests: XCTestCase {
     /// **The vehicle's own counter lands where the station's signed reading does**, in both protocols.
     ///
     /// Two counters, two state machines, and neither looks at the other's total. In -2 AC both sides
-    /// fall back to the ChargingProfile the EV committed to and the station accepted — 11 kW for
-    /// three minutes, 549 Wh. In -20 DC the vehicle's figure is half its own and half the station's:
-    /// it measures the inlet voltage it reported, the station reports the current — 400 V x 120 A,
-    /// 2400 Wh.
+    /// fall back to the ChargingProfile the EV committed to and the station accepted — 11,040 W
+    /// (3 x 230 V x 16 A, what an ordinary European charge point delivers) for three minutes,
+    /// 552 Wh. In -20 DC the vehicle's figure is half its own and half the station's: it measures
+    /// the inlet voltage it reported, the station reports the current — 400 V x 120 A, 2400 Wh.
     ///
     /// The expected figure is read back out of the recording rather than restated, so this is the
-    /// port's arithmetic held against C#'s rather than against itself. It is also where a rounding
-    /// rule shows: 183.33 Wh per sample rounds to 183 three times, not to 550. A port integrating
-    /// precisely and rounding once would be one watt-hour out, silently, in a number a driver is
-    /// billed on.
+    /// port's arithmetic held against C#'s rather than against itself.
+    ///
+    /// **What this stopped checking on 2026-08-07.** While the station offered a round 11 kW the
+    /// sample was 183.33 Wh, which rounds to 183 three times and not to 550 — so a port integrating
+    /// precisely and rounding once was one watt-hour out, silently, in a number a driver is billed
+    /// on, and it showed up right here. The offer is now a physical number that divides exactly, so
+    /// this trace no longer distinguishes the two rules. C# checks the rule directly
+    /// (`EvMeterTests`, `Secc20SignedMeterTests`); this port has no metering test of its own, and
+    /// until it has one, nothing here holds it to per-sample rounding.
     func testTheVehiclesOwnCounterAgreesWithTheStationsSignedReading() throws {
 
         let (_, evcc2) = try replay2("iso2-ac-eim-meter", .ac)
         XCTAssertEqual(evcc2.meter.samples, 3, "three charge-loop iterations, three samples")
-        XCTAssertEqual(evcc2.meter.energyWh, 549)
+        XCTAssertEqual(evcc2.meter.energyWh, 552)
 
         let iso2 = try SessionTrace.load("iso2-ac-eim-meter")
         let lastIso2 = try XCTUnwrap(iso2.exchanges.last { $0.response.carriesMeterSignature })

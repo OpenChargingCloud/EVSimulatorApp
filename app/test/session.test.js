@@ -641,7 +641,7 @@ test("a session with no meter reports none, rather than reporting nothing", asyn
 
 test("the car's own count and the station's signed reading agree, across both protocols", () => {
 
-    for (const [name, expected] of [["iso2-ac-eim-meter", 549n], ["iso20-dc-eim-meter", 2400n]]) {
+    for (const [name, expected] of [["iso2-ac-eim-meter", 552n], ["iso20-dc-eim-meter", 2400n]]) {
 
         const energy = energyFor(sessions[name] ?? []);
 
@@ -681,7 +681,7 @@ test("a station reporting energy it did not deliver is a difference, not a round
 
     // A station billing for 1 kWh it never delivered. Every signature in the session still checks
     // out — this is the disagreement no signature can catch.
-    last.json.body.bodyElement.meterInfo.meterReading = "1549";
+    last.json.body.bodyElement.meterInfo.meterReading = "1552";
 
     const energy = energyFor(events);
     assert.equal(energy.verdict, "differ");
@@ -713,7 +713,7 @@ test("the two counts are paired at the same instant, not at the end of the sessi
 
     // The Plug & Charge session, where an unmetered station reports MeterInfo exactly once — with
     // the receipt it demands, early. The car goes on counting afterwards, so its final total is a
-    // different moment from the station's only reading, and comparing those two produced a 366 Wh
+    // different moment from the station's only reading, and comparing those two produced a 368 Wh
     // "disagreement" with nothing wrong in the session at all.
     const energy = energyFor(sessions["iso2-ac-pnc"] ?? []);
 
@@ -782,7 +782,7 @@ test("a station that reports one figure and shows another is caught, with no key
     const name   = "iso2-ac-eim-meter";
     const record = structuredClone(transactions[name]);
 
-    record.meterValues[2].sampledValue[0].value = "1549";
+    record.meterValues[2].sampledValue[0].value = "1552";
     record.meterValues[2].sampledValue[0].signedMeterValue.signedMeterData =
         "00".repeat(64);   // signed by the meter for the backend, never shown to the car
 
@@ -822,7 +822,7 @@ test("an unsigned backend record reports its energy and claims nothing more", { 
     const check = backendCheckFor(sessions["iso2-ac-eim"] ?? [], transactions["iso2-ac-eim"]);
 
     assert.equal(check.verdict, "unsigned");
-    assert.equal(check.backendWh, 549n);
+    assert.equal(check.backendWh, 552n);
     assert.equal(check.signedValues, 0);
     assert.equal(energyFor(sessions["iso2-ac-eim"] ?? []).stationWh, null,
                  "this session showed the car no reading — the backend's is the only one");

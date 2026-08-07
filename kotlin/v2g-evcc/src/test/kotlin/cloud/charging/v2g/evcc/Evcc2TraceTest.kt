@@ -154,13 +154,18 @@ class Evcc2TraceTest {
      *
      * Two counters, two state machines, and neither looks at the other's total: the EV multiplies
      * the power it committed to in its ChargingProfile, the station the profile it accepted, and
-     * both book the same declared sample period. 549 Wh is 11 kW for three minutes — and it is the
-     * last `MeterReading` in this very recording, so this is the port's arithmetic held against C#'s
-     * rather than against itself.
+     * both book the same declared sample period. 552 Wh is 11,040 W — 3 × 230 V × 16 A, what an
+     * ordinary European charge point delivers — for three minutes, and it is the last `MeterReading`
+     * in this very recording, so this is the port's arithmetic held against C#'s rather than against
+     * itself.
      *
-     * It is also where a rounding rule shows. 183.33 Wh per sample rounds to 183 three times, not to
-     * 550: a port integrating precisely and rounding once would be one watt-hour out, silently, in a
-     * number a driver is billed on.
+     * **What this stopped checking on 2026-08-07.** While the station offered a round 11 kW the
+     * sample was 183.33 Wh, which rounds to 183 three times and not to 550 — so a port integrating
+     * precisely and rounding once was one watt-hour out, silently, in a number a driver is billed
+     * on, and it showed up right here. The offer is now a physical number that divides exactly, so
+     * this trace no longer distinguishes the two rules. C# checks the rule directly (`EvMeterTests`,
+     * `Secc20SignedMeterTests`); this port has no metering test of its own, and until it has one,
+     * nothing here holds it to per-sample rounding.
      */
     @Test
     fun theVehiclesOwnCounterAgreesWithTheStationsSignedReading() {
@@ -174,7 +179,7 @@ class Evcc2TraceTest {
         evcc.run()
 
         assertEquals(3, evcc.meter.samples, "three charge-loop iterations, three samples")
-        assertEquals(549uL, evcc.meter.energyWh)
+        assertEquals(552uL, evcc.meter.energyWh)
 
         // …and that figure is the station's, read back out of the recording rather than restated.
         val last = trace.exchanges.last { it.response.carriesMeterSignature }

@@ -83,7 +83,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "SessionSetupResType",
-        "exi": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c410141f1f40a0",
+        "exi": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c4101e5ad940c0",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -97,7 +97,7 @@
               "@type": "SessionSetupResType",
               "responseCode": "OK_NewSessionEstablished",
               "evseid": "DE*ABC*E1",
-              "evseTimeStamp": "1600000000"
+              "evseTimeStamp": "1767225600"
             }
           }
         }
@@ -332,7 +332,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "ChargeParameterDiscoveryResType",
-        "exi": "01fe8001000000258098020282c3034383c40450a00000000000240700c50f8550a80000006207300818604000",
+        "exi": "01fe8001000000258098020282c3034383c40450a00000000000240700c50a0560a80000006207300818604000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -366,7 +366,7 @@
                             "@type": "PhysicalValueType",
                             "multiplier": 0,
                             "unit": "W",
-                            "value": 11000
+                            "value": 11040
                           }
                         }
                       ]
@@ -406,7 +406,7 @@
         "direction": "out",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryReqType",
-        "exi": "01fe8001000000168098020282c3034383c4045150000000018a1f0aa2c0",
+        "exi": "01fe8001000000168098020282c3034383c4045150000000018a140ac2c0",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -430,7 +430,7 @@
                       "@type": "PhysicalValueType",
                       "multiplier": 0,
                       "unit": "W",
-                      "value": 11000
+                      "value": 11040
                     }
                   }
                 ]
@@ -499,7 +499,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "ChargingStatusResType",
-        "exi": "01fe8001000000738098020282c3034383c40450c0002d1114a905090ca914c4000818ac829c549a54686e62620b7010201d62da7863c68084c9ed015778fdb6f8926208fbe2d5b0ecff9d20189906e5b78f81bce251e54fe27431616b89407b796f41a032a21865a5457b95359f830d931203cb5b281840000000",
+        "exi": "01fe8001000000738098020282c3034383c40450c0002d1114a905090ca914c4000818ac829c549a54686e62620b8010203381d012eb97c15956eb1eea0ca23606b3dadbd2a0b5820c2e056f077d756a3efce0f6029eaacd13051fef2fc5116e4f3795bedf74c478469790713ca838fe2f1203cb5b281840000000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -517,8 +517,8 @@
               "meterInfo": {
                 "@type": "MeterInfoType",
                 "meterID": "VAN*M*4711",
-                "meterReading": "183",
-                "sigMeterReading": "3ac5b4f0c78d010993da02aef1fb6df124c411f7c5ab61d9ff3a4031320dcb6f1f0379c4a3ca9fc4e862c2d71280f6f2de8340654430cb4a8af72a6b3f061b26",
+                "meterReading": "184",
+                "sigMeterReading": "6703a025d72f82b2add63dd419446c0d67b5b7a5416b04185c0ade0efaead47df9c1ec053d559a260a3fde5f8a22dc9e6f2b7dbee988f08d2f20e2795071fc5e",
                 "tMeter": "1767225600"
               },
               "ac_EVSEStatus": {
@@ -561,7 +561,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "ChargingStatusResType",
-        "exi": "01fe8001000000738098020282c3034383c40450c0002d1114a905090ca914c4000818ac829c549a54686e62620ee02020507c6a8cf4d60e18990af3a10304a4ae31b0b0c8f378db6f955ef5fecc13d337273b79f5bd605d061584c07578cd9b5e169a3bd208fb28067059e853c8aa9dcd1203cb5b281840000000",
+        "exi": "01fe8001000000738098020282c3034383c40450c0002d1114a905090ca914c4000818ac829c549a54686e62620f00202068d2ec7b2c094b14402575b65923faed048ddc5c177176d5aecf414c64b3230c4043b2ff51ef33edd5ab5502d93ba63e4f20c00e992984a513c2778d4db5b4e01203cb5b281840000000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -579,8 +579,8 @@
               "meterInfo": {
                 "@type": "MeterInfoType",
                 "meterID": "VAN*M*4711",
-                "meterReading": "366",
-                "sigMeterReading": "a0f8d519e9ac1c313215e7420609495c63616191e6f1b6df2abdebfd9827a66e4e76f3eb7ac0ba0c2b0980eaf19b36bc2d3477a411f6500ce0b3d0a791553b9a",
+                "meterReading": "368",
+                "sigMeterReading": "d1a5d8f658129628804aeb6cb247f5da091bb8b82ee2edab5d9e8298c9664618808765fea3de67dbab56aa05b2774c7c9e41801d3253094a2784ef1a9b6b69c0",
                 "tMeter": "1767225600"
               },
               "ac_EVSEStatus": {
@@ -623,7 +623,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "ChargingStatusResType",
-        "exi": "01fe8001000000738098020282c3034383c40450c0002d1114a905090ca914c4000818ac829c549a54686e62620a5040201f5836025ab94b526f9dfa628342e3b09754eb4eb7f90feb9797b296077d9f038934e90e333920da1be1f00098cf49c318206c1fa1a3eac646b7b20106234cb11203cb5b281840000000",
+        "exi": "01fe8001000000738098020282c3034383c40450c0002d1114a905090ca914c4000818ac829c549a54686e62620a80402030c92f0a9f09582f0111012d700d696bdb422a1462ac5f08c1eafe381a7d2bc4e6ca6a488d3ed880dfbb852e8792f35f3357c08064083ead66caba6607e68b941203cb5b281840000000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -641,8 +641,8 @@
               "meterInfo": {
                 "@type": "MeterInfoType",
                 "meterID": "VAN*M*4711",
-                "meterReading": "549",
-                "sigMeterReading": "3eb06c04b57296a4df3bf4c50685c7612ea9d69d6ff21fd72f2f652c0efb3e071269d21c667241b437c3e001319e93863040d83f4347d58c8d6f64020c469962",
+                "meterReading": "552",
+                "sigMeterReading": "61925e153e12b05e0222025ae01ad2d7b6845428c558be1183d5fc7034fa5789cd94d4911a7db101bf770a5d0f25e6be66af8100c8107d5acd9574cc0fcd1728",
                 "tMeter": "1767225600"
               },
               "ac_EVSEStatus": {
@@ -852,7 +852,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "SessionSetupResType",
-        "exi": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c410141f1f40a0",
+        "exi": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c4101e5ad940c0",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -866,7 +866,7 @@
               "@type": "SessionSetupResType",
               "responseCode": "OK_NewSessionEstablished",
               "evseid": "DE*ABC*E1",
-              "evseTimeStamp": "1600000000"
+              "evseTimeStamp": "1767225600"
             }
           }
         }
@@ -1101,7 +1101,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "ChargeParameterDiscoveryResType",
-        "exi": "01fe8001000000258098020282c3034383c40450a00000000000240700c50f8550a80000006207300818604000",
+        "exi": "01fe8001000000258098020282c3034383c40450a00000000000240700c50a0560a80000006207300818604000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -1135,7 +1135,7 @@
                             "@type": "PhysicalValueType",
                             "multiplier": 0,
                             "unit": "W",
-                            "value": 11000
+                            "value": 11040
                           }
                         }
                       ]
@@ -1175,7 +1175,7 @@
         "direction": "out",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryReqType",
-        "exi": "01fe8001000000168098020282c3034383c4045150000000018a1f0aa2c0",
+        "exi": "01fe8001000000168098020282c3034383c4045150000000018a140ac2c0",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -1199,7 +1199,7 @@
                       "@type": "PhysicalValueType",
                       "multiplier": 0,
                       "unit": "W",
-                      "value": 11000
+                      "value": 11040
                     }
                   }
                 ]
@@ -1592,7 +1592,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "SessionSetupResType",
-        "exi": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c410141f1f40a0",
+        "exi": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c4101e5ad940c0",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -1606,7 +1606,7 @@
               "@type": "SessionSetupResType",
               "responseCode": "OK_NewSessionEstablished",
               "evseid": "DE*ABC*E1",
-              "evseTimeStamp": "1600000000"
+              "evseTimeStamp": "1767225600"
             }
           }
         }
@@ -1841,7 +1841,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "ChargeParameterDiscoveryResType",
-        "exi": "01fe8001000000258098020282c3034383c40450a00000000000240700c50f8550a80000006207300818604000",
+        "exi": "01fe8001000000258098020282c3034383c40450a00000000000240700c50a0560a80000006207300818604000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -1875,7 +1875,7 @@
                             "@type": "PhysicalValueType",
                             "multiplier": 0,
                             "unit": "W",
-                            "value": 11000
+                            "value": 11040
                           }
                         }
                       ]
@@ -1915,7 +1915,7 @@
         "direction": "out",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryReqType",
-        "exi": "01fe8001000000168098020282c3034383c4045150000000018a1f0aa2c0",
+        "exi": "01fe8001000000168098020282c3034383c4045150000000018a140ac2c0",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -1939,7 +1939,7 @@
                       "@type": "PhysicalValueType",
                       "multiplier": 0,
                       "unit": "W",
-                      "value": 11000
+                      "value": 11040
                     }
                   }
                 ]
@@ -2332,7 +2332,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "SessionSetupResType",
-        "exi": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c410141f1f40a0",
+        "exi": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c4101e5ad940c0",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -2346,7 +2346,7 @@
               "@type": "SessionSetupResType",
               "responseCode": "OK_NewSessionEstablished",
               "evseid": "DE*ABC*E1",
-              "evseTimeStamp": "1600000000"
+              "evseTimeStamp": "1767225600"
             }
           }
         }
@@ -2542,7 +2542,7 @@
         "direction": "out",
         "payloadType": "0x8001",
         "messageName": "AuthorizationReqType",
-        "exi": "01fe8001000001338098020282c3034383c4044a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910311b4b218812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e6323736861323536420479581ad0399d6f1aabcead4e055620210222ac24f6a4fe034445751b1497c971281722d539ba26382c87b18b7c1b08bb533809544fa353a8c33b9c5d06d2abbaef9d898aae8730dab359a809df30d4bf6c8c9dc14fddf2a8c15a27650486fbcb7aa8000569643102040424446484a4c4e50525456585a5c5e0",
+        "exi": "01fe8001000001338098020282c3034383c4044a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910311b4b218812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e6323736861323536420479581ad0399d6f1aabcead4e055620210222ac24f6a4fe034445751b1497c971280590e007cc1360ed6d7019c29dead082d4876c77177f188cb50611ffcf21ea4052d5915f07125bfb4a0a31104824e852e8777c9bd122be513a18ca8406e3a8af88000569643102040424446484a4c4e50525456585a5c5e0",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -2584,7 +2584,7 @@
               },
               "signatureValue": {
                 "@type": "SignatureValueType",
-                "value": "b916a9cdd131c1643d8c5be0d845da99c04aa27d1a9d4619dce2e836955dd77cec4c55743986d59acd404ef986a5fb6464ee0a7eef95460ad13b282437de5bd5"
+                "value": "2c87003e609b076b6b80ce14ef568416a43b63b8bbf8c465a8308ffe790f520296ac8af83892dfda505188824127429743bbe4de8915f289d0c65420371d457c"
               }
             }
           },
@@ -2681,7 +2681,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "ChargeParameterDiscoveryResType",
-        "exi": "01fe8001000000258098020282c3034383c40450a00000000000240700c50f8550a80000006207300818604000",
+        "exi": "01fe8001000000258098020282c3034383c40450a00000000000240700c50a0560a80000006207300818604000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -2715,7 +2715,7 @@
                             "@type": "PhysicalValueType",
                             "multiplier": 0,
                             "unit": "W",
-                            "value": 11000
+                            "value": 11040
                           }
                         }
                       ]
@@ -2755,7 +2755,7 @@
         "direction": "out",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryReqType",
-        "exi": "01fe8001000000168098020282c3034383c4045150000000018a1f0aa2c0",
+        "exi": "01fe8001000000168098020282c3034383c4045150000000018a140ac2c0",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -2779,7 +2779,7 @@
                       "@type": "PhysicalValueType",
                       "multiplier": 0,
                       "unit": "W",
-                      "value": 11000
+                      "value": 11040
                     }
                   }
                 ]
@@ -2848,7 +2848,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "ChargingStatusResType",
-        "exi": "01fe80010000002e8098020282c3034383c40450c0002d1114a905090ca914c4000810ac829c549a620b7012203cb5b2818100000000",
+        "exi": "01fe80010000002e8098020282c3034383c40450c0002d1114a905090ca914c4000810ac829c549a620b8012203cb5b2818100000000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -2866,7 +2866,7 @@
               "meterInfo": {
                 "@type": "MeterInfoType",
                 "meterID": "VAN*M1",
-                "meterReading": "183",
+                "meterReading": "184",
                 "tMeter": "1767225600"
               },
               "receiptRequired": true,
@@ -2887,7 +2887,7 @@
         "direction": "out",
         "payloadType": "0x8001",
         "messageName": "MeteringReceiptReqType",
-        "exi": "01fe80010000013d8098020282c3034383c4044a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910311b4b219012b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e6323736861323536420447271019caa10ffb525b6c3af1c330b83915a6bc7eda0999654a7dca1ccd6031281a5f242591da08b1373d0212b1992f0fff239fcd62d086ba6397c72677576e340a776f7a7a65bc661e5922dcc3b9bd475ece4bee608657a2bab319388c55c622283c05696432020282c3034383c4044000021590538a934c416e02440796b6503000",
+        "exi": "01fe80010000013d8098020282c3034383c4044a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910311b4b219012b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e632373686132353642037158aa93ccb3e030f89305db07163bd18c55fb69f7596ee0d1932dd0c3840a31281b5dae2275e1a3f7d092a000477f2343457d176f25befee7fa1dc35423faf95ad5bb45209fca2cc00186efc40c6d1ffa7a630ab8d69030b14f4fc61e39e6f01f883c05696432020282c3034383c4044000021590538a934c417002440796b6503000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -2923,13 +2923,13 @@
                       "@type": "DigestMethodType",
                       "algorithm": "http://www.w3.org/2001/04/xmlenc#sha256"
                     },
-                    "digestValue": "447271019caa10ffb525b6c3af1c330b83915a6bc7eda0999654a7dca1ccd603"
+                    "digestValue": "37158aa93ccb3e030f89305db07163bd18c55fb69f7596ee0d1932dd0c3840a3"
                   }
                 ]
               },
               "signatureValue": {
                 "@type": "SignatureValueType",
-                "value": "d2f9212c8ed04589b9e810958cc9787ff91cfe6b168435d31cbe3933babb71a053bb7bd3d32de330f2c916e61dcdea3af6725f730432bd15d598c9c462ae3111"
+                "value": "daed7113af0d1fbe849500023bf91a1a2be8bb792df7f73fd0ee1aa11fd7cad6adda2904fe5166000c377e206368ffd3d31855c6b481858a7a7e30f1cf3780fc"
               }
             }
           },
@@ -2943,7 +2943,7 @@
               "meterInfo": {
                 "@type": "MeterInfoType",
                 "meterID": "VAN*M1",
-                "meterReading": "183",
+                "meterReading": "184",
                 "tMeter": "1767225600"
               }
             }
@@ -3279,7 +3279,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "SessionSetupResType",
-        "exi": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c410141f1f40a0",
+        "exi": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c4101e5ad940c0",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -3293,7 +3293,7 @@
               "@type": "SessionSetupResType",
               "responseCode": "OK_NewSessionEstablished",
               "evseid": "DE*ABC*E1",
-              "evseTimeStamp": "1600000000"
+              "evseTimeStamp": "1767225600"
             }
           }
         }
@@ -3524,7 +3524,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "ChargeParameterDiscoveryResType",
-        "exi": "01fe8001000000368098020282c3034383c40450a00000000000240700c50f8550aa00004206186400820a130ea06207a0181860000620640088c3001100",
+        "exi": "01fe8001000000368098020282c3034383c40450a00000000000240700c50a0560aa00004206186400820a130ea06207a0181860000620640088c3001100",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -3558,7 +3558,7 @@
                             "@type": "PhysicalValueType",
                             "multiplier": 0,
                             "unit": "W",
-                            "value": 11000
+                            "value": 11040
                           }
                         }
                       ]
@@ -3759,7 +3759,7 @@
         "direction": "out",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryReqType",
-        "exi": "01fe8001000000168098020282c3034383c4045150000000018a1f0aa2c0",
+        "exi": "01fe8001000000168098020282c3034383c4045150000000018a140ac2c0",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -3783,7 +3783,7 @@
                       "@type": "PhysicalValueType",
                       "multiplier": 0,
                       "unit": "W",
-                      "value": 11000
+                      "value": 11040
                     }
                   }
                 ]
@@ -7920,7 +7920,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopRes",
-        "exi": "01fe8004000000728038040505860687078808880f2d6ca062002062b20a71526951a1b98988a0063201d52c27223adbf2da8203e762462b69f7aeb31ee895d2b49ab3c9d32f24bf1f0ee801a71d822dea8a8d993b2ed090cc41f853289b2f74c44bcd0b340f1f05570940796b650309000f0080090030002400",
+        "exi": "01fe8004000000728038040505860687078808880f2d6ca062002062b20a71526951a1b98988a0063201d212c9448a5c795431aaa1c3511af9f62a355aa493e25d001519a28603fa9bdb3e0ea29f2255aab3707bfc6be882ba0c087c8edb2fa5631cde0cc60be76b3b7940796b650309000f0080090030002400",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopRes",
@@ -7934,7 +7934,7 @@
             "@type": "MeterInfoType",
             "meterID": "VAN*M*4711",
             "chargedEnergyReadingWh": "800",
-            "meterSignature": "3aa584e4475b7e5b50407cec48c56d3ef5d663dd12ba569356793a65e497e3e1dd0034e3b045bd5151b32765da1219883f0a651365ee988979a16681e3e0aae1",
+            "meterSignature": "3a425928914b8f2a863554386a235f3ec546ab54927c4ba002a33450c07f537b67c1d453e44ab5566e0f7f8d7d105741810f91db65f4ac639bc198c17ced676f",
             "meterTimestamp": "1767225600"
           },
           "evsePresentCurrent": {
@@ -7999,7 +7999,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopRes",
-        "exi": "01fe8004000000728038040505860687078808880f2d6ca062002062b20a71526951a1b98988c00c320574219a0a9cf7c7bacb245a0001ae1f676aef501c93c68deaa1c22485ba472ebc6dc62f97ac2df2e61908abf07b3f450906185d214dae95681736f91585c8028940796b650309000f0080090030002400",
+        "exi": "01fe8004000000728038040505860687078808880f2d6ca062002062b20a71526951a1b98988c00c3206f05d1391e75e8e57840297b546a3b422b2824c712cf98f791e29ba6e76393db3b09d632685c929b26c6274b440acdeab4b26e5bb93f670d5641181bd5fc8db5940796b650309000f0080090030002400",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopRes",
@@ -8013,7 +8013,7 @@
             "@type": "MeterInfoType",
             "meterID": "VAN*M*4711",
             "chargedEnergyReadingWh": "1600",
-            "meterSignature": "ae843341539ef8f759648b400035c3eced5dea039278d1bd54384490b748e5d78db8c5f2f585be5cc321157e0f67e8a120c30ba429b5d2ad02e6df22b0b90051",
+            "meterSignature": "de0ba2723cebd1caf08052f6a8d476845650498e259f31ef23c5374dcec727b67613ac64d0b925364d8c4e9688159bd56964dcb7727ece1aac823037abf91b6b",
             "meterTimestamp": "1767225600"
           },
           "evsePresentCurrent": {
@@ -8078,7 +8078,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopRes",
-        "exi": "01fe8004000000728038040505860687078808880f2d6ca062002062b20a71526951a1b98988e012320599f07ef35a2870fee6af12d44537cb280edd1aa30d0f2db1f6ecfd562e6c6e75480867387660a31d8656d57f8270aab67d1f21c2f278c8260de65c5930e4b2e940796b650309000f0080090030002400",
+        "exi": "01fe8004000000728038040505860687078808880f2d6ca062002062b20a71526951a1b98988e012320229320e24bfb15f46ed6950b505936d85a964dcc1b61d3d9c73deee8c666478a3b0bcc6680bd54ccc93c4f4280ffcb8f4b7b8f08885c551477128b5159c40cb8140796b650309000f0080090030002400",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopRes",
@@ -8092,7 +8092,7 @@
             "@type": "MeterInfoType",
             "meterID": "VAN*M*4711",
             "chargedEnergyReadingWh": "2400",
-            "meterSignature": "b33e0fde6b450e1fdcd5e25a88a6f96501dba35461a1e5b63edd9faac5cd8dcea9010ce70ecc1463b0cadaaff04e1556cfa3e4385e4f1904c1bccb8b261c965d",
+            "meterSignature": "452641c497f62be8ddad2a16a0b26db0b52c9b9836c3a7b38e7bddd18ccc8f14761798cd017aa99992789e8501ff971e96f71e1110b8aa28ee2516a2b3881970",
             "meterTimestamp": "1767225600"
           },
           "evsePresentCurrent": {
@@ -10498,7 +10498,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "AuthorizationReq",
-        "exi": "01fe8002000003918000040505860687078808880f2d6ca060a25687474703a2f2f7777772e77332e6f72672f54522f63616e6f6e6963616c2d6578692f435687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c647369672d6d6f72652365636473612d736861323536440c46d2c86204ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d9082055aec217888e795d012611bb81175bc912bd05b323f52bf9769a6c7dbfe4bb44a0008be9709f36e82017990eca24e84ce243bc7a9ed4f9dac7feb524730e953be32d6b5651d30abc35ddf6cd31a58931752c127a3a5b98a4fa5ff2759e6fc5dbdaa12056964310408084888c9094989ca0a4a8acb0b4b8bc2a808c2080498c20736800c0804080824038cd9e4dc2fc1eb30c0281820aa192338f4100c08c064c45cc054180d54100c4c391114e10504c504c908cd0cd110d4c0785c34c8d4c0c4c0c4c0c0c0c0c0c1685c34ccd8c0c4c0c4c0c0c0c0c0c168c064c45cc054180d54100c4c391114e10504c504c908cd0cd110d4c164c04c181caa192338f408041820aa192338f40c041c0d080012ec609a2dee8e9104f69a237deec54d521a679627df0c784f6d128b68077399900bdc41613d3b6e91b9ece4c3a29071c445f5ca0ae2b70c6d5468710f5eef9484c0281820aa192338f4100c080d2000c1140884024744902c0ac582d5f8a18d5873fd9cc1f2c35370d44b770557a456cec43be4800880f274215a6bc773e6d6da608fd137c541a2ca07bf85fbfa15460dc9c0ea2da3802a808c2080498c20736800c0804080824038cd9e4dc2fc1eb30c0281820aa192338f4100c08c064c45cc054180d54100c4c391114e10504c504c908cd0cd110d4c0785c34c8d4c0c4c0c4c0c0c0c0c0c1685c34ccd8c0c4c0c4c0c0c0c0c0c168c064c45cc054180d54100c4c391114e10504c504c908cd0cd110d4c164c04c181caa192338f408041820aa192338f40c041c0d080012ec609a2dee8e9104f69a237deec54d521a679627df0c784f6d128b68077399900bdc41613d3b6e91b9ece4c3a29071c445f5ca0ae2b70c6d5468710f5eef9484c0281820aa192338f4100c080d2000c1140884024744902c0ac582d5f8a18d5873fd9cc1f2c35370d44b770557a456cec43be4800880f274215a6bc773e6d6da608fd137c541a2ca07bf85fbfa15460dc9c0ea2da3808",
+        "exi": "01fe8002000003918000040505860687078808880f2d6ca060a25687474703a2f2f7777772e77332e6f72672f54522f63616e6f6e6963616c2d6578692f435687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c647369672d6d6f72652365636473612d736861323536440c46d2c86204ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d9082055aec217888e795d012611bb81175bc912bd05b323f52bf9769a6c7dbfe4bb44a0267457918be4b9d82b440ea10db0496c4d0d7d26a4ae47047af29e71ea7b69fd27cba975709e596fbdfbc4a7f4368ba7d5aad539f4f3e17ae124cbdd7ae6fec2212056964310408084888c9094989ca0a4a8acb0b4b8bc2a808c2080498c20736800c0804080824038cd9e4dc2fc1eb30c0281820aa192338f4100c08c064c45cc054180d54100c4c391114e10504c504c908cd0cd110d4c0785c34c8d4c0c4c0c4c0c0c0c0c0c1685c34ccd8c0c4c0c4c0c0c0c0c0c168c064c45cc054180d54100c4c391114e10504c504c908cd0cd110d4c164c04c181caa192338f408041820aa192338f40c041c0d080012ec609a2dee8e9104f69a237deec54d521a679627df0c784f6d128b68077399900bdc41613d3b6e91b9ece4c3a29071c445f5ca0ae2b70c6d5468710f5eef9484c0281820aa192338f4100c080d2000c1140884024744902c0ac582d5f8a18d5873fd9cc1f2c35370d44b770557a456cec43be4800880f274215a6bc773e6d6da608fd137c541a2ca07bf85fbfa15460dc9c0ea2da3802a808c2080498c20736800c0804080824038cd9e4dc2fc1eb30c0281820aa192338f4100c08c064c45cc054180d54100c4c391114e10504c504c908cd0cd110d4c0785c34c8d4c0c4c0c4c0c0c0c0c0c1685c34ccd8c0c4c0c4c0c0c0c0c0c168c064c45cc054180d54100c4c391114e10504c504c908cd0cd110d4c164c04c181caa192338f408041820aa192338f40c041c0d080012ec609a2dee8e9104f69a237deec54d521a679627df0c784f6d128b68077399900bdc41613d3b6e91b9ece4c3a29071c445f5ca0ae2b70c6d5468710f5eef9484c0281820aa192338f4100c080d2000c1140884024744902c0ac582d5f8a18d5873fd9cc1f2c35370d44b770557a456cec43be4800880f274215a6bc773e6d6da608fd137c541a2ca07bf85fbfa15460dc9c0ea2da3808",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "AuthorizationReq",
@@ -10541,7 +10541,7 @@
               },
               "signatureValue": {
                 "@type": "SignatureValueType",
-                "value": "0117d2e13e6dd0402f321d9449d099c48778f53da9f3b58ffd6a48e61d2a77c65ad6aca3a615786bbbed9a634b1262ea5824f474b73149f4bfe4eb3cdf8bb7b5"
+                "value": "4ce8af2317c973b056881d421b6092d89a1afa4d495c8e08f5e53ce3d4f6d3fa4f9752eae13cb2df7bf7894fe86d174fab55aa73e9e7c2f5c24997baf5cdfd84"
               }
             }
           },
