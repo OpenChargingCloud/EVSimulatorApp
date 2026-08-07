@@ -2238,7 +2238,7 @@ Cheap because B1's event stream already carries everything.
 > **What the recording can show that the wire cannot.** The recorder is handed *to* the station rather
 > than derived from the frames afterwards, so the corpus contains something no reconstruction could:
 > in `iso2-ac-eim`, an EIM session at a station with no signing meter, the car is shown **no reading
-> at all** while the backend is told 183, 366 and 549 Wh — and the driver is billed on the last one.
+> at all** while the backend is told 184, 368 and 552 Wh — and the driver is billed on the last one.
 > That is the ordinary arrangement in the field, and it is the clearest argument for the whole
 > chapter.
 >

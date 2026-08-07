@@ -842,7 +842,7 @@ export function energyFor(events) {
     // Comparing the station's last reading against the vehicle's final count would be comparing two
     // different instants, and it produced a real false alarm: an unmetered station reports MeterInfo
     // only when it wants a receipt, which in a Plug & Charge session is once, early. The vehicle had
-    // counted 549 Wh by the end and the station's only reading said 183 — both correct, 366 Wh
+    // counted 552 Wh by the end and the station's only reading said 184 — both correct, 368 Wh
     // apart, and nothing wrong with either. Pairing at the reading is what makes the difference mean
     // something when it is not zero.
     const deviation = station === null || pairedVehicle === null ? 0n
