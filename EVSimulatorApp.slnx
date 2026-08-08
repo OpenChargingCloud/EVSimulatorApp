@@ -22,7 +22,8 @@
     <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_PKI/WWCP_ISO15118_PKIBuilder/WWCP_ISO15118_PKIBuilder.csproj" />
     <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_Session/WWCP_ISO15118_Session.csproj" />
     <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_Session_Tests/WWCP_ISO15118_Session_Tests.csproj" />
-    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_CLI/WWCP_ISO15118_CLI.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_EVCC/WWCP_ISO15118_EVCC.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_SECC/WWCP_ISO15118_SECC.csproj" />
   </Folder>
   <Folder Name="/simulation/">
     <Project Path="simulation/EVSimulatorApp.Ocpp/EVSimulatorApp.Ocpp.csproj" />

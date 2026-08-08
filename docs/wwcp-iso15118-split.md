@@ -70,7 +70,7 @@ at build time from the XSDs, so "the generated code moves" means the schemas and
 | Project | .cs | Why it is not the codec |
 |---|--:|---|
 | `Vanaheimr.V2G.Simulation` | 53 | SECC/EVCC state machines, TLS profiles, SLAC, metering, OCPP — **superseded 2026-08-08, see "The second move" below: all of it except OCPP now follows the codec** |
-| `Vanaheimr.V2G.Simulation.Cli` | 5 | the harness binary — **superseded too**: now `WWCP_ISO15118_CLI` in the codec repository |
+| `Vanaheimr.V2G.Simulation.Cli` | 5 | the harness binary — **superseded twice**: it became `WWCP_ISO15118_CLI` in the codec repository, and was then split by role into `WWCP_ISO15118_SECC` and `WWCP_ISO15118_EVCC`, each with its own solution and README |
 | `Vanaheimr.V2G.Simulation.Tests` | 68 | loopback, traces, and `Interop/` — Josev, EVerest, EVDriveFlow. **Gone**: the bulk had already become `ISO15118ConformanceTests.Simulation`, and the five-file transport remnant followed the code as `WWCP_ISO15118_Session_Tests` |
 | `Vanaheimr.V2G.Experiments.Pqc` (+ Tests) | 6 | ML-DSA in a V2G signature; research, not the standard |
 | `WWCP_ISO15118_EXI_Tests/Interop/` | 6 | `Josev*` — see the boundary question below |
