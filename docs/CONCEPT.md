@@ -9,11 +9,20 @@ projections became measurements. Where that happened, the original wording is ke
 is added next to it — the plan being wrong in a specific, dated way is more useful than a document
 that has quietly always been right.
 
-> **Topology note (2026-08-04):** this document predates the repository inversion and partly reads
-> as history. `Vanaheimr.V2G.Exi` — whose content is today the **ISO15118ConformanceTests**
-> conformance repository — was the base repo carrying the codec and the simulation; both now live
-> *here* (`libs/WWCP_ISO15118`, `simulation/`), and the conformance repo wraps this app as a
-> submodule instead. Paths and repo names in older sections are left as written.
+> **Topology note (2026-08-04, amended 2026-08-08):** this document predates the repository
+> inversion and partly reads as history. `Vanaheimr.V2G.Exi` — whose content is today the
+> **ISO15118ConformanceTests** conformance repository — was the base repo carrying the codec and the
+> simulation; both now live *below* this one, and the conformance repo wraps this app as a submodule
+> instead.
+>
+> The 08-04 wording put the simulation in this repository's `simulation/`. It moved again on
+> 2026-08-08: the session state machines, the transport, metering, the front stages and the CLI
+> followed the codec into `libs/WWCP_ISO15118`, so that submodule is now the whole ISO 15118 stack
+> rather than only its wire layer. What is left in `simulation/` is `EVSimulatorApp.Ocpp`, a stub of
+> a different protocol reached through the stack's `ISessionBackend`. See
+> [`wwcp-iso15118-split.md`](wwcp-iso15118-split.md).
+>
+> Paths and repo names in older sections are left as written.
 
 ---
 
@@ -1836,7 +1845,7 @@ phone; scanning a screenshot from two minutes ago is rejected.
 > phone for a 2 GiB allocation with one 8-byte frame, and `0xFFFFFFFF` converts to `-1` and yields a
 > silently truncated frame instead. Filed rather than fixed here; the bridge caps at 1 MiB and names
 > the refusal. *(Fixed the same day: all three session-side streams now cap at the same 1 MiB —
-> `V2GTP.MaximumPayloadBytes` and its ports, kept in step by name.)*
+> `V2GTPCodec.MaximumPayloadBytes` and its ports, kept in step by name.)*
 
 > **Pairing ported to Kotlin and Swift, 2026-07-31.** `v2g-pairing` and `V2GPairing` carry the
 > payload parser, the warning classification and both halves of the TOTP — generator and verifier —
