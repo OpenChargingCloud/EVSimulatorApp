@@ -135,6 +135,32 @@ Merging them is a decision about wire behaviour (exceptions vs nullable returns 
 frame), so it is not a rename. It should happen *before* the move, not after — afterwards there are
 two V2GTPs in one repository.
 
+> **Closed 2026-08-08 — and most of it was already closed before this was read again.**
+>
+> There are not two implementations. `V2GTP_Header.WriteTo` is the only code in either repository that
+> packs the eight bytes; `V2GTP_Header.TryParseRaw` is the only code that unpacks them. The static class
+> is a **span-shaped facade** over that record struct — `WriteHeader` calls `Standard(…).WriteTo(dest)`,
+> `TryReadHeader` calls `TryParseRaw(…)` plus the version-complement check, `HeaderSize` *is*
+> `V2GTP_Header.Size`, and every payload id is a cast of a `V2GTP_PayloadType` member. Swept and
+> confirmed: the only other code writing big-endian fields into spans is SDP's response builder and
+> SLAC's management-message entry, which are different protocols.
+>
+> **The wire-behaviour question resolved itself rather than needing a decision.** Both styles survive
+> because `V2GTP_Header` offers both: `Parse` throws, `TryParse`/`TryParseRaw` return `false`. SDP wants
+> the object model and the exceptions; a reader pulling frames off a socket into a rented buffer wants
+> neither an allocation nor an exception per malformed frame. One implementation, two call shapes.
+>
+> What actually remained was a **name**: the facade was called `V2GTP` while a sibling namespace is also
+> called `V2GTP`, so callers inside `…ISO15118` needed an alias and callers outside did not — one type
+> with two spellings depending on where the caller sat. The class is now `V2GTPCodec` (file
+> `WWCP_ISO15118_V2GTP/V2GTPCodec.cs`), and the seven aliases that existed to work around the clash are
+> gone: five added during today's rename, and two older ones inside `V2GTPDispatcherTests` and
+> `V2GTPFrameTests` that had already discovered the same trap — their comment even recorded the part I
+> had to rediscover, that an alias declared *inside* the namespace declaration beats the enclosing
+> namespace while a file-level one does not.
+>
+> Nothing on the wire changed; 1 212 offline tests green before and after.
+
 ### 2. Josev is both an oracle and a counterparty
 
 The user rule is "interoperability tests stay". That is unambiguous for

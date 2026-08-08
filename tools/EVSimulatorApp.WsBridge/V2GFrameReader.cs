@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021-2026 GraphDefined GmbH <achim.friedland@graphdefined.com>
  * This file is part of EVSimulatorApp
  *
@@ -46,7 +46,7 @@ public sealed class V2GFrameReader(Stream source, int maximumPayloadBytes = V2GF
     /// makes the question obvious; the three <c>V2GTPStream</c>s did not have the check at all, and
     /// now share this constant rather than a second opinion about it.
     /// </remarks>
-    public const int DefaultMaximumPayloadBytes = V2GTP.MaximumPayloadBytes;
+    public const int DefaultMaximumPayloadBytes = V2GTPCodec.MaximumPayloadBytes;
 
 
     /// <summary>
@@ -60,12 +60,12 @@ public sealed class V2GFrameReader(Stream source, int maximumPayloadBytes = V2GF
     public async Task<byte[]?> ReadFrameAsync(CancellationToken cancel = default)
     {
 
-        var header = new byte[V2GTP.HeaderSize];
+        var header = new byte[V2GTPCodec.HeaderSize];
 
         var read = await ReadAtLeastAsync(header, 0, header.Length, allowNothing: true, cancel);
         if (read == 0) return null;
 
-        if (!V2GTP.TryReadHeader(header, out var payloadType, out var payloadLength))
+        if (!V2GTPCodec.TryReadHeader(header, out var payloadType, out var payloadLength))
             throw new V2GFramingException(
                 "the 8 bytes where a V2GTP header should be are not one: " +
                 Convert.ToHexString(header).ToLowerInvariant());
@@ -75,11 +75,11 @@ public sealed class V2GFrameReader(Stream source, int maximumPayloadBytes = V2GF
                 $"a frame of payload type 0x{payloadType:x4} declares {payloadLength} payload bytes; " +
                 $"this bridge forwards at most {maximumPayloadBytes}.");
 
-        var frame = new byte[V2GTP.HeaderSize + (int) payloadLength];
+        var frame = new byte[V2GTPCodec.HeaderSize + (int) payloadLength];
         header.CopyTo(frame, 0);
 
         if (payloadLength > 0)
-            await ReadAtLeastAsync(frame, V2GTP.HeaderSize, (int) payloadLength, allowNothing: false, cancel);
+            await ReadAtLeastAsync(frame, V2GTPCodec.HeaderSize, (int) payloadLength, allowNothing: false, cancel);
 
         return frame;
 
