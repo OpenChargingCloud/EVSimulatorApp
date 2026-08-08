@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../EVSimulatorApp.Pairing/EVSimulatorApp.Pairing.csproj" />
-    <ProjectReference Include="../../simulation/Vanaheimr.V2G.Simulation/Vanaheimr.V2G.Simulation.csproj" />
+    <ProjectReference Include="../../libs/WWCP_ISO15118/WWCP_ISO15118_Session/Vanaheimr.V2G.Simulation.csproj" />
   </ItemGroup>
 
 </Project>
