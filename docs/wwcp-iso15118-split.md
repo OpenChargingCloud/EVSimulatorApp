@@ -69,7 +69,7 @@ at build time from the XSDs, so "the generated code moves" means the schemas and
 
 | Project | .cs | Why it is not the codec |
 |---|--:|---|
-| `Vanaheimr.V2G.Simulation` | 53 | SECC/EVCC state machines, TLS profiles, SLAC, metering, OCPP |
+| `Vanaheimr.V2G.Simulation` | 53 | SECC/EVCC state machines, TLS profiles, SLAC, metering, OCPP — **superseded 2026-08-08, see "The second move" below: all of it except OCPP now follows the codec** |
 | `Vanaheimr.V2G.Simulation.Cli` | 5 | the harness binary |
 | `Vanaheimr.V2G.Simulation.Tests` | 68 | loopback, traces, and `Interop/` — Josev, EVerest, EVDriveFlow |
 | `Vanaheimr.V2G.Experiments.Pqc` (+ Tests) | 6 | ML-DSA in a V2G signature; research, not the standard |
@@ -205,3 +205,122 @@ regression.
 
 `AppProtocol` sits under `ISO15118` rather than `ISO15118_2`, because SupportedAppProtocol is what
 *chooses* between -2 and -20; it cannot belong to either.
+
+---
+
+# The second move: the state machines follow the codec
+
+Decided 2026-08-08. Not yet executed — this section is the decision, written before the work so it is
+not re-argued from memory afterwards.
+
+**`Vanaheimr.V2G.Simulation` moves into WWCP_ISO15118, minus `Ocpp/`.** The three repositories then say
+what they are: WWCP_ISO15118 is the ISO 15118 implementation, EVSimulatorApp is the apps and the ports,
+ISO15118ConformanceTests is the evidence.
+
+## Why the "what stays" table above no longer holds
+
+That table was right when it was written and its premise has since walked away. It kept the state
+machines here on the grounds that they are *the rig*, and a rig's value is that it is not the
+implementation under test. But the rig left: `docs/interop-runs/` and `tools/interop-*` are in the
+conformance repository now, and so are the tests.
+
+| | then | now |
+|---|--:|--:|
+| `Vanaheimr.V2G.Simulation.Tests` | 68 `.cs` | **5** |
+| `ISO15118ConformanceTests.Simulation` | — | **83** |
+
+So what is left in `simulation/` is not a rig. It is an ISO 15118 implementation with a five-file
+remnant of its old test suite attached, sitting in a repository whose stated job is apps and ports. And
+WWCP_ISO15118 already carries every other layer of the standard — SDP, SLAC, V2GTP, the codec, PKI,
+XMLDSig. The one thing missing is the application-layer state machine, which is most of what the
+standard is *about*.
+
+## What moves
+
+7 401 of 7 605 lines.
+
+| | lines | |
+|---|--:|---|
+| `StateMachines/` | 4 635 | `Iso2/`, `Iso20/` — the reason for the move |
+| `Transport/` | 1 374 | incl. `BouncyCastle/`; see below |
+| `Metering/` | 409 | see below |
+| `Discovery/` | 222 | SDP client |
+| `Slac/` | 185 | ISO 15118-3 pairing |
+| `Sap/` | 182 | SupportedAppProtocol handshake |
+| `Session/` | 137 | session context, `ResumableSession`, `SessionAborted` |
+| `Timing/` | 133 | the sequence and ongoing guards |
+| `Framing/` | 124 | V2GTP stream |
+
+`Vanaheimr.V2G.Simulation.Cli` goes with them, next to the existing `demos/`. It is the reference
+driver, not an app.
+
+### `Transport/BouncyCastle/` moves whole, and the AOT cost is smaller than it looks
+
+The managed TLS backend exists because the `-20` profile — the Table 6/7/8 suites, secp521r1 and Ed448
+— is precisely what Windows Schannel will not do. It has to be in the library, because `[V2G20-2677]`
+permits nothing but full-handshake TLS for every `-20` session: a library that can conduct a `-20`
+session but not open one is not an implementation.
+
+An earlier draft of this section proposed isolating it as `WWCP_ISO15118_TLS` to protect the AOT
+guarantee. **Measured rather than assumed, that carve-out buys almost nothing:**
+
+- Eleven WWCP_ISO15118 projects declare `IsAotCompatible=true`, so the guarantee is real.
+- **Five of them already reference BouncyCastle** while declaring it —
+  `WWCP_ISO15118_20.CommonMessages` has both in the same csproj. BouncyCastle's *primitives* are
+  trim-clean; only `Org.BouncyCastle.Tls` is not, which is what the note in
+  `Vanaheimr.V2G.Simulation.csproj` actually says.
+- **Dependencies flow downward.** Nothing in WWCP_ISO15118 would reference the new project — state
+  machines depend on the codec, never the reverse. The eleven stay clean whatever the newcomer carries.
+  The AOT loss stays confined to exactly where it already is.
+
+The only consumer a split would serve is one wanting the state machines without TLS, and for `-20` that
+consumer is forbidden to exist. `-2` over plain TCP is the thin remainder; if it ever matters, split
+then. Not before.
+
+### `Metering/` moves whole
+
+The signed meter reading is protocol, not a device simulation: `MeterInfo`/`SigMeterReading` are message
+fields, the payload layout is pinned so a `-2` reading cannot be presented as a `-20` one, and the
+conformance repository already tests it as protocol material — `MeterVectorTests` and
+`Secc2SignedMeterTests`. Something that has its own conformance vectors belongs in the library that
+those vectors are about. The `SigningMeter` device travels with it rather than being split out; the
+seam between "layout" and "device" is not worth a project boundary.
+
+## What stays, and why exactly one thing does
+
+**`Ocpp/` — 204 lines, one file.** Not because it is unimportant, but because it is a different
+protocol, and because what lives here is a *stub*: enough OCPP to satisfy interop counterparties, not
+OCPP. EVerest expects a slice of it to validate eMAIDs, and that is still open work on the interop side,
+so this will grow — but it grows as test scaffolding. **In real operation a real OCPP project hangs on
+this seam.** An ISO 15118 library that shipped a transaction recorder would have to explain itself to
+every reader, and would be the wrong thing to extend when the real one arrives.
+
+**The seam is not a seam yet.** Today it is:
+
+```csharp
+public Func<string, Ocpp.OcppTransactionRecorder>? Backend { get; init; }
+```
+
+— a delegate whose *return type* is the concrete class, so the library would still need it. Making the
+split real means an interface over what the state machines actually call (`Sample(wattHours,
+unixSeconds, signatureHex, publicKeyHex)`) with `OcppTransactionRecorder` as one implementation. That is
+small and it is the only piece of this move that is not mechanical.
+
+## `demos/ChargingSimulation` is the vestigial ancestor
+
+WWCP_ISO15118 already contains `demos/ChargingSimulation/` — `Evcc.cs`, `Secc.cs`, `Wire.cs` and a
+second `SessionAborted.cs`, 444 lines. It is the same idea, younger, and the duplication exists
+*today*. The move converges them rather than creating an overlap: the demo should end up rebuilt on the
+real state machines, or deleted. Do not leave two.
+
+## How
+
+- **`git subtree split --prefix=simulation/Vanaheimr.V2G.Simulation`**, not a copy-and-delete. The blame
+  here is load-bearing — a great many comments read "a live Josev run caught this", "our loopback SECC
+  did not" — and a plain copy throws away which run each of them came from.
+- **Rename last**, as one mechanical commit: `Vanaheimr.V2G.Simulation.*` →
+  `cloud.charging.open.protocols.ISO15118.*`, matching what the first move already did. Note the warning
+  above about tests locating schema sets by directory name — the same class of trap applies to anything
+  that resolves paths by project name.
+- **Not while something is mid-fix.** This was held until the `-20` resume defects were merged (app #12),
+  because a move and a behavioural change in one diff are unreviewable.
