@@ -174,7 +174,8 @@ Every session against a counterparty should come back as a **trace**, not as a m
 2026-08-01 the interop fixtures do this themselves: set `V2G_INTEROP_RECORD=<dir>` and every run
 leaves the raw octets of both directions, a frame log, and — when the session was well-formed enough
 to be one — a `SessionTrace` in the format all four back ends replay
-(`Vanaheimr.V2G.Simulation.Tests/Interop/InteropRecording.cs`). So an interop run is not a one-off:
+(`ISO15118ConformanceTests.Simulation/Interop/InteropRecording.cs`, in the conformance repository).
+So an interop run is not a one-off:
 it becomes a corpus entry that all four back ends are held to from then on, and the conformance fix
 it produced cannot silently regress.
 

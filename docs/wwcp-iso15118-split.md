@@ -70,8 +70,8 @@ at build time from the XSDs, so "the generated code moves" means the schemas and
 | Project | .cs | Why it is not the codec |
 |---|--:|---|
 | `Vanaheimr.V2G.Simulation` | 53 | SECC/EVCC state machines, TLS profiles, SLAC, metering, OCPP — **superseded 2026-08-08, see "The second move" below: all of it except OCPP now follows the codec** |
-| `Vanaheimr.V2G.Simulation.Cli` | 5 | the harness binary |
-| `Vanaheimr.V2G.Simulation.Tests` | 68 | loopback, traces, and `Interop/` — Josev, EVerest, EVDriveFlow |
+| `Vanaheimr.V2G.Simulation.Cli` | 5 | the harness binary — **superseded too**: now `WWCP_ISO15118_CLI` in the codec repository |
+| `Vanaheimr.V2G.Simulation.Tests` | 68 | loopback, traces, and `Interop/` — Josev, EVerest, EVDriveFlow. **Gone**: the bulk had already become `ISO15118ConformanceTests.Simulation`, and the five-file transport remnant followed the code as `WWCP_ISO15118_Session_Tests` |
 | `Vanaheimr.V2G.Experiments.Pqc` (+ Tests) | 6 | ML-DSA in a V2G signature; research, not the standard |
 | `WWCP_ISO15118_EXI_Tests/Interop/` | 6 | `Josev*` — see the boundary question below |
 | `tools/interop-{josev,everest,evdriveflow}/` | — | live harnesses |
@@ -236,8 +236,10 @@ regression.
 
 # The second move: the state machines follow the codec
 
-Decided 2026-08-08. Not yet executed — this section is the decision, written before the work so it is
-not re-argued from memory afterwards.
+Decided 2026-08-08, and written *before* the work so the reasoning is not re-argued from memory
+afterwards. It has since been executed — see [Done, 2026-08-08](#done-2026-08-08--and-two-things-the-plan-got-wrong)
+at the end, which records what the plan below got wrong. The present tense here is the tense of the
+decision, not a statement about today.
 
 **`Vanaheimr.V2G.Simulation` moves into WWCP_ISO15118, minus `Ocpp/`.** The three repositories then say
 what they are: WWCP_ISO15118 is the ISO 15118 implementation, EVSimulatorApp is the apps and the ports,
@@ -362,8 +364,16 @@ Once the session code sits under `cloud.charging.open.protocols.ISO15118`, a bar
 sibling *namespace* `…ISO15118.V2GTP` rather than to the header-codec *class* in `…ISO15118.EXI.Dispatch`.
 Adding `using V2GTP = …EXI.Dispatch.V2GTP;` **does not help**: resolving a single identifier checks the
 members of each enclosing namespace *before* the compilation unit's using-aliases, so the namespace still
-wins. An alias under a name that is not also a namespace member does work, and five files now carry
-`using V2GTPCodec = …`. The collision itself is unchanged and still wants the merge §1 describes.
+wins. An alias under a name that is not also a namespace member does work, and five files carried
+`using V2GTPCodec = …` for a day.
+
+*Closed the same week, and §1's premise turned out to be false.* There were never two V2GTP
+implementations to merge: `V2GTP_Header.WriteTo` is the only code that packs the eight bytes, and the
+static class was already a span-shaped facade over it. What remained was one type with two spellings
+depending on where the caller sat. Renaming the class itself to **`V2GTPCodec`** removed the collision
+at its source, and the five aliases with it — so the aliases described above no longer exist, and
+neither does the name clash. §1 below is kept as written because the resolution rule it uncovered is
+worth having; its "two implementations" framing was wrong.
 
 **The sweep has to include shell scripts.** Repointing `*.cs`, `*.csproj` and `*.slnx` left **27 live
 interop harnesses** under `tools/` pointing at a CLI path that no longer exists — nothing a build or a
@@ -371,6 +381,8 @@ test run would ever have caught, because they are only executed against a live c
 fixed. `docs/interop-runs/` deliberately is **not**: those scripts and logs are the record of what was
 run at the time, and rewriting them to match today's layout would falsify it.
 
-Unrelated rot found while sweeping, and left alone: 17 scripts under `tools/interop-josev/` hardcode
+Unrelated rot found while sweeping: 17 scripts under `tools/interop-josev/` hardcoded
 `REPO=/mnt/c/.../Vanaheimr.V2G.Exi`, a repository that has not existed under that path since the
-submodule inversion. Already broken before this move; worth a separate pass.
+submodule inversion — already broken before this move. **Fixed the same day** (conformance #22): each
+now resolves the repository root two levels up from its own `BASH_SOURCE`, which is true wherever the
+tree is checked out and on whichever side of the WSL boundary it runs.

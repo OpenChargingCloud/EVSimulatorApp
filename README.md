@@ -11,9 +11,11 @@ canonical fragment a signature is computed over, the certificate chain being val
 ISO 15118 nobody can normally see. See [`docs/CONCEPT.md`](docs/CONCEPT.md) for the full feasibility
 study and design, and [`docs/roadmap.md`](docs/roadmap.md) for status.
 
-> **Not the wire codec.** The ISO 15118 EXI codec itself lives in the `WWCP_ISO15118` submodule and is
-> documented there ([`libs/WWCP_ISO15118/README.md`](libs/WWCP_ISO15118/README.md)). This repository is
-> everything built *on top of* it to make an EV simulator.
+> **Not the ISO 15118 stack.** The stack itself — the EXI codec, SLAC, SDP, V2GTP, the V2G PKI, *and*
+> since 2026-08-08 the EVCC/SECC session state machines and the CLI that runs them — lives in the
+> `WWCP_ISO15118` submodule and is documented there
+> ([`libs/WWCP_ISO15118/README.md`](libs/WWCP_ISO15118/README.md)). This repository is everything built
+> *on top of* it to make an EV simulator: the app, the shells, the pairing, and the language ports.
 
 ## Getting started
 
@@ -47,10 +49,10 @@ cd app && npm install && npm test && npm run build
 
 | Path | What it is |
 |---|---|
-| `libs/WWCP_ISO15118` | **Submodule.** The EXI codec, SLAC, SDP, V2GTP, the V2G PKI builder (incl. its "Evil" cert factory) |
+| `libs/WWCP_ISO15118` | **Submodule.** The whole ISO 15118 stack: the EXI codec, SLAC, SDP, V2GTP, the V2G PKI builder (incl. its "Evil" cert factory), the -2/-20 EVCC and SECC state machines with their SLAC/SDP/TLS/SAP front stages, and the CLI that drives either role |
 | `libs/Hermod`, `libs/Styx` | **Submodules.** Supporting libraries; `WWCP_ISO15118_SLAC` reaches for them as siblings under `libs/` |
 | `libs/DynamicQRCodes` | **Submodule.** The AFIR / OCPP v2.1 dynamic-QR (TOTP) mechanism the pairing code is built on |
-| `simulation/` | The EVCC↔SECC session: SLAC/SDP/TLS/SAP front stages and the -2/-20 state machines, loopback-testable |
+| `simulation/EVSimulatorApp.Ocpp` | A stub of a *different* protocol, reached through the stack's `ISessionBackend` seam — where a station reports what it delivered. In real operation a real OCPP project hangs here |
 | `experiments/` | Post-quantum-crypto experiment (ML-KEM / ML-DSA) — wire-non-conformant, flagged as such |
 
 **The native codec ports** — so the codec runs on the device with no .NET runtime
@@ -65,8 +67,8 @@ documents; regenerating without an emitter change must leave every file identica
 
 ## Conformance & interoperability tests
 
-They are **not** here — they wrap this repository. The **ISO15118ConformanceTests** repository (git
-repo `Vanaheimr.V2G.Exi.git`) carries EVSimulatorApp as a submodule and holds the interop suite that
+They are **not** here — they wrap this repository. The **ISO15118ConformanceTests** repository
+carries EVSimulatorApp as a submodule and holds the interop suite that
 runs this stack against independent stacks (Josev, EVerest, EVDriveFlow, TuxEVSE). That is the harness
 that proves the simulator behaves the way the standard and the field expect.
 

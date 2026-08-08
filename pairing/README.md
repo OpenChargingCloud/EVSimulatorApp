@@ -2,9 +2,9 @@
 
 The bootstrap half of Track B0 (`docs/CONCEPT.md` §4.5, §4.6). This is the format the **Pi and the
 app must agree on exactly**, and they are the two halves that never run in the same process — so
-it lives here, beside the app, rather than in the simulation library (`simulation/`). That library
-is a general ISO 15118 stack; pairing is this app's own concept, and the TOTP implementation it
-reuses (`libs/DynamicQRCodes`) is a submodule of this repository.
+it lives here, beside the app, rather than in the ISO 15118 stack (`libs/WWCP_ISO15118`). That is a
+general implementation of the standard; pairing is this app's own concept, and the TOTP
+implementation it reuses (`libs/DynamicQRCodes`) is a submodule of this repository.
 
 ```bash
 dotnet test          # from the repository root
@@ -169,9 +169,9 @@ An earlier version of this paragraph also listed hosting the SECC and serving th
 grounds that they run on the Pi. They do, but that is not the same as needing it — see the
 "Hosting it" section above, which is exercised identically on a laptop.
 
-The signing meter is done and lives in the submodule (`Vanaheimr.V2G.Simulation/Metering/`),
-wired into **-2 and -20** — the latter in both the AC and DC charge loops, each of which builds its
-own `MeterInfoType`. The app's verifying half is in `swift/Sources/V2GMetering` and
+The signing meter is done and lives in the submodule
+(`libs/WWCP_ISO15118/WWCP_ISO15118_Session/Metering/`), wired into **-2 and -20** — the latter in
+both the AC and DC charge loops, each of which builds its own `MeterInfoType`. The app's verifying half is in `swift/Sources/V2GMetering` and
 `kotlin/v2g-metering`.
 
 What this project owns is the format, the check and the page — the pieces that are pure logic,

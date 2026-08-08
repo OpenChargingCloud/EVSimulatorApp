@@ -11,7 +11,10 @@ Last updated: **2026-08-03**. Authoritative per-phase detail lives in
 **All phases (0–5) are complete.** The solution builds cleanly and **all 1140 tests are green**
 (`dotnet test -c Release`, measured 2026-08-03: 911 in `WWCP_ISO15118_EXI_Tests`, 221 in
 `Vanaheimr.V2G.Simulation.Tests`, 8 in `Vanaheimr.V2G.Experiments.Pqc.Tests`) — offline, with no C
-toolchain, JRE, or network beyond loopback. The live over-the-wire interop tests stay
+toolchain, JRE, or network beyond loopback. *(Those last two assemblies were renamed after this
+measurement: the session tests split into `ISO15118ConformanceTests.Simulation` and, since the
+2026-08-08 move, `WWCP_ISO15118_Session_Tests`; the PQC tests are `ISO15118ConformanceTests.Pqc`.
+The count is left at what was measured on the day.)* The live over-the-wire interop tests stay
 `[Explicit] [Category("Interop")]` and script-driven: eight of them now, four counterparties × two
 directions, and they are *not* in that count.
 
@@ -150,7 +153,7 @@ What exists today, at a glance:
 | ✅ ISO 15118-2 codec | All 17 message pairs **byte-exact vs cbV2G**; signed `AuthorizationReq` byte-exact; `SignedInfo` fragment cross-checked vs EXIficient |
 | ✅ ISO 15118-20 codecs (×5) | CommonMessages/DC/AC/WPT/ACDP all generate + compile + byte-exact vs cbV2G; XMLDSig for CommonMessages/DC/AC (ECDSA-P521/SHA-512 **and** Ed448 via BouncyCastle) |
 | ✅ ISO 15118-20 Amd 1 AC DER (×2) | `AC_DER_IEC`/`AC_DER_SAE` — grammar variants of AC, not further message sets; cross-validated vs EXIficient (decode direction), no cbV2G reference exists. Codec only, no session wiring — see [Completed extras](#completed-extras) |
-| ✅ [Simulation](../simulation/Vanaheimr.V2G.Simulation/) (Phase 5) | Full in-repo stack over loopback: **SLAC** pairing (real UDP match) → **SDP** discovery seam → **TLS** (two backends: .NET SslStream + BouncyCastle -20-faithful P-521/Ed448 mutual TLS) → SAP → -2/-20 AC/DC sessions to SessionStop; a full-stack SLAC→SDP→TLS→session E2E; CLI with stage/backend flags. Live vs Josev: all four -20 energy modes + both control modes, PnC both directions in both protocols, cert-install, pause/resume, renegotiation, signed tariffs |
+| ✅ [Session layer](../libs/WWCP_ISO15118/WWCP_ISO15118_Session/) (Phase 5) — moved into the codec repository on 2026-08-08, together with its CLI | Full stack over loopback: **SLAC** pairing (real UDP match) → **SDP** discovery seam → **TLS** (two backends: .NET SslStream + BouncyCastle -20-faithful P-521/Ed448 mutual TLS) → SAP → -2/-20 AC/DC sessions to SessionStop; a full-stack SLAC→SDP→TLS→session E2E; CLI with stage/backend flags. Live vs Josev: all four -20 energy modes + both control modes, PnC both directions in both protocols, cert-install, pause/resume, renegotiation, signed tariffs |
 | ✅ Test infrastructure | Vector-driven (JSON), bit-exact diff on failure; property-based round-trips (CsCheck); reference oracles pinned under `tools/` |
 
 The original "decisive weakness" (self-encoded seed vectors that only proved internal

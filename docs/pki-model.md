@@ -133,8 +133,8 @@ Rules that fall out of this and must be enforced in the simulation:
   `ChangeCipherSpec` dummy records break EVCCs that don't expect them). In .NET this is not
   exposed the way OpenSSL exposes it — verify Schannel's behaviour, note as a deviation if it
   cannot be turned off.
-- These belong in [`TlsOptions.cs`](../simulation/Vanaheimr.V2G.Simulation/Transport/TlsOptions.cs) as
-  two explicit named profiles, never the library default — the guide's core lesson is that
+- These belong in [`TlsOptions.cs`](../libs/WWCP_ISO15118/WWCP_ISO15118_Session/Transport/TlsOptions.cs)
+  as two explicit named profiles, never the library default — the guide's core lesson is that
   letting the TLS stack auto-select (highest version + "best" curve) is exactly what breaks.
 
 Test-case shape to mirror (guide §6.1): T1 = -2-only EVSE + dual-stack EV → downgrades to
@@ -165,7 +165,7 @@ loopback test: a real **SLAC** match (loopback UDP, both PLC chips keyed) → **
 session to SessionStop. It is the end-to-end proof that the stages compose; the individual stages have
 their own focused tests below.
 
-The mutual-TLS path is implemented (`Vanaheimr.V2G.Simulation`): `TlsOptions` carries the EVCC
+The mutual-TLS path is implemented in `WWCP_ISO15118_Session`: `TlsOptions` carries the EVCC
 client certificate + SECC "require & validate client cert"; `TcpV2GClient`/`TcpV2GListener`
 present/require them. The E2E coverage lives in the **ISO15118ConformanceTests** repository
 (`ISO15118ConformanceTests.Simulation`, which is the former `Vanaheimr.V2G.Simulation.Tests`): it
@@ -173,9 +173,10 @@ references the WWCP PKI builder and generates a hierarchy at test time (`TestDat
 BouncyCastle → `X509Certificate2` via in-memory PKCS#12), then runs -20 AC/DC sessions over a
 bilaterally authenticated `SslStream` (`E2E/MutualTlsLoopbackTests.cs`): SECC leaf = server, Vehicle
 leaf = client, both anchored to the shared V2G Root, plus a negative test (certless client rejected).
-What stays here is `Vanaheimr.V2G.Simulation.Tests`, the unit tests of the transport's own decisions —
-backend selection and the `TlsOptions` → `BcTlsOptions` bridge (`Transport/TlsBackendTests.cs`,
-`Transport/TlsOptionsBridgeTests.cs`).
+The unit tests of the transport's own decisions — backend selection and the `TlsOptions` →
+`BcTlsOptions` bridge (`Transport/TlsBackendTests.cs`, `Transport/TlsOptionsBridgeTests.cs`) —
+travelled with the code on 2026-08-08 and are now `WWCP_ISO15118_Session_Tests` in the
+`WWCP_ISO15118` submodule.
 
 **Two TLS backends (selectable).** Windows Schannel cannot use P-521 certificates for TLS
 (verified: P-256 mutual TLS succeeds on TLS 1.3/1.2, **P-521 fails** "Authentication failed"
