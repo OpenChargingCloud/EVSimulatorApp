@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021-2026 GraphDefined GmbH <achim.friedland@graphdefined.com>
  * This file is part of EVSimulatorApp
  *
@@ -109,9 +109,9 @@ public class V2GFrameReaderTests
 
     private static byte[] Frame(ushort payloadType, int payloadLength)
     {
-        var frame = new byte[V2GTP.HeaderSize + payloadLength];
-        V2GTP.WriteHeader(frame, payloadType, (uint) payloadLength);
-        for (var i = 0; i < payloadLength; i++) frame[V2GTP.HeaderSize + i] = (byte) i;
+        var frame = new byte[V2GTPCodec.HeaderSize + payloadLength];
+        V2GTPCodec.WriteHeader(frame, payloadType, (uint) payloadLength);
+        for (var i = 0; i < payloadLength; i++) frame[V2GTPCodec.HeaderSize + i] = (byte) i;
         return frame;
     }
 
@@ -157,8 +157,8 @@ public class V2GFrameReaderTests
     public void AnAbsurdDeclaredLengthIsRefusedRatherThanAllocated()
     {
 
-        var header = new byte[V2GTP.HeaderSize];
-        V2GTP.WriteHeader(header, 0x8001, 0xFFFFFFFF);
+        var header = new byte[V2GTPCodec.HeaderSize];
+        V2GTPCodec.WriteHeader(header, 0x8001, 0xFFFFFFFF);
 
         var reader = new V2GFrameReader(new DribblingStream(header, 8));
 
