@@ -23,6 +23,7 @@
     <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_Session/WWCP_ISO15118_Session.csproj" />
     <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_Session_Tests/WWCP_ISO15118_Session_Tests.csproj" />
     <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_EVCC/WWCP_ISO15118_EVCC.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_SharedCC/WWCP_ISO15118_SharedCC.csproj" />
     <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_SECC/WWCP_ISO15118_SECC.csproj" />
   </Folder>
   <Folder Name="/simulation/">
