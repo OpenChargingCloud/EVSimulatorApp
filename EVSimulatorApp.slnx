@@ -22,6 +22,7 @@
     <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_PKI/WWCP_ISO15118_PKIBuilder/WWCP_ISO15118_PKIBuilder.csproj" />
   </Folder>
   <Folder Name="/simulation/">
+    <Project Path="simulation/EVSimulatorApp.Ocpp/EVSimulatorApp.Ocpp.csproj" />
     <Project Path="simulation/Vanaheimr.V2G.Simulation/Vanaheimr.V2G.Simulation.csproj" />
     <Project Path="simulation/Vanaheimr.V2G.Simulation.Cli/Vanaheimr.V2G.Simulation.Cli.csproj" />
     <Project Path="simulation/Vanaheimr.V2G.Simulation.Tests/Vanaheimr.V2G.Simulation.Tests.csproj" />

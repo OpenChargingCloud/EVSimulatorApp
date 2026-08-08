@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <RootNamespace>EVSimulatorApp.Ocpp</RootNamespace>
+    <AssemblyName>EVSimulatorApp.Ocpp</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Only for ISessionBackend: this implements the sink an ISO 15118 station reports to, and nothing
+         else here knows anything about ISO 15118. The dependency points app -> protocol library, which
+         is the direction that lets an ISO 15118 implementation stay free of a second protocol's types. -->
+    <ProjectReference Include="..\Vanaheimr.V2G.Simulation\Vanaheimr.V2G.Simulation.csproj" />
+  </ItemGroup>
+</Project>
