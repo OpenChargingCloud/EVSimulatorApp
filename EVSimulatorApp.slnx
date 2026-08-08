@@ -1,4 +1,4 @@
-<Solution>
+﻿<Solution>
   <Folder Name="/libs/">
     <Project Path="libs/DynamicQRCodes/TOTP/CSharp/TOTPSharp/TOTPSharp.csproj" />
     <Project Path="libs/Hermod/Hermod/Hermod.csproj" />
@@ -20,11 +20,12 @@
     <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_SLAC/WWCP_ISO15118_SLAC.csproj" />
     <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_V2GTP/WWCP_ISO15118_V2GTP.csproj" />
     <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_PKI/WWCP_ISO15118_PKIBuilder/WWCP_ISO15118_PKIBuilder.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_Session/Vanaheimr.V2G.Simulation.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_Session_Tests/Vanaheimr.V2G.Simulation.Tests.csproj" />
+    <Project Path="libs/WWCP_ISO15118/WWCP_ISO15118_CLI/Vanaheimr.V2G.Simulation.Cli.csproj" />
   </Folder>
   <Folder Name="/simulation/">
-    <Project Path="simulation/Vanaheimr.V2G.Simulation/Vanaheimr.V2G.Simulation.csproj" />
-    <Project Path="simulation/Vanaheimr.V2G.Simulation.Cli/Vanaheimr.V2G.Simulation.Cli.csproj" />
-    <Project Path="simulation/Vanaheimr.V2G.Simulation.Tests/Vanaheimr.V2G.Simulation.Tests.csproj" />
+    <Project Path="simulation/EVSimulatorApp.Ocpp/EVSimulatorApp.Ocpp.csproj" />
   </Folder>
   <Folder Name="/experiments/">
     <Project Path="experiments/Vanaheimr.V2G.Experiments.Pqc/Vanaheimr.V2G.Experiments.Pqc.csproj" />

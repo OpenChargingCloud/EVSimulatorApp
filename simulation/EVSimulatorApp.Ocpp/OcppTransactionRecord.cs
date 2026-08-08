@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021-2026 GraphDefined GmbH <achim.friedland@graphdefined.com>
  * This file is part of EVSimulatorApp
  *
@@ -19,7 +19,9 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Vanaheimr.V2G.Simulation.Ocpp;
+using Vanaheimr.V2G.Simulation.Session;
+
+namespace EVSimulatorApp.Ocpp;
 
 /// <summary>
 /// What a charge point tells its backend about the energy it delivered — recorded, so a phone has a
@@ -32,7 +34,7 @@ namespace Vanaheimr.V2G.Simulation.Ocpp;
 /// <c>MeterValueType</c> / <c>SampledValueType</c> / <c>SignedMeterValueType</c> so that a real
 /// implementation can produce it without translation. Nothing here is checked against an OCPP schema
 /// — there is no reference to check against in this repository, unlike the ISO 15118 XSDs — so the
-/// shape is a convention with a familiar name, exactly as <see cref="Metering.MeterSigningPayload"/>
+/// shape is a convention with a familiar name, exactly as the ISO 15118 meter-signing payload
 /// is. The real emitter is a CSMS-facing stack, and this exists so the app has something to read
 /// before one is wired up.
 /// </para>
@@ -150,7 +152,7 @@ public sealed record OcppSignedMeterValue(
 /// real CSMS and everything downstream — the corpus, the app's comparison — is unchanged apart from
 /// <see cref="OcppTransactionRecord.Source"/> saying so.
 /// </remarks>
-public sealed class OcppTransactionRecorder(string transactionId, string evseId, string v2gSessionId)
+public sealed class OcppTransactionRecorder(string transactionId, string evseId, string v2gSessionId) : ISessionBackend
 {
 
     private readonly List<OcppMeterValue> values = [];
