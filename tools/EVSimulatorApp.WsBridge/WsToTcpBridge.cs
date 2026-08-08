@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021-2026 GraphDefined GmbH <achim.friedland@graphdefined.com>
  * This file is part of EVSimulatorApp
  *
@@ -22,7 +22,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-using Vanaheimr.V2G.Simulation.Transport;
+using cloud.charging.open.protocols.ISO15118.Transport;
 
 namespace EVSimulatorApp.WsBridge;
 

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021-2026 GraphDefined GmbH <achim.friedland@graphdefined.com>
  * This file is part of EVSimulatorApp
  *
@@ -22,7 +22,7 @@ using System.Security.Cryptography.X509Certificates;
 using EVSimulatorApp.Pairing;
 using EVSimulatorApp.Pi;
 
-using Vanaheimr.V2G.Simulation.Metering;
+using cloud.charging.open.protocols.ISO15118.Metering;
 
 // The Pi-side host: the pairing display, and the rotation that drives it.
 //

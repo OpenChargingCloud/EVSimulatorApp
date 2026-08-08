@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021-2026 GraphDefined GmbH <achim.friedland@graphdefined.com>
  * This file is part of EVSimulatorApp
  *
@@ -88,9 +88,9 @@ public class StationProfileTests
     }
 
     private static IReadOnlyList<System.Net.Security.TlsCipherSuite> TlsProfilesFor2 =>
-        Vanaheimr.V2G.Simulation.Transport.TlsProfiles.Iso2CipherSuites;
+        cloud.charging.open.protocols.ISO15118.Transport.TlsProfiles.Iso2CipherSuites;
     private static IReadOnlyList<System.Net.Security.TlsCipherSuite> TlsProfilesFor20 =>
-        Vanaheimr.V2G.Simulation.Transport.TlsProfiles.Iso20CipherSuites;
+        cloud.charging.open.protocols.ISO15118.Transport.TlsProfiles.Iso20CipherSuites;
 
     /// <summary>A plaintext station declares plaintext, and the app then warns about it loudly.</summary>
     [Test]

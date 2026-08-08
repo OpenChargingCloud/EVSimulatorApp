@@ -19,7 +19,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Vanaheimr.V2G.Simulation.Session;
+using cloud.charging.open.protocols.ISO15118.Session;
 
 namespace EVSimulatorApp.Ocpp;
 

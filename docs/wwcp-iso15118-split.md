@@ -324,3 +324,27 @@ real state machines, or deleted. Do not leave two.
   that resolves paths by project name.
 - **Not while something is mid-fix.** This was held until the `-20` resume defects were merged (app #12),
   because a move and a behavioural change in one diff are unreviewable.
+
+### Done, 2026-08-08 — and two things the plan got wrong
+
+Both halves are executed: the move (`WWCP_ISO15118` #7, app #14, conformance #19) and the rename
+immediately after. 130 source files, three `.csproj` renamed to match their directories, 1 212 offline
+tests green throughout.
+
+**The rename was not mechanical, for the reason §1 above predicted — and the obvious fix does not work.**
+Once the session code sits under `cloud.charging.open.protocols.ISO15118`, a bare `V2GTP` binds to the
+sibling *namespace* `…ISO15118.V2GTP` rather than to the header-codec *class* in `…ISO15118.EXI.Dispatch`.
+Adding `using V2GTP = …EXI.Dispatch.V2GTP;` **does not help**: resolving a single identifier checks the
+members of each enclosing namespace *before* the compilation unit's using-aliases, so the namespace still
+wins. An alias under a name that is not also a namespace member does work, and five files now carry
+`using V2GTPCodec = …`. The collision itself is unchanged and still wants the merge §1 describes.
+
+**The sweep has to include shell scripts.** Repointing `*.cs`, `*.csproj` and `*.slnx` left **27 live
+interop harnesses** under `tools/` pointing at a CLI path that no longer exists — nothing a build or a
+test run would ever have caught, because they are only executed against a live counterparty. They are
+fixed. `docs/interop-runs/` deliberately is **not**: those scripts and logs are the record of what was
+run at the time, and rewriting them to match today's layout would falsify it.
+
+Unrelated rot found while sweeping, and left alone: 17 scripts under `tools/interop-josev/` hardcode
+`REPO=/mnt/c/.../Vanaheimr.V2G.Exi`, a repository that has not existed under that path since the
+submodule inversion. Already broken before this move; worth a separate pass.

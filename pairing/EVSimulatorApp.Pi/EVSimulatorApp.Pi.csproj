@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../EVSimulatorApp.Pairing/EVSimulatorApp.Pairing.csproj" />
-    <ProjectReference Include="../../libs/WWCP_ISO15118/WWCP_ISO15118_Session/Vanaheimr.V2G.Simulation.csproj" />
+    <ProjectReference Include="../../libs/WWCP_ISO15118/WWCP_ISO15118_Session/WWCP_ISO15118_Session.csproj" />
   </ItemGroup>
 
 </Project>
