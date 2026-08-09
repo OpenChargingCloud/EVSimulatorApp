@@ -7,6 +7,8 @@ build/
 .idea/
 .vs/
 *.user
+# One developer's command line for a runnable project, written when Visual Studio opens or launches it.
+**/Properties/launchSettings.json
 
 # Swift / SwiftPM
 swift/.build/
