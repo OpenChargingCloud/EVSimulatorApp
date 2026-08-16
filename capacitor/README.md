@@ -147,11 +147,13 @@ It cannot open a session and does not pretend to. A browser cannot open a TCP so
 state machines exist in three languages rather than four — `tools/EVSimulatorApp.WsBridge` is the
 transport half of that answer, and the state machines are the other half and are not written.
 
-Two refusals rather than a degraded session: a configuration with no bundled recording, and **any
-protocol but `iso15118-2`**. The generator has emitted the SupportedAppProtocol and -2 codecs for
-TypeScript and not yet the -20 sets, so a -20 trace would replay as twenty-odd error events naming
-payload types. `replay` produces exactly that — a frame it cannot place becomes an error, as in every
-back end — and the plugin refuses up front, because "not a session" is knowable in advance.
+**One refusal rather than a degraded session:** a configuration with no bundled recording. There used
+to be a second — any protocol but `iso15118-2`, because the generator had emitted the
+SupportedAppProtocol and `-2` codecs for TypeScript and not yet the `-20` sets. Since 2026-08-05 it
+has emitted those too, and the refusal was removed rather than left standing: a refusal nobody can
+trigger reads as a limit that exists. A frame the replay cannot place still becomes an error event,
+as in every back end — but that is a stray frame, which is not knowable in advance the way a whole
+protocol was.
 
 **Using it needs a bundler.** Not because of Capacitor, but because the codec is TypeScript and a
 browser loads `.js`. See `app/README.md`.
