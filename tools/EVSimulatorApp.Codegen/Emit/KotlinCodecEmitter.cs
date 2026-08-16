@@ -996,9 +996,18 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.SourceGenerator.Emit
                 _sb.Append(indent).Append("w.writeBits(0u, 1)   // SE(").Append(list.FieldName).AppendLine(") first");
                 EmitEncodeValue(list, prop + "[0]", indent);
 
+                var forcedLoop = ForcedOccurrences(list.ListMin);
                 _sb.Append(indent).Append("for (ci in 1 until ").Append(prop).AppendLine(".size) {");
-                _sb.Append(indent).Append("    w.writeBits(0u, ").Append(width).Append(")   // ")
-                   .Append(list.FieldName).AppendLine(" (loop)");
+                if (forcedLoop <= 1)
+                    _sb.Append(indent).Append("    w.writeBits(0u, ").Append(width).Append(")   // ")
+                       .Append(list.FieldName).AppendLine(" (loop)");
+                else
+                    // Until minOccurs is met neither the tail nor the EE is reachable, so the state has
+                    // the single production SE(item) — one bit, not the loop's width. This is where WPT's
+                    // TxSpecData / RxSpecData / PulseSequenceOrder land. See ForcedOccurrences.
+                    _sb.Append(indent).Append("    w.writeBits(0u, if (ci < ").Append(forcedLoop)
+                       .Append(") 1 else ").Append(width).Append(")   // ").Append(list.FieldName)
+                       .AppendLine(" (1-bit while forced by minOccurs, then loop)");
                 EmitEncodeValue(list, prop + "[ci]", indent + "    ");
                 _sb.Append(indent).AppendLine("}");
 
@@ -1036,8 +1045,16 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.SourceGenerator.Emit
                 _sb.Append(indent).Append("w.writeBits(").Append(firstCode).Append("u, ").Append(width)
                    .Append(")   // ").AppendLine(p.FieldName);
                 EmitEncodeValue(p, list + "[0]", indent);
+                var forcedItems = ForcedOccurrences(p.ListMin);
                 _sb.Append(indent).Append("for (ci in 1 until ").Append(list).AppendLine(".size) {");
-                _sb.Append(indent).Append("    w.writeBits(0u, 2)   // ").AppendLine(p.FieldName);
+                if (forcedItems <= 1)
+                    _sb.Append(indent).Append("    w.writeBits(0u, 2)   // ").AppendLine(p.FieldName);
+                else
+                    // Until minOccurs is met neither the tail nor the EE is reachable, so the state has
+                    // the single production SE(item) — one bit, not the loop's two. See ForcedOccurrences.
+                    _sb.Append(indent).Append("    w.writeBits(0u, if (ci < ").Append(forcedItems)
+                       .Append(") 1 else 2)   // ").Append(p.FieldName)
+                       .AppendLine(" (1-bit while forced by minOccurs)");
                 EmitEncodeValue(p, list + "[ci]", indent + "    ");
                 _sb.Append(indent).AppendLine("}");
                 _sb.Append(indent).AppendLine("w.writeBits(1u, 2)   // element EE (list end)");
@@ -1116,6 +1133,15 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.SourceGenerator.Emit
                 var id    = _run++;
                 var width = BitsFor(1 + ProductionCount(tail) + (required ? 0 : 1) + 1);
 
+                // The occurrences before minOccurs is met are forced: their SE is a one-bit code with
+                // nothing to choose from, so they are read ahead of the loop rather than in it.
+                for (int f = 1; f < ForcedOccurrences(list.ListMin); f++)
+                {
+                    _sb.Append(indent).Append("r.readBits(1)   // SE(").Append(list.FieldName)
+                       .Append("): forced by minOccurs=").Append(list.ListMin).AppendLine();
+                    EmitDecodeItem(list, lst, lst + "Forced" + f, indent);
+                }
+
                 _sb.Append(indent).Append("var done").Append(id).AppendLine(" = false");
                 _sb.Append(indent).Append("while (!done").Append(id).AppendLine(") {");
                 _sb.Append(indent).Append("    val rc = r.readBits(").Append(width).AppendLine(")");
@@ -1157,9 +1183,70 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.SourceGenerator.Emit
             }
 
             /// <summary>Decode mirror of <see cref="EmitEncodeMidRunList"/>.</summary>
+            /// <summary>
+            /// Decode side of <see cref="EmitEncodeMidRunListSchema"/>. One state, because every state
+            /// of this grammar offers the same three choices: another item, the following optional
+            /// particle, or the end element.
+            /// </summary>
+            private void EmitDecodeMidRunListSchema(IReadOnlyList<ChildPlan> kids, int start, int listIdx,
+                                                    int end, int childCount, List<string> ctor)
+            {
+                var suffix      = MidRunSuffix(kids, start, listIdx, end, childCount);
+                var list        = kids[listIdx];
+                var suffixTotal = suffix.Sum(ProductionCount);
+                var lst         = ListLocal(list);
+                var id          = _run++;
+                var width       = BitsFor(1 + suffixTotal + 1 + 1);
+                const string ca = "                    ";
+
+                _sb.Append("        val ").Append(lst).Append(" = ArrayList<").Append(Type(list.Type)).AppendLine(">()");
+                ctor.Add(lst);
+                foreach (var s in suffix)
+                {
+                    _sb.Append("        var ").Append(Local(s.FieldName)).Append(": ").Append(DeclType(s))
+                       .AppendLine(" = null");
+                    ctor.Add(Local(s.FieldName));
+                }
+
+                _sb.Append("        var done").Append(id).AppendLine(" = false");
+                _sb.Append("        while (!done").Append(id).AppendLine(") {");
+                _sb.Append("            when (r.readBits(").Append(width).AppendLine(")) {");
+
+                _sb.Append(ca).Append("0u -> {   // ").AppendLine(list.FieldName);
+                EmitDecodeItem(list, lst, lst + "Item", ca + "    ");
+                _sb.Append(ca).AppendLine("}");
+
+                var code = 1;
+                foreach (var s in suffix)
+                {
+                    _sb.Append(ca).Append(code).Append("u -> {   // ").AppendLine(s.FieldName);
+                    if (WrapsValue(s))
+                        _sb.Append(ca).AppendLine("    r.readBits(1)   // value-start");
+                    _sb.Append(ca).Append("    ").Append(Local(s.FieldName)).Append(" = ")
+                       .AppendLine(DecodeValueExpr(s));
+                    if (WrapsValue(s))
+                        _sb.Append(ca).AppendLine("    r.readBits(1)   // child EE");
+                    _sb.Append(ca).AppendLine("    r.readBits(1)   // element EE");
+                    _sb.Append(ca).Append("    done").Append(id).AppendLine(" = true");
+                    _sb.Append(ca).AppendLine("}");
+                    code += ProductionCount(s);
+                }
+
+                _sb.Append(ca).Append(code).Append("u -> done").Append(id).AppendLine(" = true   // element EE");
+                _sb.Append(ca).AppendLine("else -> throw IllegalArgumentException(\"invalid optional-run event code\")");
+                _sb.AppendLine("            }");
+                _sb.AppendLine("        }");
+            }
+
             private void EmitDecodeMidRunList(IReadOnlyList<ChildPlan> kids, int start, int listIdx,
                                               int end, int childCount, List<string> ctor)
             {
+                if (plan.ParticleGrammar == ParticleGrammar.SchemaConformant)
+                {
+                    EmitDecodeMidRunListSchema(kids, start, listIdx, end, childCount, ctor);
+                    return;
+                }
+
                 var suffix      = MidRunSuffix(kids, start, listIdx, end, childCount);
                 var list        = kids[listIdx];
                 var suffixTotal = suffix.Sum(ProductionCount);
@@ -1286,6 +1373,12 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.SourceGenerator.Emit
             private void EmitDecodeRepeatingItems(ChildPlan p, string list, string indent, string after)
             {
                 EmitDecodeItem(p, list, list + "First", indent);   // the event code was its SE
+                for (int f = 1; f < ForcedOccurrences(p.ListMin); f++)
+                {
+                    _sb.Append(indent).Append("r.readBits(1)   // SE(").Append(p.FieldName)
+                       .Append("): forced by minOccurs=").Append(p.ListMin).AppendLine();
+                    EmitDecodeItem(p, list, list + "Forced" + f, indent);
+                }
                 _sb.Append(indent).AppendLine("while (true) {");
                 _sb.Append(indent).AppendLine("    val lc = r.readBits(2)");
                 _sb.Append(indent).AppendLine("    if (lc == 1u) break   // element EE (list end)");
@@ -1432,9 +1525,66 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.SourceGenerator.Emit
             /// regardless of its schema maxOccurs. Being byte-exact with the reference encoder is the
             /// point, so this reproduces it.
             /// </summary>
+            /// <summary>
+            /// The schema-conformant mid-run list, chosen by <c>ParticleGrammar.SchemaConformant</c>.
+            /// <para>
+            /// One grammar state rather than cbexigen's three: every position offers the same choices —
+            /// another item, the following optional particle, or the end element — so one width covers
+            /// them all and the list has no artificial cap. Mirrors
+            /// <c>CodecEmitter.EmitEncodeOptionalRunWithMidListSchema</c>, and is what WPT's
+            /// <c>LF_SystemSetupData</c> particles need.
+            /// </para>
+            /// </summary>
+            private void EmitEncodeMidRunListSchema(IReadOnlyList<ChildPlan> kids, int start, int listIdx,
+                                                    int end, int childCount)
+            {
+                var suffix      = MidRunSuffix(kids, start, listIdx, end, childCount);
+                var list        = kids[listIdx];
+                var suffixTotal = suffix.Sum(ProductionCount);
+                var prop        = "msg." + Prop(list.FieldName);
+                var width       = BitsFor(1 + suffixTotal + 1 + 1);
+
+                if (list.ListMax > 0 && list.ListMax != int.MaxValue)
+                    _sb.Append("        require(").Append(prop).Append(".size <= ").Append(list.ListMax)
+                       .Append(") { \"").Append(KStr(list.FieldName)).Append(": at most ")
+                       .Append(list.ListMax).AppendLine(" item(s) per the schema.\" }");
+
+                _sb.Append("        for (item in ").Append(prop).AppendLine(") {");
+                _sb.Append("            w.writeBits(0u, ").Append(width).Append(")   // ")
+                   .AppendLine(list.FieldName);
+                EmitEncodeValue(list, "item", "            ");
+                _sb.AppendLine("        }");
+
+                var code = 1;
+                var first = true;
+                foreach (var s in suffix)
+                {
+                    _sb.Append("        ").Append(first ? "if" : "else if").Append(" (msg.")
+                       .Append(Prop(s.FieldName)).AppendLine(" != null) {");
+                    _sb.Append("            w.writeBits(").Append(code).Append("u, ").Append(width)
+                       .Append(")   // ").AppendLine(s.FieldName);
+                    EmitEncodeValue(s, "msg." + Prop(s.FieldName) + "!!", "            ");
+                    _sb.AppendLine("            w.writeBits(0u, 1)   // element EE");
+                    _sb.AppendLine("        }");
+                    code += ProductionCount(s);
+                    first = false;
+                }
+
+                if (!first) _sb.AppendLine("        else");
+                _sb.Append(first ? "        " : "            ")
+                   .Append("w.writeBits(").Append(code).Append("u, ").Append(width)
+                   .AppendLine(")   // element EE");
+            }
+
             private void EmitEncodeMidRunList(IReadOnlyList<ChildPlan> kids, int start, int listIdx,
                                               int end, int childCount)
             {
+                if (plan.ParticleGrammar == ParticleGrammar.SchemaConformant)
+                {
+                    EmitEncodeMidRunListSchema(kids, start, listIdx, end, childCount);
+                    return;
+                }
+
                 var suffix      = MidRunSuffix(kids, start, listIdx, end, childCount);
                 var list        = kids[listIdx];
                 var suffixTotal = suffix.Sum(ProductionCount);

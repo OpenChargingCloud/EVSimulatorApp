@@ -170,9 +170,9 @@ TypeScript carries the rule and changes no byte: none of its sets has a `minOccu
 all five in ISO 15118 sit in WPT and the two AC DER sets. It is carried anyway — three emitters
 implementing the same grammar differently is how the ports drifted in the first place.
 
-### 2a-iii · The WPT particle grammar, still to port
+### 2a-iii · The WPT particle grammar — **done 2026-08-16**
 
-**WPT is 8/16, and it is the one rule left.** `plan.ParticleGrammar` is carried on the plan and read
+**WPT is 16/16, and the Kotlin gate is green.** `plan.ParticleGrammar` was carried on the plan and read
 by `Emit/CodecEmitter.cs` alone. Where that file branches between
 `EmitEncodeOptionalRunWithMidListSchema` and `...WithMidList` — and between the decode pair beside
 them — the Kotlin emitter has a single `EmitEncodeMidRunList` / `EmitDecodeMidRunList`, which is the
@@ -302,12 +302,12 @@ declined.
 | 1 · instrument | everything | **done 2026-08-16** |
 | 2a-i · grammar switches | 2a-ii | **done 2026-08-16** |
 | 2a-ii · forced-occurrence rule | AC DER agreement | **done 2026-08-16** |
-| 2a-iii · WPT particle grammar | a green gate, and every claim made from one | nothing — Kotlin only, ~35 lines per direction |
+| 2a-iii · WPT particle grammar | — | **done 2026-08-16** |
 | 2b · session corpus | 3, and Resume specifically | nothing |
 | 3 · state machines | — | 2b |
 | 4 · TLS | shipping anything that claims conformance | its own measurement, which needs nothing |
 | 5 · discovery + shell | — | 4 for the iOS entitlement timing |
 
-**2a-iii is the one to take next**, and it is the last thing between the gate and green. It needs
-nobody's permission and nothing else first — as does stage 4's measurement, still the one item that
-could change the shape of the rest.
+**Stage 2a is closed and the Kotlin gate is green — ten corpora out of ten, byte-exact.** The two
+items that need nobody's permission and nothing else first are now **2b**, moving the session oracle,
+and **stage 4's measurement** — still the one that could change the shape of the rest.

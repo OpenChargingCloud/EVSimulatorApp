@@ -37,23 +37,23 @@ internal fun encodeWPT_PairingReqType(w: BitWriter, msg: WPT_PairingReqType) {
     w.writeBits(0u, 1)   // value-start
     w.writeBits(msg.eVProcessing.ordinal.toUInt(), 2)
     w.writeBits(0u, 1)   // child EE
-    var st8 = 0
-    var done8 = false
-    while (!done8) {
-        when (st8) {
+    var st4 = 0
+    var done4 = false
+    while (!done4) {
+        when (st4) {
             0 -> {
                 if (msg.observedIDCode != null) {
                     w.writeBits(0u, 2)   // ObservedIDCode
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.observedIDCode!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st8 = 1
+                    st4 = 1
                 } else {
                     w.writeBits(1u, 2)   // SE(EVResultCode)
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.eVResultCode.ordinal.toUInt(), 2)
                     w.writeBits(0u, 1)   // child EE
-                    done8 = true
+                    done4 = true
                 }
             }
             1 -> {
@@ -61,14 +61,14 @@ internal fun encodeWPT_PairingReqType(w: BitWriter, msg: WPT_PairingReqType) {
                 w.writeBits(0u, 1)   // value-start
                 w.writeBits(msg.eVResultCode.ordinal.toUInt(), 2)
                 w.writeBits(0u, 1)   // child EE
-                done8 = true
+                done4 = true
             }
         }
     }
-    var st9 = 0
-    var done9 = false
-    while (!done9) {
-        when (st9) {
+    var st5 = 0
+    var done5 = false
+    while (!done5) {
+        when (st5) {
             0 -> {
                 if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                     require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
@@ -83,15 +83,15 @@ internal fun encodeWPT_PairingReqType(w: BitWriter, msg: WPT_PairingReqType) {
                         w.writeBits(0u, 1)   // child EE
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done9 = true
+                    done5 = true
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done9 = true
+                    done5 = true
                 }
             }
             1 -> {
                 w.writeBits(0u, 1)   // element EE
-                done9 = true
+                done5 = true
             }
         }
     }
@@ -106,23 +106,23 @@ internal fun decodeWPT_PairingReqType(r: BitReader): WPT_PairingReqType {
     r.readBits(1)   // child EE
     var _observedIDCode: UInt? = null
     var _eVResultCode: WPT_EVResult? = null
-    var st10 = 0
-    var done10 = false
-    while (!done10) {
-        when (st10) {
+    var st6 = 0
+    var done6 = false
+    while (!done6) {
+        when (st6) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
                         r.readBits(1)   // value-start
                         _observedIDCode = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st10 = 1
+                        st6 = 1
                     }
                     1u -> {   // SE(EVResultCode)
                         r.readBits(1)   // value-start
                         _eVResultCode = WPT_EVResult.entries[r.readBits(2).toInt()]
                         r.readBits(1)   // child EE
-                        done10 = true
+                        done6 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -133,7 +133,7 @@ internal fun decodeWPT_PairingReqType(r: BitReader): WPT_PairingReqType {
                         r.readBits(1)   // value-start
                         _eVResultCode = WPT_EVResult.entries[r.readBits(2).toInt()]
                         r.readBits(1)   // child EE
-                        done10 = true
+                        done6 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -141,10 +141,10 @@ internal fun decodeWPT_PairingReqType(r: BitReader): WPT_PairingReqType {
         }
     }
     val vendorSpecificDataContainerList = ArrayList<ByteArray>()
-    var st11 = 0
-    var done11 = false
-    while (!done11) {
-        when (st11) {
+    var st7 = 0
+    var done7 = false
+    while (!done7) {
+        when (st7) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {   // VendorSpecificDataContainer
@@ -161,15 +161,15 @@ internal fun decodeWPT_PairingReqType(r: BitReader): WPT_PairingReqType {
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                         }
-                        done11 = true
+                        done7 = true
                     }
-                    1u -> done11 = true   // element EE
+                    1u -> done7 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             1 -> {
                 when (r.readBits(1)) {
-                    0u -> done11 = true   // element EE
+                    0u -> done7 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

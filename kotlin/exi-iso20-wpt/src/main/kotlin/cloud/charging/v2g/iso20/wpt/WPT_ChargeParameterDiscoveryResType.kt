@@ -62,10 +62,10 @@ internal fun encodeWPT_ChargeParameterDiscoveryResType(w: BitWriter, msg: WPT_Ch
     encodeRationalNumberType(w, msg.pDMinCoilCurrent)
     w.writeBits(0u, 1)   // SE
     encodeRationalNumberType(w, msg.pDMaxCoilCurrent)
-    var st16 = 0
-    var done16 = false
-    while (!done16) {
-        when (st16) {
+    var st12 = 0
+    var done12 = false
+    while (!done12) {
+        when (st12) {
             0 -> {
                 if (msg.sDManufacturerSpecificDataContainer.isNotEmpty()) {
                     require(msg.sDManufacturerSpecificDataContainer.size <= 16) { "list size out of schema range" }
@@ -80,15 +80,15 @@ internal fun encodeWPT_ChargeParameterDiscoveryResType(w: BitWriter, msg: WPT_Ch
                         w.writeBits(0u, 1)   // child EE
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done16 = true
+                    done12 = true
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done16 = true
+                    done12 = true
                 }
             }
             1 -> {
                 w.writeBits(0u, 1)   // element EE
-                done16 = true
+                done12 = true
             }
         }
     }
@@ -122,10 +122,10 @@ internal fun decodeWPT_ChargeParameterDiscoveryResType(r: BitReader): WPT_Charge
     r.readBits(1)   // SE
     val _pDMaxCoilCurrent = decodeRationalNumberType(r)
     val sDManufacturerSpecificDataContainerList = ArrayList<ByteArray>()
-    var st17 = 0
-    var done17 = false
-    while (!done17) {
-        when (st17) {
+    var st13 = 0
+    var done13 = false
+    while (!done13) {
+        when (st13) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {   // SDManufacturerSpecificDataContainer
@@ -142,15 +142,15 @@ internal fun decodeWPT_ChargeParameterDiscoveryResType(r: BitReader): WPT_Charge
                             r.readBits(1)   // child EE
                             sDManufacturerSpecificDataContainerList.add(sDManufacturerSpecificDataContainerListNext)
                         }
-                        done17 = true
+                        done13 = true
                     }
-                    1u -> done17 = true   // element EE
+                    1u -> done13 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             1 -> {
                 when (r.readBits(1)) {
-                    0u -> done17 = true   // element EE
+                    0u -> done13 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

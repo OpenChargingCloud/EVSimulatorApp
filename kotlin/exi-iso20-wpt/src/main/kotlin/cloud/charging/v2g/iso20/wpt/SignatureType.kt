@@ -31,61 +31,61 @@ data class SignatureType(
 )
 
 internal fun encodeSignatureType(w: BitWriter, msg: SignatureType) {
-    var st46 = 0
-    var done46 = false
-    while (!done46) {
-        when (st46) {
+    var st42 = 0
+    var done42 = false
+    while (!done42) {
+        when (st42) {
             0 -> {
                 if (msg.id != null) {
                     w.writeBits(0u, 2)   // Id
                     ExiPrimitives.writeStringValue(w, msg.id!!)
-                    st46 = 1
+                    st42 = 1
                 } else {
                     w.writeBits(1u, 2)   // SE(SignedInfo)
                     encodeSignedInfoType(w, msg.signedInfo)
-                    done46 = true
+                    done42 = true
                 }
             }
             1 -> {
                 w.writeBits(0u, 1)   // SE(SignedInfo)
                 encodeSignedInfoType(w, msg.signedInfo)
-                done46 = true
+                done42 = true
             }
         }
     }
     w.writeBits(0u, 1)   // SE
     encodeSignatureValueType(w, msg.signatureValue)
-    var st47 = 0
-    var done47 = false
-    while (!done47) {
-        when (st47) {
+    var st43 = 0
+    var done43 = false
+    while (!done43) {
+        when (st43) {
             0 -> {
                 if (msg.keyInfo != null) {
                     w.writeBits(0u, 2)   // KeyInfo
                     throw UnsupportedOperationException("Encoding a present KeyInfo (XMLDSig) is not implemented in the Kotlin back end.")
-                    st47 = 1
+                    st43 = 1
                 } else if (msg.`object` != null) {
                     w.writeBits(1u, 2)   // Object
                     throw UnsupportedOperationException("Encoding a present Object (XMLDSig) is not implemented in the Kotlin back end.")
-                    st47 = 2
+                    st43 = 2
                 } else {
                     w.writeBits(2u, 2)   // element EE
-                    done47 = true
+                    done43 = true
                 }
             }
             1 -> {
                 if (msg.`object` != null) {
                     w.writeBits(0u, 2)   // Object
                     throw UnsupportedOperationException("Encoding a present Object (XMLDSig) is not implemented in the Kotlin back end.")
-                    st47 = 2
+                    st43 = 2
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done47 = true
+                    done43 = true
                 }
             }
             2 -> {
                 w.writeBits(0u, 1)   // element EE
-                done47 = true
+                done43 = true
             }
         }
     }
@@ -94,19 +94,19 @@ internal fun encodeSignatureType(w: BitWriter, msg: SignatureType) {
 internal fun decodeSignatureType(r: BitReader): SignatureType {
     var _id: String? = null
     var _signedInfo: SignedInfoType? = null
-    var st48 = 0
-    var done48 = false
-    while (!done48) {
-        when (st48) {
+    var st44 = 0
+    var done44 = false
+    while (!done44) {
+        when (st44) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
                         _id = ExiPrimitives.readStringValue(r, "Id")
-                        st48 = 1
+                        st44 = 1
                     }
                     1u -> {   // SE(SignedInfo)
                         _signedInfo = decodeSignedInfoType(r)
-                        done48 = true
+                        done44 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -115,7 +115,7 @@ internal fun decodeSignatureType(r: BitReader): SignatureType {
                 when (r.readBits(1)) {
                     0u -> {   // SE(SignedInfo)
                         _signedInfo = decodeSignedInfoType(r)
-                        done48 = true
+                        done44 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -126,21 +126,21 @@ internal fun decodeSignatureType(r: BitReader): SignatureType {
     val _signatureValue = decodeSignatureValueType(r)
     var _keyInfo: KeyInfo? = null
     var _object: Object? = null
-    var st49 = 0
-    var done49 = false
-    while (!done49) {
-        when (st49) {
+    var st45 = 0
+    var done45 = false
+    while (!done45) {
+        when (st45) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
                         _keyInfo = throw UnsupportedOperationException("Decoding a present KeyInfo (XMLDSig) is not implemented in the Kotlin back end.")
-                        st49 = 1
+                        st45 = 1
                     }
                     1u -> {
                         _object = throw UnsupportedOperationException("Decoding a present Object (XMLDSig) is not implemented in the Kotlin back end.")
-                        st49 = 2
+                        st45 = 2
                     }
-                    2u -> done49 = true   // element EE
+                    2u -> done45 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -148,15 +148,15 @@ internal fun decodeSignatureType(r: BitReader): SignatureType {
                 when (r.readBits(2)) {
                     0u -> {
                         _object = throw UnsupportedOperationException("Decoding a present Object (XMLDSig) is not implemented in the Kotlin back end.")
-                        st49 = 2
+                        st45 = 2
                     }
-                    1u -> done49 = true   // element EE
+                    1u -> done45 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             2 -> {
                 when (r.readBits(1)) {
-                    0u -> done49 = true   // element EE
+                    0u -> done45 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

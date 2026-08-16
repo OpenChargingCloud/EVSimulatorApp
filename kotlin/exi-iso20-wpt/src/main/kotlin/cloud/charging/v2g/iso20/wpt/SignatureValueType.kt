@@ -28,25 +28,25 @@ data class SignatureValueType(
 )
 
 internal fun encodeSignatureValueType(w: BitWriter, msg: SignatureValueType) {
-    var st50 = 0
-    var done50 = false
-    while (!done50) {
-        when (st50) {
+    var st46 = 0
+    var done46 = false
+    while (!done46) {
+        when (st46) {
             0 -> {
                 if (msg.id != null) {
                     w.writeBits(0u, 2)   // AT(Id)
                     ExiPrimitives.writeStringValue(w, msg.id!!)
-                    st50 = 1
+                    st46 = 1
                 } else {
                     w.writeBits(1u, 2)   // CONTENT
                     ExiPrimitives.writeBinary(w, msg.value)
-                    done50 = true
+                    done46 = true
                 }
             }
             1 -> {
                 w.writeBits(0u, 1)   // CONTENT
                 ExiPrimitives.writeBinary(w, msg.value)
-                done50 = true
+                done46 = true
             }
         }
     }
@@ -56,19 +56,19 @@ internal fun encodeSignatureValueType(w: BitWriter, msg: SignatureValueType) {
 internal fun decodeSignatureValueType(r: BitReader): SignatureValueType {
     var _id: String? = null
     var _value: ByteArray? = null
-    var st51 = 0
-    var done51 = false
-    while (!done51) {
-        when (st51) {
+    var st47 = 0
+    var done47 = false
+    while (!done47) {
+        when (st47) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {   // AT(Id)
                         _id = ExiPrimitives.readStringValue(r, "Id")
-                        st51 = 1
+                        st47 = 1
                     }
                     1u -> {   // CONTENT
                         _value = ExiPrimitives.readBinary(r)
-                        done51 = true
+                        done47 = true
                     }
                     else -> throw IllegalArgumentException("invalid simpleContent event code")
                 }
@@ -77,7 +77,7 @@ internal fun decodeSignatureValueType(r: BitReader): SignatureValueType {
                 when (r.readBits(1)) {
                     0u -> {   // CONTENT
                         _value = ExiPrimitives.readBinary(r)
-                        done51 = true
+                        done47 = true
                     }
                     else -> throw IllegalArgumentException("invalid simpleContent event code")
                 }

@@ -36,72 +36,72 @@ data class DisplayParametersType(
 )
 
 internal fun encodeDisplayParametersType(w: BitWriter, msg: DisplayParametersType) {
-    var st40 = 0
-    var done40 = false
-    while (!done40) {
-        when (st40) {
+    var st36 = 0
+    var done36 = false
+    while (!done36) {
+        when (st36) {
             0 -> {
                 if (msg.presentSOC != null) {
                     w.writeBits(0u, 4)   // PresentSOC
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.presentSOC!!.toLong().toUInt(), 7)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 1
+                    st36 = 1
                 } else if (msg.minimumSOC != null) {
                     w.writeBits(1u, 4)   // MinimumSOC
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.minimumSOC!!.toLong().toUInt(), 7)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 2
+                    st36 = 2
                 } else if (msg.targetSOC != null) {
                     w.writeBits(2u, 4)   // TargetSOC
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.targetSOC!!.toLong().toUInt(), 7)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 3
+                    st36 = 3
                 } else if (msg.maximumSOC != null) {
                     w.writeBits(3u, 4)   // MaximumSOC
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 4
+                    st36 = 4
                 } else if (msg.remainingTimeToMinimumSOC != null) {
                     w.writeBits(4u, 4)   // RemainingTimeToMinimumSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 5
+                    st36 = 5
                 } else if (msg.remainingTimeToTargetSOC != null) {
                     w.writeBits(5u, 4)   // RemainingTimeToTargetSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 6
+                    st36 = 6
                 } else if (msg.remainingTimeToMaximumSOC != null) {
                     w.writeBits(6u, 4)   // RemainingTimeToMaximumSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 7
+                    st36 = 7
                 } else if (msg.chargingComplete != null) {
                     w.writeBits(7u, 4)   // ChargingComplete
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 8
+                    st36 = 8
                 } else if (msg.batteryEnergyCapacity != null) {
                     w.writeBits(8u, 4)   // BatteryEnergyCapacity
                     encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                    st40 = 9
+                    st36 = 9
                 } else if (msg.inletHot != null) {
                     w.writeBits(9u, 4)   // InletHot
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 10
+                    st36 = 10
                 } else {
                     w.writeBits(10u, 4)   // element EE
-                    done40 = true
+                    done36 = true
                 }
             }
             1 -> {
@@ -110,56 +110,56 @@ internal fun encodeDisplayParametersType(w: BitWriter, msg: DisplayParametersTyp
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.minimumSOC!!.toLong().toUInt(), 7)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 2
+                    st36 = 2
                 } else if (msg.targetSOC != null) {
                     w.writeBits(1u, 4)   // TargetSOC
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.targetSOC!!.toLong().toUInt(), 7)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 3
+                    st36 = 3
                 } else if (msg.maximumSOC != null) {
                     w.writeBits(2u, 4)   // MaximumSOC
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 4
+                    st36 = 4
                 } else if (msg.remainingTimeToMinimumSOC != null) {
                     w.writeBits(3u, 4)   // RemainingTimeToMinimumSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 5
+                    st36 = 5
                 } else if (msg.remainingTimeToTargetSOC != null) {
                     w.writeBits(4u, 4)   // RemainingTimeToTargetSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 6
+                    st36 = 6
                 } else if (msg.remainingTimeToMaximumSOC != null) {
                     w.writeBits(5u, 4)   // RemainingTimeToMaximumSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 7
+                    st36 = 7
                 } else if (msg.chargingComplete != null) {
                     w.writeBits(6u, 4)   // ChargingComplete
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 8
+                    st36 = 8
                 } else if (msg.batteryEnergyCapacity != null) {
                     w.writeBits(7u, 4)   // BatteryEnergyCapacity
                     encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                    st40 = 9
+                    st36 = 9
                 } else if (msg.inletHot != null) {
                     w.writeBits(8u, 4)   // InletHot
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 10
+                    st36 = 10
                 } else {
                     w.writeBits(9u, 4)   // element EE
-                    done40 = true
+                    done36 = true
                 }
             }
             2 -> {
@@ -168,50 +168,50 @@ internal fun encodeDisplayParametersType(w: BitWriter, msg: DisplayParametersTyp
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.targetSOC!!.toLong().toUInt(), 7)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 3
+                    st36 = 3
                 } else if (msg.maximumSOC != null) {
                     w.writeBits(1u, 4)   // MaximumSOC
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 4
+                    st36 = 4
                 } else if (msg.remainingTimeToMinimumSOC != null) {
                     w.writeBits(2u, 4)   // RemainingTimeToMinimumSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 5
+                    st36 = 5
                 } else if (msg.remainingTimeToTargetSOC != null) {
                     w.writeBits(3u, 4)   // RemainingTimeToTargetSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 6
+                    st36 = 6
                 } else if (msg.remainingTimeToMaximumSOC != null) {
                     w.writeBits(4u, 4)   // RemainingTimeToMaximumSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 7
+                    st36 = 7
                 } else if (msg.chargingComplete != null) {
                     w.writeBits(5u, 4)   // ChargingComplete
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 8
+                    st36 = 8
                 } else if (msg.batteryEnergyCapacity != null) {
                     w.writeBits(6u, 4)   // BatteryEnergyCapacity
                     encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                    st40 = 9
+                    st36 = 9
                 } else if (msg.inletHot != null) {
                     w.writeBits(7u, 4)   // InletHot
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 10
+                    st36 = 10
                 } else {
                     w.writeBits(8u, 4)   // element EE
-                    done40 = true
+                    done36 = true
                 }
             }
             3 -> {
@@ -220,44 +220,44 @@ internal fun encodeDisplayParametersType(w: BitWriter, msg: DisplayParametersTyp
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.maximumSOC!!.toLong().toUInt(), 7)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 4
+                    st36 = 4
                 } else if (msg.remainingTimeToMinimumSOC != null) {
                     w.writeBits(1u, 4)   // RemainingTimeToMinimumSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 5
+                    st36 = 5
                 } else if (msg.remainingTimeToTargetSOC != null) {
                     w.writeBits(2u, 4)   // RemainingTimeToTargetSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 6
+                    st36 = 6
                 } else if (msg.remainingTimeToMaximumSOC != null) {
                     w.writeBits(3u, 4)   // RemainingTimeToMaximumSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 7
+                    st36 = 7
                 } else if (msg.chargingComplete != null) {
                     w.writeBits(4u, 4)   // ChargingComplete
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 8
+                    st36 = 8
                 } else if (msg.batteryEnergyCapacity != null) {
                     w.writeBits(5u, 4)   // BatteryEnergyCapacity
                     encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                    st40 = 9
+                    st36 = 9
                 } else if (msg.inletHot != null) {
                     w.writeBits(6u, 4)   // InletHot
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 10
+                    st36 = 10
                 } else {
                     w.writeBits(7u, 4)   // element EE
-                    done40 = true
+                    done36 = true
                 }
             }
             4 -> {
@@ -266,38 +266,38 @@ internal fun encodeDisplayParametersType(w: BitWriter, msg: DisplayParametersTyp
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMinimumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 5
+                    st36 = 5
                 } else if (msg.remainingTimeToTargetSOC != null) {
                     w.writeBits(1u, 3)   // RemainingTimeToTargetSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 6
+                    st36 = 6
                 } else if (msg.remainingTimeToMaximumSOC != null) {
                     w.writeBits(2u, 3)   // RemainingTimeToMaximumSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 7
+                    st36 = 7
                 } else if (msg.chargingComplete != null) {
                     w.writeBits(3u, 3)   // ChargingComplete
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 8
+                    st36 = 8
                 } else if (msg.batteryEnergyCapacity != null) {
                     w.writeBits(4u, 3)   // BatteryEnergyCapacity
                     encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                    st40 = 9
+                    st36 = 9
                 } else if (msg.inletHot != null) {
                     w.writeBits(5u, 3)   // InletHot
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 10
+                    st36 = 10
                 } else {
                     w.writeBits(6u, 3)   // element EE
-                    done40 = true
+                    done36 = true
                 }
             }
             5 -> {
@@ -306,32 +306,32 @@ internal fun encodeDisplayParametersType(w: BitWriter, msg: DisplayParametersTyp
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToTargetSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 6
+                    st36 = 6
                 } else if (msg.remainingTimeToMaximumSOC != null) {
                     w.writeBits(1u, 3)   // RemainingTimeToMaximumSOC
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 7
+                    st36 = 7
                 } else if (msg.chargingComplete != null) {
                     w.writeBits(2u, 3)   // ChargingComplete
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 8
+                    st36 = 8
                 } else if (msg.batteryEnergyCapacity != null) {
                     w.writeBits(3u, 3)   // BatteryEnergyCapacity
                     encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                    st40 = 9
+                    st36 = 9
                 } else if (msg.inletHot != null) {
                     w.writeBits(4u, 3)   // InletHot
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 10
+                    st36 = 10
                 } else {
                     w.writeBits(5u, 3)   // element EE
-                    done40 = true
+                    done36 = true
                 }
             }
             6 -> {
@@ -340,26 +340,26 @@ internal fun encodeDisplayParametersType(w: BitWriter, msg: DisplayParametersTyp
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.remainingTimeToMaximumSOC!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 7
+                    st36 = 7
                 } else if (msg.chargingComplete != null) {
                     w.writeBits(1u, 3)   // ChargingComplete
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 8
+                    st36 = 8
                 } else if (msg.batteryEnergyCapacity != null) {
                     w.writeBits(2u, 3)   // BatteryEnergyCapacity
                     encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                    st40 = 9
+                    st36 = 9
                 } else if (msg.inletHot != null) {
                     w.writeBits(3u, 3)   // InletHot
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 10
+                    st36 = 10
                 } else {
                     w.writeBits(4u, 3)   // element EE
-                    done40 = true
+                    done36 = true
                 }
             }
             7 -> {
@@ -368,36 +368,36 @@ internal fun encodeDisplayParametersType(w: BitWriter, msg: DisplayParametersTyp
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.chargingComplete!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 8
+                    st36 = 8
                 } else if (msg.batteryEnergyCapacity != null) {
                     w.writeBits(1u, 3)   // BatteryEnergyCapacity
                     encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                    st40 = 9
+                    st36 = 9
                 } else if (msg.inletHot != null) {
                     w.writeBits(2u, 3)   // InletHot
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 10
+                    st36 = 10
                 } else {
                     w.writeBits(3u, 3)   // element EE
-                    done40 = true
+                    done36 = true
                 }
             }
             8 -> {
                 if (msg.batteryEnergyCapacity != null) {
                     w.writeBits(0u, 2)   // BatteryEnergyCapacity
                     encodeRationalNumberType(w, msg.batteryEnergyCapacity!!)
-                    st40 = 9
+                    st36 = 9
                 } else if (msg.inletHot != null) {
                     w.writeBits(1u, 2)   // InletHot
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 10
+                    st36 = 10
                 } else {
                     w.writeBits(2u, 2)   // element EE
-                    done40 = true
+                    done36 = true
                 }
             }
             9 -> {
@@ -406,15 +406,15 @@ internal fun encodeDisplayParametersType(w: BitWriter, msg: DisplayParametersTyp
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(if (msg.inletHot!!) 1u else 0u, 1)
                     w.writeBits(0u, 1)   // child EE
-                    st40 = 10
+                    st36 = 10
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done40 = true
+                    done36 = true
                 }
             }
             10 -> {
                 w.writeBits(0u, 1)   // element EE
-                done40 = true
+                done36 = true
             }
         }
     }
@@ -431,71 +431,71 @@ internal fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
     var _chargingComplete: Boolean? = null
     var _batteryEnergyCapacity: RationalNumberType? = null
     var _inletHot: Boolean? = null
-    var st41 = 0
-    var done41 = false
-    while (!done41) {
-        when (st41) {
+    var st37 = 0
+    var done37 = false
+    while (!done37) {
+        when (st37) {
             0 -> {
                 when (r.readBits(4)) {
                     0u -> {
                         r.readBits(1)   // value-start
                         _presentSOC = r.readBits(7).toByte()
                         r.readBits(1)   // child EE
-                        st41 = 1
+                        st37 = 1
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _minimumSOC = r.readBits(7).toByte()
                         r.readBits(1)   // child EE
-                        st41 = 2
+                        st37 = 2
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _targetSOC = r.readBits(7).toByte()
                         r.readBits(1)   // child EE
-                        st41 = 3
+                        st37 = 3
                     }
                     3u -> {
                         r.readBits(1)   // value-start
                         _maximumSOC = r.readBits(7).toByte()
                         r.readBits(1)   // child EE
-                        st41 = 4
+                        st37 = 4
                     }
                     4u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 5
+                        st37 = 5
                     }
                     5u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 6
+                        st37 = 6
                     }
                     6u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 7
+                        st37 = 7
                     }
                     7u -> {
                         r.readBits(1)   // value-start
                         _chargingComplete = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 8
+                        st37 = 8
                     }
                     8u -> {
                         _batteryEnergyCapacity = decodeRationalNumberType(r)
-                        st41 = 9
+                        st37 = 9
                     }
                     9u -> {
                         r.readBits(1)   // value-start
                         _inletHot = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 10
+                        st37 = 10
                     }
-                    10u -> done41 = true   // element EE
+                    10u -> done37 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -505,55 +505,55 @@ internal fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
                         r.readBits(1)   // value-start
                         _minimumSOC = r.readBits(7).toByte()
                         r.readBits(1)   // child EE
-                        st41 = 2
+                        st37 = 2
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _targetSOC = r.readBits(7).toByte()
                         r.readBits(1)   // child EE
-                        st41 = 3
+                        st37 = 3
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _maximumSOC = r.readBits(7).toByte()
                         r.readBits(1)   // child EE
-                        st41 = 4
+                        st37 = 4
                     }
                     3u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 5
+                        st37 = 5
                     }
                     4u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 6
+                        st37 = 6
                     }
                     5u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 7
+                        st37 = 7
                     }
                     6u -> {
                         r.readBits(1)   // value-start
                         _chargingComplete = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 8
+                        st37 = 8
                     }
                     7u -> {
                         _batteryEnergyCapacity = decodeRationalNumberType(r)
-                        st41 = 9
+                        st37 = 9
                     }
                     8u -> {
                         r.readBits(1)   // value-start
                         _inletHot = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 10
+                        st37 = 10
                     }
-                    9u -> done41 = true   // element EE
+                    9u -> done37 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -563,49 +563,49 @@ internal fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
                         r.readBits(1)   // value-start
                         _targetSOC = r.readBits(7).toByte()
                         r.readBits(1)   // child EE
-                        st41 = 3
+                        st37 = 3
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _maximumSOC = r.readBits(7).toByte()
                         r.readBits(1)   // child EE
-                        st41 = 4
+                        st37 = 4
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 5
+                        st37 = 5
                     }
                     3u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 6
+                        st37 = 6
                     }
                     4u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 7
+                        st37 = 7
                     }
                     5u -> {
                         r.readBits(1)   // value-start
                         _chargingComplete = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 8
+                        st37 = 8
                     }
                     6u -> {
                         _batteryEnergyCapacity = decodeRationalNumberType(r)
-                        st41 = 9
+                        st37 = 9
                     }
                     7u -> {
                         r.readBits(1)   // value-start
                         _inletHot = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 10
+                        st37 = 10
                     }
-                    8u -> done41 = true   // element EE
+                    8u -> done37 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -615,43 +615,43 @@ internal fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
                         r.readBits(1)   // value-start
                         _maximumSOC = r.readBits(7).toByte()
                         r.readBits(1)   // child EE
-                        st41 = 4
+                        st37 = 4
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 5
+                        st37 = 5
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 6
+                        st37 = 6
                     }
                     3u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 7
+                        st37 = 7
                     }
                     4u -> {
                         r.readBits(1)   // value-start
                         _chargingComplete = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 8
+                        st37 = 8
                     }
                     5u -> {
                         _batteryEnergyCapacity = decodeRationalNumberType(r)
-                        st41 = 9
+                        st37 = 9
                     }
                     6u -> {
                         r.readBits(1)   // value-start
                         _inletHot = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 10
+                        st37 = 10
                     }
-                    7u -> done41 = true   // element EE
+                    7u -> done37 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -661,37 +661,37 @@ internal fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
                         r.readBits(1)   // value-start
                         _remainingTimeToMinimumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 5
+                        st37 = 5
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 6
+                        st37 = 6
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 7
+                        st37 = 7
                     }
                     3u -> {
                         r.readBits(1)   // value-start
                         _chargingComplete = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 8
+                        st37 = 8
                     }
                     4u -> {
                         _batteryEnergyCapacity = decodeRationalNumberType(r)
-                        st41 = 9
+                        st37 = 9
                     }
                     5u -> {
                         r.readBits(1)   // value-start
                         _inletHot = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 10
+                        st37 = 10
                     }
-                    6u -> done41 = true   // element EE
+                    6u -> done37 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -701,31 +701,31 @@ internal fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
                         r.readBits(1)   // value-start
                         _remainingTimeToTargetSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 6
+                        st37 = 6
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 7
+                        st37 = 7
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _chargingComplete = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 8
+                        st37 = 8
                     }
                     3u -> {
                         _batteryEnergyCapacity = decodeRationalNumberType(r)
-                        st41 = 9
+                        st37 = 9
                     }
                     4u -> {
                         r.readBits(1)   // value-start
                         _inletHot = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 10
+                        st37 = 10
                     }
-                    5u -> done41 = true   // element EE
+                    5u -> done37 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -735,25 +735,25 @@ internal fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
                         r.readBits(1)   // value-start
                         _remainingTimeToMaximumSOC = ExiPrimitives.readUnsignedInteger(r).toUInt()
                         r.readBits(1)   // child EE
-                        st41 = 7
+                        st37 = 7
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _chargingComplete = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 8
+                        st37 = 8
                     }
                     2u -> {
                         _batteryEnergyCapacity = decodeRationalNumberType(r)
-                        st41 = 9
+                        st37 = 9
                     }
                     3u -> {
                         r.readBits(1)   // value-start
                         _inletHot = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 10
+                        st37 = 10
                     }
-                    4u -> done41 = true   // element EE
+                    4u -> done37 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -763,19 +763,19 @@ internal fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
                         r.readBits(1)   // value-start
                         _chargingComplete = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 8
+                        st37 = 8
                     }
                     1u -> {
                         _batteryEnergyCapacity = decodeRationalNumberType(r)
-                        st41 = 9
+                        st37 = 9
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _inletHot = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 10
+                        st37 = 10
                     }
-                    3u -> done41 = true   // element EE
+                    3u -> done37 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -783,15 +783,15 @@ internal fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
                 when (r.readBits(2)) {
                     0u -> {
                         _batteryEnergyCapacity = decodeRationalNumberType(r)
-                        st41 = 9
+                        st37 = 9
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _inletHot = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 10
+                        st37 = 10
                     }
-                    2u -> done41 = true   // element EE
+                    2u -> done37 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -801,15 +801,15 @@ internal fun decodeDisplayParametersType(r: BitReader): DisplayParametersType {
                         r.readBits(1)   // value-start
                         _inletHot = r.readBits(1).toInt() != 0
                         r.readBits(1)   // child EE
-                        st41 = 10
+                        st37 = 10
                     }
-                    1u -> done41 = true   // element EE
+                    1u -> done37 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             10 -> {
                 when (r.readBits(1)) {
-                    0u -> done41 = true   // element EE
+                    0u -> done37 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

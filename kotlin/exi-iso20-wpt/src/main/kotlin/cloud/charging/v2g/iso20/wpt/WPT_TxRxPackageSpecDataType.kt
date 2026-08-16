@@ -34,7 +34,7 @@ internal fun encodeWPT_TxRxPackageSpecDataType(w: BitWriter, msg: WPT_TxRxPackag
     w.writeBits(0u, 1)   // SE(PulseSequenceOrder) first
     encodeWPT_TxRxPulseOrderType(w, msg.pulseSequenceOrder[0])
     for (ci in 1 until msg.pulseSequenceOrder.size) {
-        w.writeBits(0u, 2)   // PulseSequenceOrder (loop)
+        w.writeBits(0u, if (ci < 2) 1 else 2)   // PulseSequenceOrder (1-bit while forced by minOccurs, then loop)
         encodeWPT_TxRxPulseOrderType(w, msg.pulseSequenceOrder[ci])
     }
     w.writeBits(1u, 2)   // PulseSeparationTime
@@ -57,8 +57,10 @@ internal fun decodeWPT_TxRxPackageSpecDataType(r: BitReader): WPT_TxRxPackageSpe
     r.readBits(1)   // SE(PulseSequenceOrder) first
     pulseSequenceOrderList.add(decodeWPT_TxRxPulseOrderType(r))
     var _pulseSeparationTime: UShort? = null
-    var done35 = false
-    while (!done35) {
+    r.readBits(1)   // SE(PulseSequenceOrder): forced by minOccurs=2
+    pulseSequenceOrderList.add(decodeWPT_TxRxPulseOrderType(r))
+    var done31 = false
+    while (!done31) {
         val rc = r.readBits(2)
         if (rc == 0u) {
             require(pulseSequenceOrderList.size < 255) { "invalid repeating-element event code" }
@@ -67,7 +69,7 @@ internal fun decodeWPT_TxRxPackageSpecDataType(r: BitReader): WPT_TxRxPackageSpe
             r.readBits(1)   // value-start
             _pulseSeparationTime = ExiPrimitives.readUnsignedInteger(r).toUShort()
             r.readBits(1)   // child EE
-            done35 = true
+            done31 = true
         } else {
             throw IllegalArgumentException("invalid event code")
         }
