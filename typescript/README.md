@@ -4,6 +4,14 @@ ISO 15118 EXI for the browser, the WebView inspector and the Capacitor bridge (`
 A5). **Done: the runtime, the generated codec — verified against cbV2G's bytes — and the JSON-LD
 pass, which agrees with the C# documents character for character.**
 
+> **The phone is the car. It is never the station, and that is the design.**
+>
+> This back end has no state machines at all today — it decodes and replays, and a browser cannot
+> open a TCP socket anyway. When one lands here it will be the **vehicle** side, as in `kotlin/` and
+> `swift/`: a `Secc` is out of scope in all three by construction, because the station role has its
+> own home in this repository and it is C# on a Raspberry Pi (`pairing/EVSimulatorApp.Pi`,
+> `SeccStation.cs`). See [`../docs/mobile-workplan.md`](../docs/mobile-workplan.md).
+
 ## Run
 
 ```bash

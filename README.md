@@ -55,15 +55,23 @@ cd app && npm install && npm test && npm run build
 | `simulation/EVSimulatorApp.Ocpp` | A stub of a *different* protocol, reached through the stack's `ISessionBackend` seam — where a station reports what it delivered. In real operation a real OCPP project hangs here |
 | `experiments/` | Post-quantum-crypto experiment (ML-KEM / ML-DSA) — wire-non-conformant, flagged as such |
 
-**The native codec ports** — so the codec runs on the device with no .NET runtime
+**The native ports** — so the session runs on the device with no .NET runtime
 
 | Path | What it is |
 |---|---|
-| `kotlin/`, `swift/`, `typescript/` | The codec, XMLDSig, V2GTP and dispatch, generated into each language |
-| `tools/EVSimulatorApp.Codegen` | The generator that emits them by retargeting the C# source generator — `bash {kotlin,swift,typescript}/regenerate.sh` |
+| [`kotlin/`](kotlin/), [`swift/`](swift/) | The codec, XMLDSig, V2GTP and dispatch — **and** the EVCC state machines, certificates, keystore, metering, pairing and a live runner over a real socket |
+| [`typescript/`](typescript/) | The codec, XMLDSig and the JSON-LD pass. No state machines: a browser cannot open a TCP socket, so this one decodes and replays |
+| `tools/EVSimulatorApp.Codegen` | The generator that emits the codecs by retargeting the C# source generator — `bash {kotlin,swift,typescript}/regenerate.sh` |
 
 Each port is held byte-for-byte to the same vector corpus the C# codec is, and to the checked-in JSON-LD
-documents; regenerating without an emitter change must leave every file identical.
+documents; regenerating without an emitter change must leave every file identical. The state machines
+are held one layer up, to whole sessions recorded by the C# side.
+
+> **The phone is the car. It is never the station, and that is the design.** All three ports carry
+> the vehicle side only, and no `Secc` of any kind — the station role has its own home here and it is
+> C# on a Raspberry Pi (`pairing/EVSimulatorApp.Pi`). Every `←SECC` row of the conformance
+> repository's interop matrix is therefore out of scope on the phone **by construction**, not by
+> omission. What *is* planned: [`docs/mobile-workplan.md`](docs/mobile-workplan.md).
 
 ## Conformance & interoperability tests
 

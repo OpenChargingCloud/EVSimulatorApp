@@ -6,6 +6,11 @@ Last updated: **2026-08-03**. Authoritative per-phase detail lives in
 [`docs/prompts/`](prompts/README.md) (the phase prompts + their status table) and the
 [`README.md`](../libs/WWCP_ISO15118/README.md); this file is the bird's-eye plan and the "why".
 
+**The phone side has its own plan.** The Kotlin/Swift/TypeScript ports, the Capacitor adapter and the
+native shells drifted behind the C# stack after 2026-08-07 and are planned separately, with their own
+measurements and their own invariant — the phone is the car, never the station:
+[`mobile-workplan.md`](mobile-workplan.md).
+
 ## Current status
 
 **All phases (0–5) are complete.** The solution builds cleanly and **all 1140 tests are green**

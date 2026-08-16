@@ -3,6 +3,15 @@
 The third back end of the shared generator, next to C# and Kotlin. Only `ExiRuntime` is
 hand-written; every codec module is emitted from the XSDs and checked in.
 
+> **The phone is the car. It is never the station, and that is the design.**
+>
+> This back end carries the vehicle side only — `Evcc2`, `Evcc20Base`/`Ac`/`Dc`, and no `Secc` of any
+> kind. A phone in somebody's hand simulates a vehicle; the station role has its own home in this
+> repository and it is C# on a Raspberry Pi (`pairing/EVSimulatorApp.Pi`, `SeccStation.cs`). So every
+> `←SECC` row of the conformance repository's interop matrix — the ones where *their* EV drives *our*
+> station — is out of scope here **by construction**, not by omission. A missing `Secc20Dc` is not an
+> unported gap and no plan will add one: [`../docs/mobile-workplan.md`](../docs/mobile-workplan.md).
+
 ## Layout
 
 | Target | Contents |
