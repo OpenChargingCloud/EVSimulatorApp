@@ -213,7 +213,26 @@ stashing the whole change and re-running. It is in neither gate: not in the conf
 like the same forced-occurrence family, so 2a-ii may well close them; that has to be measured, not
 assumed. Either way the suite belongs in a gate, which is a stage 1 item that stage 1 missed.
 
-### 2b · The session drift, still to be provoked
+### 2b · The session drift — provoked 2026-08-16
+
+Two scenarios recorded and two Kotlin replays added, and **both fail** — which is the deliverable,
+not a setback:
+
+| Recording | Diverges | Why |
+|---|---|---|
+| `iso2-dc-eim-battery` | exchange 12 | the recorded car charges to a target state of charge; the port charges for a cycle count. There is no battery in the ports. |
+| `iso2-dc-eim-renegotiate` | exchange 5 | `[V2G2-841]` is ported, but on DC the return goes through CableCheck and PreCharge, and nothing had held the port to that path |
+
+**The trap this walked into first:** the ports' trace tests name each scenario by hand, so a new
+recording is invisible until somebody adds a test for it. This project has been bitten by exactly
+that before — `DECODABLE` named three sessions while the corpus held twelve — and the same shape was
+still here. Recording a session is half the work; the other half is that something reads it.
+
+Still to record, from the twenty state-machine commits: `EVReady = false` through the DC isolation
+sequence, and a `-20` session carrying a `SupportedServiceIDs` filter. Closing the two failures above
+is stage 3.
+
+#### The original note, for the mechanics
 
 The state machines are held to recorded sessions, and all twelve traces are frozen at 2026-08-06/07 —
 so the ~20 state-machine commits since then are invisible by construction, not by luck. A scenario is
