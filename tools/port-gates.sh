@@ -6,12 +6,14 @@
 #   bash tools/port-gates.sh                    # everything this machine can run
 #   bash tools/port-gates.sh kotlin typescript  # only these
 #
-# The thing this script exists to get right, twice:
+# The things this script exists to get right:
 #
 #   1. A gate that did not run must never read as a gate that passed. Every skip is printed as
 #      SKIPPED with its reason, and the summary counts skips separately. The project has been bitten
-#      by a summary that looked green while the run had been aborted (`dotnet test`, 2026-08-10);
-#      this reads exit codes and nothing else.
+#      by a summary that looked green while the run had been aborted (`dotnet test`, 2026-08-10) —
+#      and then by `swift test` returning 0 over thirteen failing tests (macOS runner, 2026-08-16).
+#      So an exit code is the default verdict, and where one has been caught lying, the suite's own
+#      output is read as well. See `swift_gate` below.
 #
 #   2. Five Kotlin modules and five Swift test targets read their corpus from
 #      `../../ISO15118ConformanceTests.Simulation/Vectors/` — the CONFORMANCE repository, the parent
@@ -26,22 +28,41 @@ set -uo pipefail          # deliberately not -e: every gate runs, and all failur
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-ALL=(kotlin swift typescript capacitor app)
-WANTED=("$@")
-[ ${#WANTED[@]} -eq 0 ] && WANTED=("${ALL[@]}")
+# Plain strings rather than arrays, and split on whitespace: gate names have none, and bash 3.2
+# under `set -u` errors on "${arr[@]}" when the array is empty. See the bookkeeping note below.
+ALL='kotlin swift typescript capacitor app'
+WANTED=$*
+[ -z "$WANTED" ] && WANTED=$ALL
 
 CORPUS='../../ISO15118ConformanceTests.Simulation/Vectors/Session.iso2-ac-eim.trace.json'
-declare -A RESULT
+
+# Bookkeeping without an associative array, deliberately. macOS ships bash **3.2** and GitHub's macOS
+# runners use it for a step's shell, so `declare -A RESULT` there is not an associative array at all:
+# `RESULT[$name]` evaluates the subscript arithmetically, `swift` is not a number, and under `set -u`
+# the script dies at that line — measured 2026-08-16, before the summary printed, with the step still
+# reported as success. A gate that cannot even reach its own verdict is the worst kind of green. So:
+# one accumulated string, and nothing newer than bash 3.2 anywhere in this file.
+SUMMARY=''
+FAILED=0
+
+record() {                # record <name> <verdict>
+    SUMMARY="$SUMMARY$1|$2
+"
+    case $2 in FAILED*) FAILED=$((FAILED + 1));; esac
+}
 
 run() {                   # run <name> <command...>
     local name=$1; shift
     echo; echo "===== $name ====="
     "$@"
     local code=$?
-    RESULT[$name]=$([ $code -eq 0 ] && echo PASSED || echo "FAILED (exit $code)")
+    if [ $code -eq 0 ]
+        then record "$name" PASSED
+        else record "$name" "FAILED (exit $code)"
+    fi
 }
 
-skip() { RESULT[$1]="SKIPPED — $2"; echo; echo "===== $1 ====="; echo "skipped: $2"; }
+skip() { record "$1" "SKIPPED — $2"; echo; echo "===== $1 ====="; echo "skipped: $2"; }
 
 # `swift test` is not to be trusted by its exit code alone. Measured on a macOS runner, 2026-08-16:
 # it returned 0 while its own output said `Executed 222 tests, with 13 failures` and
@@ -75,7 +96,7 @@ else
     echo "        fail on every trace test rather than on anything real."
 fi
 
-for gate in "${WANTED[@]}"; do
+for gate in $WANTED; do
     case $gate in
 
     # --rerun-tasks: Gradle caches the `test` task and reports BUILD SUCCESSFUL without having run
@@ -108,16 +129,16 @@ for gate in "${WANTED[@]}"; do
         run app bash -c 'cd app && npm test' ;;
 
     *)
-        echo "unknown gate '$gate' — known: ${ALL[*]}"; exit 2 ;;
+        echo "unknown gate '$gate' — known: $ALL"; exit 2 ;;
     esac
 done
 
 echo; echo "===== summary ====="
-failed=0
-for gate in "${WANTED[@]}"; do
-    printf '  %-12s %s\n' "$gate" "${RESULT[$gate]}"
-    case "${RESULT[$gate]}" in FAILED*) failed=$((failed + 1));; esac
+printf '%s' "$SUMMARY" | while IFS='|' read -r name verdict; do
+    [ -n "$name" ] && printf '  %-12s %s\n' "$name" "$verdict"
 done
 
-[ $failed -eq 0 ] && echo "  -> all gates that ran, passed" || echo "  -> $failed gate(s) failed"
-exit $((failed > 0))
+if [ $FAILED -eq 0 ]
+    then echo "  -> all gates that ran, passed"; exit 0
+    else echo "  -> $FAILED gate(s) failed";      exit 1
+fi
