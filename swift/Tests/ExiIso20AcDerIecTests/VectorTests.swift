@@ -96,7 +96,10 @@ final class ExiIso20AcDerIecVectorTests: XCTestCase {
     /// other assertion here would still pass while the corpus quietly stopped being an oracle.
     func testTheCorpusKeepsItsAnchoredVectors() throws {
         let vectors = try Self.loadVectors()
-        XCTAssertEqual(vectors.count, 16)
+        // 18 since 2026-08-08: `6ab05b8` added the two CurveDataPoint vectors for the minOccurs=2
+        // particle nothing had ever populated — self-generated but cross-checked against EXIficient,
+        // so the anchored six below are unchanged and still the only cbV2G bytes here.
+        XCTAssertEqual(vectors.count, 18)
         XCTAssertEqual(vectors.filter(\.fromOracle).count, 6,
                        "the vectors carrying cbV2G's own bytes are the only wire-conformance evidence here")
     }
