@@ -53,7 +53,7 @@ public enum ACDPCodec {
     public static func encode(_ msg: ACDP_ConnectRes) -> [UInt8] {
         let w = BitWriter(capacity: 256)
         w.writeBits(UInt32(exiHeader), 8)
-        w.writeBits(2, 6)   // document element selector
+        w.writeBits(1, 6)   // document element selector
         encodeACDP_ConnectRes(w, msg)
         w.alignToByte()
         return w.bytes
@@ -62,7 +62,7 @@ public enum ACDPCodec {
     public static func encode(_ msg: ACDP_DisconnectReq) -> [UInt8] {
         let w = BitWriter(capacity: 256)
         w.writeBits(UInt32(exiHeader), 8)
-        w.writeBits(1, 6)   // document element selector
+        w.writeBits(2, 6)   // document element selector
         encodeACDP_DisconnectReq(w, msg)
         w.alignToByte()
         return w.bytes
@@ -99,8 +99,8 @@ public enum ACDPCodec {
     public static func encodeAny(_ msg: Any) throws -> [UInt8] {
         switch msg {
         case let m as ACDP_ConnectReq: return encode(m)
-        case let m as ACDP_DisconnectReq: return encode(m)
         case let m as ACDP_ConnectRes: return encode(m)
+        case let m as ACDP_DisconnectReq: return encode(m)
         case let m as ACDP_DisconnectRes: return encode(m)
         case let m as ACDP_SystemStatusReq: return encode(m)
         case let m as ACDP_SystemStatusRes: return encode(m)
@@ -116,8 +116,8 @@ public enum ACDPCodec {
         let sel = try r.readBits(6)
         switch sel {
         case 0: return try decodeACDP_ConnectReq(r)
-        case 1: return try decodeACDP_DisconnectReq(r)
-        case 2: return try decodeACDP_ConnectRes(r)
+        case 1: return try decodeACDP_ConnectRes(r)
+        case 2: return try decodeACDP_DisconnectReq(r)
         case 3: return try decodeACDP_DisconnectRes(r)
         case 4: return try decodeACDP_SystemStatusReq(r)
         case 5: return try decodeACDP_SystemStatusRes(r)

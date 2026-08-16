@@ -27,6 +27,17 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 proj='tools/EVSimulatorApp.Codegen/EVSimulatorApp.Codegen.csproj'
 # The schema sets live in the WWCP_ISO15118 submodule; only the port back ends are in this repo.
 libs='libs/WWCP_ISO15118'
+# The two wire-format switches, stated here rather than left to the tool's default.
+#
+# They mirror <ExiDocumentElementOrder> and <ExiParticleGrammar> in
+# libs/WWCP_ISO15118/Directory.Build.props, which is what the C# codecs beside these are built with.
+# Those two decisions -- "where cbexigen and ISO's schema disagree, follow the schema" -- were taken
+# on 2026-08-08 and reached the C# side only, because this driver had no flag for either and
+# defaults to the library's cbexigen-compatible behaviour. The ports emitted the old grammar for
+# nine days and no gate could say so. Naming them here means a reader of this script can see which
+# grammar produced the checked-in files, instead of having to know a default.
+grammar='--doc-order ExiSorted --particles SchemaConformant'
+
 
 dotnet build "$proj" -c Release -v q --nologo
 
@@ -38,11 +49,11 @@ generate() {
     if [ -n "$fragments" ]; then
         dotnet run --project "$proj" -c Release --no-build -- \
             --xsd "$xsds" --out "$out" --lang typescript \
-            --namespace "$namespace" --codec "$codec" --fragments "$fragments"
+            --namespace "$namespace" --codec "$codec" --fragments "$fragments" $grammar
     else
         dotnet run --project "$proj" -c Release --no-build -- \
             --xsd "$xsds" --out "$out" --lang typescript \
-            --namespace "$namespace" --codec "$codec"
+            --namespace "$namespace" --codec "$codec" $grammar
     fi
 }
 
