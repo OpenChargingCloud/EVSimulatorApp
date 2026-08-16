@@ -51,10 +51,10 @@ internal fun encodeWPT_ChargeParameterDiscoveryReq(w: BitWriter, msg: WPT_Charge
     w.writeBits(0u, 1)   // value-start
     w.writeBits(if (msg.eVPCDeviceLocalControl) 1u else 0u, 1)
     w.writeBits(0u, 1)   // child EE
-    var st78 = 0
-    var done78 = false
-    while (!done78) {
-        when (st78) {
+    var st70 = 0
+    var done70 = false
+    while (!done70) {
+        when (st70) {
             0 -> {
                 if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                     require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
@@ -69,15 +69,15 @@ internal fun encodeWPT_ChargeParameterDiscoveryReq(w: BitWriter, msg: WPT_Charge
                         w.writeBits(0u, 1)   // child EE
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done78 = true
+                    done70 = true
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done78 = true
+                    done70 = true
                 }
             }
             1 -> {
                 w.writeBits(0u, 1)   // element EE
-                done78 = true
+                done70 = true
             }
         }
     }
@@ -103,10 +103,10 @@ internal fun decodeWPT_ChargeParameterDiscoveryReq(r: BitReader): WPT_ChargePara
     val _eVPCDeviceLocalControl = r.readBits(1).toInt() != 0
     r.readBits(1)   // child EE
     val vendorSpecificDataContainerList = ArrayList<ByteArray>()
-    var st79 = 0
-    var done79 = false
-    while (!done79) {
-        when (st79) {
+    var st71 = 0
+    var done71 = false
+    while (!done71) {
+        when (st71) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {   // VendorSpecificDataContainer
@@ -123,15 +123,15 @@ internal fun decodeWPT_ChargeParameterDiscoveryReq(r: BitReader): WPT_ChargePara
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                         }
-                        done79 = true
+                        done71 = true
                     }
-                    1u -> done79 = true   // element EE
+                    1u -> done71 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             1 -> {
                 when (r.readBits(1)) {
-                    0u -> done79 = true   // element EE
+                    0u -> done71 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

@@ -30,25 +30,25 @@ data class DigestMethodType(
 internal fun encodeDigestMethodType(w: BitWriter, msg: DigestMethodType) {
     w.writeBits(0u, 1)   // AT(required attribute)
     ExiPrimitives.writeStringValue(w, msg.algorithm)
-    var st62 = 0
-    var done62 = false
-    while (!done62) {
-        when (st62) {
+    var st58 = 0
+    var done58 = false
+    while (!done58) {
+        when (st58) {
             0 -> {
                 if (msg.aNY != null) {
                     w.writeBits(2u, 2)   // ANY
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeBinary(w, msg.aNY!!)
                     w.writeBits(0u, 1)   // child EE
-                    st62 = 1
+                    st58 = 1
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done62 = true
+                    done58 = true
                 }
             }
             1 -> {
                 w.writeBits(0u, 1)   // element EE
-                done62 = true
+                done58 = true
             }
         }
     }
@@ -58,25 +58,25 @@ internal fun decodeDigestMethodType(r: BitReader): DigestMethodType {
     r.readBits(1)   // AT(required attribute)
     val _algorithm = ExiPrimitives.readStringValue(r, "Algorithm")
     var _aNY: ByteArray? = null
-    var st63 = 0
-    var done63 = false
-    while (!done63) {
-        when (st63) {
+    var st59 = 0
+    var done59 = false
+    while (!done59) {
+        when (st59) {
             0 -> {
                 when (r.readBits(2)) {
-                    1u -> done63 = true   // element EE
+                    1u -> done59 = true   // element EE
                     2u -> {   // ANY
                         r.readBits(1)   // value-start
                         _aNY = ExiPrimitives.readBinary(r)
                         r.readBits(1)   // child EE
-                        st63 = 1
+                        st59 = 1
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             1 -> {
                 when (r.readBits(1)) {
-                    0u -> done63 = true   // element EE
+                    0u -> done59 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

@@ -39,7 +39,7 @@ internal fun encodeWPT_LF_TransmitterDataType(w: BitWriter, msg: WPT_LF_Transmit
     w.writeBits(0u, 1)   // SE(TxSpecData) first
     encodeWPT_TxRxSpecDataType(w, msg.txSpecData[0])
     for (ci in 1 until msg.txSpecData.size) {
-        w.writeBits(0u, 2)   // TxSpecData (loop)
+        w.writeBits(0u, if (ci < 2) 1 else 2)   // TxSpecData (1-bit while forced by minOccurs, then loop)
         encodeWPT_TxRxSpecDataType(w, msg.txSpecData[ci])
     }
     if (msg.txPackageSpecData != null) {
@@ -62,8 +62,10 @@ internal fun decodeWPT_LF_TransmitterDataType(r: BitReader): WPT_LF_TransmitterD
     r.readBits(1)   // SE(TxSpecData) first
     txSpecDataList.add(decodeWPT_TxRxSpecDataType(r))
     var _txPackageSpecData: WPT_TxRxPackageSpecDataType? = null
-    var done34 = false
-    while (!done34) {
+    r.readBits(1)   // SE(TxSpecData): forced by minOccurs=2
+    txSpecDataList.add(decodeWPT_TxRxSpecDataType(r))
+    var done30 = false
+    while (!done30) {
         val rc = r.readBits(2)
         if (rc == 0u) {
             require(txSpecDataList.size < 255) { "invalid repeating-element event code" }
@@ -71,9 +73,9 @@ internal fun decodeWPT_LF_TransmitterDataType(r: BitReader): WPT_LF_TransmitterD
         } else if (rc == 1u) {
             _txPackageSpecData = decodeWPT_TxRxPackageSpecDataType(r)
             r.readBits(1)   // element EE
-            done34 = true
+            done30 = true
         } else if (rc == 2u) {
-            done34 = true   // element EE
+            done30 = true   // element EE
         } else {
             throw IllegalArgumentException("invalid event code")
         }

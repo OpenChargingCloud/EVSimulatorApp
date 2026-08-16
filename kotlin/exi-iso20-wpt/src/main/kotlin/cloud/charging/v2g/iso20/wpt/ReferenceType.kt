@@ -32,82 +32,82 @@ data class ReferenceType(
 )
 
 internal fun encodeReferenceType(w: BitWriter, msg: ReferenceType) {
-    var st58 = 0
-    var done58 = false
-    while (!done58) {
-        when (st58) {
+    var st54 = 0
+    var done54 = false
+    while (!done54) {
+        when (st54) {
             0 -> {
                 if (msg.id != null) {
                     w.writeBits(0u, 3)   // Id
                     ExiPrimitives.writeStringValue(w, msg.id!!)
-                    st58 = 1
+                    st54 = 1
                 } else if (msg.type != null) {
                     w.writeBits(1u, 3)   // Type
                     ExiPrimitives.writeStringValue(w, msg.type!!)
-                    st58 = 2
+                    st54 = 2
                 } else if (msg.uRI != null) {
                     w.writeBits(2u, 3)   // URI
                     ExiPrimitives.writeStringValue(w, msg.uRI!!)
-                    st58 = 3
+                    st54 = 3
                 } else if (msg.transforms != null) {
                     w.writeBits(3u, 3)   // Transforms
                     encodeTransformsType(w, msg.transforms!!)
-                    st58 = 4
+                    st54 = 4
                 } else {
                     w.writeBits(4u, 3)   // SE(DigestMethod)
                     encodeDigestMethodType(w, msg.digestMethod)
-                    done58 = true
+                    done54 = true
                 }
             }
             1 -> {
                 if (msg.type != null) {
                     w.writeBits(0u, 3)   // Type
                     ExiPrimitives.writeStringValue(w, msg.type!!)
-                    st58 = 2
+                    st54 = 2
                 } else if (msg.uRI != null) {
                     w.writeBits(1u, 3)   // URI
                     ExiPrimitives.writeStringValue(w, msg.uRI!!)
-                    st58 = 3
+                    st54 = 3
                 } else if (msg.transforms != null) {
                     w.writeBits(2u, 3)   // Transforms
                     encodeTransformsType(w, msg.transforms!!)
-                    st58 = 4
+                    st54 = 4
                 } else {
                     w.writeBits(3u, 3)   // SE(DigestMethod)
                     encodeDigestMethodType(w, msg.digestMethod)
-                    done58 = true
+                    done54 = true
                 }
             }
             2 -> {
                 if (msg.uRI != null) {
                     w.writeBits(0u, 2)   // URI
                     ExiPrimitives.writeStringValue(w, msg.uRI!!)
-                    st58 = 3
+                    st54 = 3
                 } else if (msg.transforms != null) {
                     w.writeBits(1u, 2)   // Transforms
                     encodeTransformsType(w, msg.transforms!!)
-                    st58 = 4
+                    st54 = 4
                 } else {
                     w.writeBits(2u, 2)   // SE(DigestMethod)
                     encodeDigestMethodType(w, msg.digestMethod)
-                    done58 = true
+                    done54 = true
                 }
             }
             3 -> {
                 if (msg.transforms != null) {
                     w.writeBits(0u, 2)   // Transforms
                     encodeTransformsType(w, msg.transforms!!)
-                    st58 = 4
+                    st54 = 4
                 } else {
                     w.writeBits(1u, 2)   // SE(DigestMethod)
                     encodeDigestMethodType(w, msg.digestMethod)
-                    done58 = true
+                    done54 = true
                 }
             }
             4 -> {
                 w.writeBits(0u, 1)   // SE(DigestMethod)
                 encodeDigestMethodType(w, msg.digestMethod)
-                done58 = true
+                done54 = true
             }
         }
     }
@@ -124,31 +124,31 @@ internal fun decodeReferenceType(r: BitReader): ReferenceType {
     var _uRI: String? = null
     var _transforms: TransformsType? = null
     var _digestMethod: DigestMethodType? = null
-    var st59 = 0
-    var done59 = false
-    while (!done59) {
-        when (st59) {
+    var st55 = 0
+    var done55 = false
+    while (!done55) {
+        when (st55) {
             0 -> {
                 when (r.readBits(3)) {
                     0u -> {
                         _id = ExiPrimitives.readStringValue(r, "Id")
-                        st59 = 1
+                        st55 = 1
                     }
                     1u -> {
                         _type = ExiPrimitives.readStringValue(r, "Type")
-                        st59 = 2
+                        st55 = 2
                     }
                     2u -> {
                         _uRI = ExiPrimitives.readStringValue(r, "URI")
-                        st59 = 3
+                        st55 = 3
                     }
                     3u -> {
                         _transforms = decodeTransformsType(r)
-                        st59 = 4
+                        st55 = 4
                     }
                     4u -> {   // SE(DigestMethod)
                         _digestMethod = decodeDigestMethodType(r)
-                        done59 = true
+                        done55 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -157,19 +157,19 @@ internal fun decodeReferenceType(r: BitReader): ReferenceType {
                 when (r.readBits(3)) {
                     0u -> {
                         _type = ExiPrimitives.readStringValue(r, "Type")
-                        st59 = 2
+                        st55 = 2
                     }
                     1u -> {
                         _uRI = ExiPrimitives.readStringValue(r, "URI")
-                        st59 = 3
+                        st55 = 3
                     }
                     2u -> {
                         _transforms = decodeTransformsType(r)
-                        st59 = 4
+                        st55 = 4
                     }
                     3u -> {   // SE(DigestMethod)
                         _digestMethod = decodeDigestMethodType(r)
-                        done59 = true
+                        done55 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -178,15 +178,15 @@ internal fun decodeReferenceType(r: BitReader): ReferenceType {
                 when (r.readBits(2)) {
                     0u -> {
                         _uRI = ExiPrimitives.readStringValue(r, "URI")
-                        st59 = 3
+                        st55 = 3
                     }
                     1u -> {
                         _transforms = decodeTransformsType(r)
-                        st59 = 4
+                        st55 = 4
                     }
                     2u -> {   // SE(DigestMethod)
                         _digestMethod = decodeDigestMethodType(r)
-                        done59 = true
+                        done55 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -195,11 +195,11 @@ internal fun decodeReferenceType(r: BitReader): ReferenceType {
                 when (r.readBits(2)) {
                     0u -> {
                         _transforms = decodeTransformsType(r)
-                        st59 = 4
+                        st55 = 4
                     }
                     1u -> {   // SE(DigestMethod)
                         _digestMethod = decodeDigestMethodType(r)
-                        done59 = true
+                        done55 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -208,7 +208,7 @@ internal fun decodeReferenceType(r: BitReader): ReferenceType {
                 when (r.readBits(1)) {
                     0u -> {   // SE(DigestMethod)
                         _digestMethod = decodeDigestMethodType(r)
-                        done59 = true
+                        done55 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }

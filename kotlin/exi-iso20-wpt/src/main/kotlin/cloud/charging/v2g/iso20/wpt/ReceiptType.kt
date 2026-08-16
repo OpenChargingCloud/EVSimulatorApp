@@ -36,27 +36,27 @@ internal fun encodeReceiptType(w: BitWriter, msg: ReceiptType) {
     w.writeBits(0u, 1)   // value-start
     ExiPrimitives.writeUnsignedInteger(w, msg.timeAnchor.toULong())
     w.writeBits(0u, 1)   // child EE
-    var st44 = 0
-    var done44 = false
-    while (!done44) {
-        when (st44) {
+    var st40 = 0
+    var done40 = false
+    while (!done40) {
+        when (st40) {
             0 -> {
                 if (msg.energyCosts != null) {
                     w.writeBits(0u, 3)   // EnergyCosts
                     encodeDetailedCostType(w, msg.energyCosts!!)
-                    st44 = 1
+                    st40 = 1
                 } else if (msg.occupancyCosts != null) {
                     w.writeBits(1u, 3)   // OccupancyCosts
                     encodeDetailedCostType(w, msg.occupancyCosts!!)
-                    st44 = 2
+                    st40 = 2
                 } else if (msg.additionalServicesCosts != null) {
                     w.writeBits(2u, 3)   // AdditionalServicesCosts
                     encodeDetailedCostType(w, msg.additionalServicesCosts!!)
-                    st44 = 3
+                    st40 = 3
                 } else if (msg.overstayCosts != null) {
                     w.writeBits(3u, 3)   // OverstayCosts
                     encodeDetailedCostType(w, msg.overstayCosts!!)
-                    st44 = 4
+                    st40 = 4
                 } else if (msg.taxCosts.isNotEmpty()) {
                     require(msg.taxCosts.size <= 10) { "list size out of schema range" }
                     w.writeBits(4u, 3)   // TaxCosts
@@ -66,25 +66,25 @@ internal fun encodeReceiptType(w: BitWriter, msg: ReceiptType) {
                         encodeDetailedTaxType(w, msg.taxCosts[ci])
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done44 = true
+                    done40 = true
                 } else {
                     w.writeBits(5u, 3)   // element EE
-                    done44 = true
+                    done40 = true
                 }
             }
             1 -> {
                 if (msg.occupancyCosts != null) {
                     w.writeBits(0u, 3)   // OccupancyCosts
                     encodeDetailedCostType(w, msg.occupancyCosts!!)
-                    st44 = 2
+                    st40 = 2
                 } else if (msg.additionalServicesCosts != null) {
                     w.writeBits(1u, 3)   // AdditionalServicesCosts
                     encodeDetailedCostType(w, msg.additionalServicesCosts!!)
-                    st44 = 3
+                    st40 = 3
                 } else if (msg.overstayCosts != null) {
                     w.writeBits(2u, 3)   // OverstayCosts
                     encodeDetailedCostType(w, msg.overstayCosts!!)
-                    st44 = 4
+                    st40 = 4
                 } else if (msg.taxCosts.isNotEmpty()) {
                     require(msg.taxCosts.size <= 10) { "list size out of schema range" }
                     w.writeBits(3u, 3)   // TaxCosts
@@ -94,21 +94,21 @@ internal fun encodeReceiptType(w: BitWriter, msg: ReceiptType) {
                         encodeDetailedTaxType(w, msg.taxCosts[ci])
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done44 = true
+                    done40 = true
                 } else {
                     w.writeBits(4u, 3)   // element EE
-                    done44 = true
+                    done40 = true
                 }
             }
             2 -> {
                 if (msg.additionalServicesCosts != null) {
                     w.writeBits(0u, 3)   // AdditionalServicesCosts
                     encodeDetailedCostType(w, msg.additionalServicesCosts!!)
-                    st44 = 3
+                    st40 = 3
                 } else if (msg.overstayCosts != null) {
                     w.writeBits(1u, 3)   // OverstayCosts
                     encodeDetailedCostType(w, msg.overstayCosts!!)
-                    st44 = 4
+                    st40 = 4
                 } else if (msg.taxCosts.isNotEmpty()) {
                     require(msg.taxCosts.size <= 10) { "list size out of schema range" }
                     w.writeBits(2u, 3)   // TaxCosts
@@ -118,17 +118,17 @@ internal fun encodeReceiptType(w: BitWriter, msg: ReceiptType) {
                         encodeDetailedTaxType(w, msg.taxCosts[ci])
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done44 = true
+                    done40 = true
                 } else {
                     w.writeBits(3u, 3)   // element EE
-                    done44 = true
+                    done40 = true
                 }
             }
             3 -> {
                 if (msg.overstayCosts != null) {
                     w.writeBits(0u, 2)   // OverstayCosts
                     encodeDetailedCostType(w, msg.overstayCosts!!)
-                    st44 = 4
+                    st40 = 4
                 } else if (msg.taxCosts.isNotEmpty()) {
                     require(msg.taxCosts.size <= 10) { "list size out of schema range" }
                     w.writeBits(1u, 2)   // TaxCosts
@@ -138,10 +138,10 @@ internal fun encodeReceiptType(w: BitWriter, msg: ReceiptType) {
                         encodeDetailedTaxType(w, msg.taxCosts[ci])
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done44 = true
+                    done40 = true
                 } else {
                     w.writeBits(2u, 2)   // element EE
-                    done44 = true
+                    done40 = true
                 }
             }
             4 -> {
@@ -154,15 +154,15 @@ internal fun encodeReceiptType(w: BitWriter, msg: ReceiptType) {
                         encodeDetailedTaxType(w, msg.taxCosts[ci])
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done44 = true
+                    done40 = true
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done44 = true
+                    done40 = true
                 }
             }
             5 -> {
                 w.writeBits(0u, 1)   // element EE
-                done44 = true
+                done40 = true
             }
         }
     }
@@ -178,27 +178,27 @@ internal fun decodeReceiptType(r: BitReader): ReceiptType {
     var _additionalServicesCosts: DetailedCostType? = null
     var _overstayCosts: DetailedCostType? = null
     val taxCostsList = ArrayList<DetailedTaxType>()
-    var st45 = 0
-    var done45 = false
-    while (!done45) {
-        when (st45) {
+    var st41 = 0
+    var done41 = false
+    while (!done41) {
+        when (st41) {
             0 -> {
                 when (r.readBits(3)) {
                     0u -> {
                         _energyCosts = decodeDetailedCostType(r)
-                        st45 = 1
+                        st41 = 1
                     }
                     1u -> {
                         _occupancyCosts = decodeDetailedCostType(r)
-                        st45 = 2
+                        st41 = 2
                     }
                     2u -> {
                         _additionalServicesCosts = decodeDetailedCostType(r)
-                        st45 = 3
+                        st41 = 3
                     }
                     3u -> {
                         _overstayCosts = decodeDetailedCostType(r)
-                        st45 = 4
+                        st41 = 4
                     }
                     4u -> {   // TaxCosts
                         taxCostsList.add(decodeDetailedTaxType(r))
@@ -208,9 +208,9 @@ internal fun decodeReceiptType(r: BitReader): ReceiptType {
                             require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
                             taxCostsList.add(decodeDetailedTaxType(r))
                         }
-                        done45 = true
+                        done41 = true
                     }
-                    5u -> done45 = true   // element EE
+                    5u -> done41 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -218,15 +218,15 @@ internal fun decodeReceiptType(r: BitReader): ReceiptType {
                 when (r.readBits(3)) {
                     0u -> {
                         _occupancyCosts = decodeDetailedCostType(r)
-                        st45 = 2
+                        st41 = 2
                     }
                     1u -> {
                         _additionalServicesCosts = decodeDetailedCostType(r)
-                        st45 = 3
+                        st41 = 3
                     }
                     2u -> {
                         _overstayCosts = decodeDetailedCostType(r)
-                        st45 = 4
+                        st41 = 4
                     }
                     3u -> {   // TaxCosts
                         taxCostsList.add(decodeDetailedTaxType(r))
@@ -236,9 +236,9 @@ internal fun decodeReceiptType(r: BitReader): ReceiptType {
                             require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
                             taxCostsList.add(decodeDetailedTaxType(r))
                         }
-                        done45 = true
+                        done41 = true
                     }
-                    4u -> done45 = true   // element EE
+                    4u -> done41 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -246,11 +246,11 @@ internal fun decodeReceiptType(r: BitReader): ReceiptType {
                 when (r.readBits(3)) {
                     0u -> {
                         _additionalServicesCosts = decodeDetailedCostType(r)
-                        st45 = 3
+                        st41 = 3
                     }
                     1u -> {
                         _overstayCosts = decodeDetailedCostType(r)
-                        st45 = 4
+                        st41 = 4
                     }
                     2u -> {   // TaxCosts
                         taxCostsList.add(decodeDetailedTaxType(r))
@@ -260,9 +260,9 @@ internal fun decodeReceiptType(r: BitReader): ReceiptType {
                             require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
                             taxCostsList.add(decodeDetailedTaxType(r))
                         }
-                        done45 = true
+                        done41 = true
                     }
-                    3u -> done45 = true   // element EE
+                    3u -> done41 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -270,7 +270,7 @@ internal fun decodeReceiptType(r: BitReader): ReceiptType {
                 when (r.readBits(2)) {
                     0u -> {
                         _overstayCosts = decodeDetailedCostType(r)
-                        st45 = 4
+                        st41 = 4
                     }
                     1u -> {   // TaxCosts
                         taxCostsList.add(decodeDetailedTaxType(r))
@@ -280,9 +280,9 @@ internal fun decodeReceiptType(r: BitReader): ReceiptType {
                             require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
                             taxCostsList.add(decodeDetailedTaxType(r))
                         }
-                        done45 = true
+                        done41 = true
                     }
-                    2u -> done45 = true   // element EE
+                    2u -> done41 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -296,15 +296,15 @@ internal fun decodeReceiptType(r: BitReader): ReceiptType {
                             require(lc == 0u && taxCostsList.size < 10) { "invalid repeating-element event code" }
                             taxCostsList.add(decodeDetailedTaxType(r))
                         }
-                        done45 = true
+                        done41 = true
                     }
-                    1u -> done45 = true   // element EE
+                    1u -> done41 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             5 -> {
                 when (r.readBits(1)) {
-                    0u -> done45 = true   // element EE
+                    0u -> done41 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

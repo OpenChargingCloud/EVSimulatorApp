@@ -45,81 +45,81 @@ internal fun encodeWPT_ChargeLoopRes(w: BitWriter, msg: WPT_ChargeLoopRes) {
     w.writeBits(0u, 1)   // value-start
     w.writeBits(msg.responseCode.ordinal.toUInt(), 6)
     w.writeBits(0u, 1)   // child EE
-    var st92 = 0
-    var done92 = false
-    while (!done92) {
-        when (st92) {
+    var st84 = 0
+    var done84 = false
+    while (!done84) {
+        when (st84) {
             0 -> {
                 if (msg.eVSEStatus != null) {
                     w.writeBits(0u, 3)   // EVSEStatus
                     encodeEVSEStatusType(w, msg.eVSEStatus!!)
-                    st92 = 1
+                    st84 = 1
                 } else if (msg.meterInfo != null) {
                     w.writeBits(1u, 3)   // MeterInfo
                     encodeMeterInfoType(w, msg.meterInfo!!)
-                    st92 = 2
+                    st84 = 2
                 } else if (msg.receipt != null) {
                     w.writeBits(2u, 3)   // Receipt
                     encodeReceiptType(w, msg.receipt!!)
-                    st92 = 3
+                    st84 = 3
                 } else {
                     w.writeBits(3u, 3)   // SE(EVPCPowerRequest)
                     encodeRationalNumberType(w, msg.eVPCPowerRequest)
-                    done92 = true
+                    done84 = true
                 }
             }
             1 -> {
                 if (msg.meterInfo != null) {
                     w.writeBits(0u, 2)   // MeterInfo
                     encodeMeterInfoType(w, msg.meterInfo!!)
-                    st92 = 2
+                    st84 = 2
                 } else if (msg.receipt != null) {
                     w.writeBits(1u, 2)   // Receipt
                     encodeReceiptType(w, msg.receipt!!)
-                    st92 = 3
+                    st84 = 3
                 } else {
                     w.writeBits(2u, 2)   // SE(EVPCPowerRequest)
                     encodeRationalNumberType(w, msg.eVPCPowerRequest)
-                    done92 = true
+                    done84 = true
                 }
             }
             2 -> {
                 if (msg.receipt != null) {
                     w.writeBits(0u, 2)   // Receipt
                     encodeReceiptType(w, msg.receipt!!)
-                    st92 = 3
+                    st84 = 3
                 } else {
                     w.writeBits(1u, 2)   // SE(EVPCPowerRequest)
                     encodeRationalNumberType(w, msg.eVPCPowerRequest)
-                    done92 = true
+                    done84 = true
                 }
             }
             3 -> {
                 w.writeBits(0u, 1)   // SE(EVPCPowerRequest)
                 encodeRationalNumberType(w, msg.eVPCPowerRequest)
-                done92 = true
+                done84 = true
             }
         }
     }
-    var st93 = 0
-    var done93 = false
-    while (!done93) {
-        when (st93) {
+    var st85 = 0
+    var done85 = false
+    while (!done85) {
+        when (st85) {
             0 -> {
                 if (msg.sDPowerInput != null) {
                     w.writeBits(0u, 2)   // SDPowerInput
                     encodeRationalNumberType(w, msg.sDPowerInput!!)
-                    st93 = 1
+                    st85 = 1
                 } else {
                     w.writeBits(1u, 2)   // SE(SPCMaxOutputPowerLimit)
                     encodeRationalNumberType(w, msg.sPCMaxOutputPowerLimit)
-                    done93 = true
+                    done85 = true
                 }
             }
             1 -> {
                 w.writeBits(0u, 1)   // SE(SPCMaxOutputPowerLimit)
                 encodeRationalNumberType(w, msg.sPCMaxOutputPowerLimit)
-                done93 = true
+                done85 = true
             }
         }
     }
@@ -129,19 +129,19 @@ internal fun encodeWPT_ChargeLoopRes(w: BitWriter, msg: WPT_ChargeLoopRes) {
     w.writeBits(0u, 1)   // value-start
     w.writeBits(msg.sPCChargeDiagnostics.ordinal.toUInt(), 3)
     w.writeBits(0u, 1)   // child EE
-    var st94 = 0
-    var done94 = false
-    while (!done94) {
-        when (st94) {
+    var st86 = 0
+    var done86 = false
+    while (!done86) {
+        when (st86) {
             0 -> {
                 if (msg.sPCOperatingFrequency != null) {
                     w.writeBits(0u, 3)   // SPCOperatingFrequency
                     encodeRationalNumberType(w, msg.sPCOperatingFrequency!!)
-                    st94 = 1
+                    st86 = 1
                 } else if (msg.sPCPowerControlParameter != null) {
                     w.writeBits(1u, 3)   // SPCPowerControlParameter
                     encodeWPT_SPCPowerControlParameterType(w, msg.sPCPowerControlParameter!!)
-                    st94 = 2
+                    st86 = 2
                 } else if (msg.manufacturerSpecificDataContainer.isNotEmpty()) {
                     require(msg.manufacturerSpecificDataContainer.size <= 16) { "list size out of schema range" }
                     w.writeBits(2u, 3)   // ManufacturerSpecificDataContainer
@@ -155,17 +155,17 @@ internal fun encodeWPT_ChargeLoopRes(w: BitWriter, msg: WPT_ChargeLoopRes) {
                         w.writeBits(0u, 1)   // child EE
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done94 = true
+                    done86 = true
                 } else {
                     w.writeBits(3u, 3)   // element EE
-                    done94 = true
+                    done86 = true
                 }
             }
             1 -> {
                 if (msg.sPCPowerControlParameter != null) {
                     w.writeBits(0u, 2)   // SPCPowerControlParameter
                     encodeWPT_SPCPowerControlParameterType(w, msg.sPCPowerControlParameter!!)
-                    st94 = 2
+                    st86 = 2
                 } else if (msg.manufacturerSpecificDataContainer.isNotEmpty()) {
                     require(msg.manufacturerSpecificDataContainer.size <= 16) { "list size out of schema range" }
                     w.writeBits(1u, 2)   // ManufacturerSpecificDataContainer
@@ -179,10 +179,10 @@ internal fun encodeWPT_ChargeLoopRes(w: BitWriter, msg: WPT_ChargeLoopRes) {
                         w.writeBits(0u, 1)   // child EE
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done94 = true
+                    done86 = true
                 } else {
                     w.writeBits(2u, 2)   // element EE
-                    done94 = true
+                    done86 = true
                 }
             }
             2 -> {
@@ -199,15 +199,15 @@ internal fun encodeWPT_ChargeLoopRes(w: BitWriter, msg: WPT_ChargeLoopRes) {
                         w.writeBits(0u, 1)   // child EE
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done94 = true
+                    done86 = true
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done94 = true
+                    done86 = true
                 }
             }
             3 -> {
                 w.writeBits(0u, 1)   // element EE
-                done94 = true
+                done86 = true
             }
         }
     }
@@ -224,27 +224,27 @@ internal fun decodeWPT_ChargeLoopRes(r: BitReader): WPT_ChargeLoopRes {
     var _meterInfo: MeterInfoType? = null
     var _receipt: ReceiptType? = null
     var _eVPCPowerRequest: RationalNumberType? = null
-    var st95 = 0
-    var done95 = false
-    while (!done95) {
-        when (st95) {
+    var st87 = 0
+    var done87 = false
+    while (!done87) {
+        when (st87) {
             0 -> {
                 when (r.readBits(3)) {
                     0u -> {
                         _eVSEStatus = decodeEVSEStatusType(r)
-                        st95 = 1
+                        st87 = 1
                     }
                     1u -> {
                         _meterInfo = decodeMeterInfoType(r)
-                        st95 = 2
+                        st87 = 2
                     }
                     2u -> {
                         _receipt = decodeReceiptType(r)
-                        st95 = 3
+                        st87 = 3
                     }
                     3u -> {   // SE(EVPCPowerRequest)
                         _eVPCPowerRequest = decodeRationalNumberType(r)
-                        done95 = true
+                        done87 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -253,15 +253,15 @@ internal fun decodeWPT_ChargeLoopRes(r: BitReader): WPT_ChargeLoopRes {
                 when (r.readBits(2)) {
                     0u -> {
                         _meterInfo = decodeMeterInfoType(r)
-                        st95 = 2
+                        st87 = 2
                     }
                     1u -> {
                         _receipt = decodeReceiptType(r)
-                        st95 = 3
+                        st87 = 3
                     }
                     2u -> {   // SE(EVPCPowerRequest)
                         _eVPCPowerRequest = decodeRationalNumberType(r)
-                        done95 = true
+                        done87 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -270,11 +270,11 @@ internal fun decodeWPT_ChargeLoopRes(r: BitReader): WPT_ChargeLoopRes {
                 when (r.readBits(2)) {
                     0u -> {
                         _receipt = decodeReceiptType(r)
-                        st95 = 3
+                        st87 = 3
                     }
                     1u -> {   // SE(EVPCPowerRequest)
                         _eVPCPowerRequest = decodeRationalNumberType(r)
-                        done95 = true
+                        done87 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -283,7 +283,7 @@ internal fun decodeWPT_ChargeLoopRes(r: BitReader): WPT_ChargeLoopRes {
                 when (r.readBits(1)) {
                     0u -> {   // SE(EVPCPowerRequest)
                         _eVPCPowerRequest = decodeRationalNumberType(r)
-                        done95 = true
+                        done87 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -292,19 +292,19 @@ internal fun decodeWPT_ChargeLoopRes(r: BitReader): WPT_ChargeLoopRes {
     }
     var _sDPowerInput: RationalNumberType? = null
     var _sPCMaxOutputPowerLimit: RationalNumberType? = null
-    var st96 = 0
-    var done96 = false
-    while (!done96) {
-        when (st96) {
+    var st88 = 0
+    var done88 = false
+    while (!done88) {
+        when (st88) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
                         _sDPowerInput = decodeRationalNumberType(r)
-                        st96 = 1
+                        st88 = 1
                     }
                     1u -> {   // SE(SPCMaxOutputPowerLimit)
                         _sPCMaxOutputPowerLimit = decodeRationalNumberType(r)
-                        done96 = true
+                        done88 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -313,7 +313,7 @@ internal fun decodeWPT_ChargeLoopRes(r: BitReader): WPT_ChargeLoopRes {
                 when (r.readBits(1)) {
                     0u -> {   // SE(SPCMaxOutputPowerLimit)
                         _sPCMaxOutputPowerLimit = decodeRationalNumberType(r)
-                        done96 = true
+                        done88 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -329,19 +329,19 @@ internal fun decodeWPT_ChargeLoopRes(r: BitReader): WPT_ChargeLoopRes {
     var _sPCOperatingFrequency: RationalNumberType? = null
     var _sPCPowerControlParameter: WPT_SPCPowerControlParameterType? = null
     val manufacturerSpecificDataContainerList = ArrayList<ByteArray>()
-    var st97 = 0
-    var done97 = false
-    while (!done97) {
-        when (st97) {
+    var st89 = 0
+    var done89 = false
+    while (!done89) {
+        when (st89) {
             0 -> {
                 when (r.readBits(3)) {
                     0u -> {
                         _sPCOperatingFrequency = decodeRationalNumberType(r)
-                        st97 = 1
+                        st89 = 1
                     }
                     1u -> {
                         _sPCPowerControlParameter = decodeWPT_SPCPowerControlParameterType(r)
-                        st97 = 2
+                        st89 = 2
                     }
                     2u -> {   // ManufacturerSpecificDataContainer
                         r.readBits(1)   // value-start
@@ -357,9 +357,9 @@ internal fun decodeWPT_ChargeLoopRes(r: BitReader): WPT_ChargeLoopRes {
                             r.readBits(1)   // child EE
                             manufacturerSpecificDataContainerList.add(manufacturerSpecificDataContainerListNext)
                         }
-                        done97 = true
+                        done89 = true
                     }
-                    3u -> done97 = true   // element EE
+                    3u -> done89 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -367,7 +367,7 @@ internal fun decodeWPT_ChargeLoopRes(r: BitReader): WPT_ChargeLoopRes {
                 when (r.readBits(2)) {
                     0u -> {
                         _sPCPowerControlParameter = decodeWPT_SPCPowerControlParameterType(r)
-                        st97 = 2
+                        st89 = 2
                     }
                     1u -> {   // ManufacturerSpecificDataContainer
                         r.readBits(1)   // value-start
@@ -383,9 +383,9 @@ internal fun decodeWPT_ChargeLoopRes(r: BitReader): WPT_ChargeLoopRes {
                             r.readBits(1)   // child EE
                             manufacturerSpecificDataContainerList.add(manufacturerSpecificDataContainerListNext)
                         }
-                        done97 = true
+                        done89 = true
                     }
-                    2u -> done97 = true   // element EE
+                    2u -> done89 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -405,15 +405,15 @@ internal fun decodeWPT_ChargeLoopRes(r: BitReader): WPT_ChargeLoopRes {
                             r.readBits(1)   // child EE
                             manufacturerSpecificDataContainerList.add(manufacturerSpecificDataContainerListNext)
                         }
-                        done97 = true
+                        done89 = true
                     }
-                    1u -> done97 = true   // element EE
+                    1u -> done89 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             3 -> {
                 when (r.readBits(1)) {
-                    0u -> done97 = true   // element EE
+                    0u -> done89 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

@@ -42,19 +42,19 @@ internal fun encodeWPT_AlignmentCheckResType(w: BitWriter, msg: WPT_AlignmentChe
     w.writeBits(0u, 1)   // value-start
     w.writeBits(msg.eVSEProcessing.ordinal.toUInt(), 2)
     w.writeBits(0u, 1)   // child EE
-    var st22 = 0
-    var done22 = false
-    while (!done22) {
-        when (st22) {
+    var st18 = 0
+    var done18 = false
+    while (!done18) {
+        when (st18) {
             0 -> {
                 if (msg.powerTransmitted != null) {
                     w.writeBits(0u, 3)   // PowerTransmitted
                     encodeRationalNumberType(w, msg.powerTransmitted!!)
-                    st22 = 1
+                    st18 = 1
                 } else if (msg.supplyDeviceCurrent != null) {
                     w.writeBits(1u, 3)   // SupplyDeviceCurrent
                     encodeRationalNumberType(w, msg.supplyDeviceCurrent!!)
-                    st22 = 2
+                    st18 = 2
                 } else if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                     require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
                     w.writeBits(2u, 3)   // VendorSpecificDataContainer
@@ -68,17 +68,17 @@ internal fun encodeWPT_AlignmentCheckResType(w: BitWriter, msg: WPT_AlignmentChe
                         w.writeBits(0u, 1)   // child EE
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done22 = true
+                    done18 = true
                 } else {
                     w.writeBits(3u, 3)   // element EE
-                    done22 = true
+                    done18 = true
                 }
             }
             1 -> {
                 if (msg.supplyDeviceCurrent != null) {
                     w.writeBits(0u, 2)   // SupplyDeviceCurrent
                     encodeRationalNumberType(w, msg.supplyDeviceCurrent!!)
-                    st22 = 2
+                    st18 = 2
                 } else if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                     require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
                     w.writeBits(1u, 2)   // VendorSpecificDataContainer
@@ -92,10 +92,10 @@ internal fun encodeWPT_AlignmentCheckResType(w: BitWriter, msg: WPT_AlignmentChe
                         w.writeBits(0u, 1)   // child EE
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done22 = true
+                    done18 = true
                 } else {
                     w.writeBits(2u, 2)   // element EE
-                    done22 = true
+                    done18 = true
                 }
             }
             2 -> {
@@ -112,15 +112,15 @@ internal fun encodeWPT_AlignmentCheckResType(w: BitWriter, msg: WPT_AlignmentChe
                         w.writeBits(0u, 1)   // child EE
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done22 = true
+                    done18 = true
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done22 = true
+                    done18 = true
                 }
             }
             3 -> {
                 w.writeBits(0u, 1)   // element EE
-                done22 = true
+                done18 = true
             }
         }
     }
@@ -140,19 +140,19 @@ internal fun decodeWPT_AlignmentCheckResType(r: BitReader): WPT_AlignmentCheckRe
     var _powerTransmitted: RationalNumberType? = null
     var _supplyDeviceCurrent: RationalNumberType? = null
     val vendorSpecificDataContainerList = ArrayList<ByteArray>()
-    var st23 = 0
-    var done23 = false
-    while (!done23) {
-        when (st23) {
+    var st19 = 0
+    var done19 = false
+    while (!done19) {
+        when (st19) {
             0 -> {
                 when (r.readBits(3)) {
                     0u -> {
                         _powerTransmitted = decodeRationalNumberType(r)
-                        st23 = 1
+                        st19 = 1
                     }
                     1u -> {
                         _supplyDeviceCurrent = decodeRationalNumberType(r)
-                        st23 = 2
+                        st19 = 2
                     }
                     2u -> {   // VendorSpecificDataContainer
                         r.readBits(1)   // value-start
@@ -168,9 +168,9 @@ internal fun decodeWPT_AlignmentCheckResType(r: BitReader): WPT_AlignmentCheckRe
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                         }
-                        done23 = true
+                        done19 = true
                     }
-                    3u -> done23 = true   // element EE
+                    3u -> done19 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -178,7 +178,7 @@ internal fun decodeWPT_AlignmentCheckResType(r: BitReader): WPT_AlignmentCheckRe
                 when (r.readBits(2)) {
                     0u -> {
                         _supplyDeviceCurrent = decodeRationalNumberType(r)
-                        st23 = 2
+                        st19 = 2
                     }
                     1u -> {   // VendorSpecificDataContainer
                         r.readBits(1)   // value-start
@@ -194,9 +194,9 @@ internal fun decodeWPT_AlignmentCheckResType(r: BitReader): WPT_AlignmentCheckRe
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                         }
-                        done23 = true
+                        done19 = true
                     }
-                    2u -> done23 = true   // element EE
+                    2u -> done19 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -216,15 +216,15 @@ internal fun decodeWPT_AlignmentCheckResType(r: BitReader): WPT_AlignmentCheckRe
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                         }
-                        done23 = true
+                        done19 = true
                     }
-                    1u -> done23 = true   // element EE
+                    1u -> done19 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             3 -> {
                 when (r.readBits(1)) {
-                    0u -> done23 = true   // element EE
+                    0u -> done19 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

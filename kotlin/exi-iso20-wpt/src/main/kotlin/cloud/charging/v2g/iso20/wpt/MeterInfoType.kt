@@ -42,50 +42,50 @@ internal fun encodeMeterInfoType(w: BitWriter, msg: MeterInfoType) {
     w.writeBits(0u, 1)   // value-start
     ExiPrimitives.writeUnsignedInteger(w, msg.chargedEnergyReadingWh.toULong())
     w.writeBits(0u, 1)   // child EE
-    var st42 = 0
-    var done42 = false
-    while (!done42) {
-        when (st42) {
+    var st38 = 0
+    var done38 = false
+    while (!done38) {
+        when (st38) {
             0 -> {
                 if (msg.bPT_DischargedEnergyReadingWh != null) {
                     w.writeBits(0u, 3)   // BPT_DischargedEnergyReadingWh
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.bPT_DischargedEnergyReadingWh!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 1
+                    st38 = 1
                 } else if (msg.capacitiveEnergyReadingVARh != null) {
                     w.writeBits(1u, 3)   // CapacitiveEnergyReadingVARh
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.capacitiveEnergyReadingVARh!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 2
+                    st38 = 2
                 } else if (msg.bPT_InductiveEnergyReadingVARh != null) {
                     w.writeBits(2u, 3)   // BPT_InductiveEnergyReadingVARh
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.bPT_InductiveEnergyReadingVARh!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 3
+                    st38 = 3
                 } else if (msg.meterSignature != null) {
                     w.writeBits(3u, 3)   // MeterSignature
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeBinary(w, msg.meterSignature!!)
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 4
+                    st38 = 4
                 } else if (msg.meterStatus != null) {
                     w.writeBits(4u, 3)   // MeterStatus
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 5
+                    st38 = 5
                 } else if (msg.meterTimestamp != null) {
                     w.writeBits(5u, 3)   // MeterTimestamp
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 6
+                    st38 = 6
                 } else {
                     w.writeBits(6u, 3)   // element EE
-                    done42 = true
+                    done38 = true
                 }
             }
             1 -> {
@@ -94,34 +94,34 @@ internal fun encodeMeterInfoType(w: BitWriter, msg: MeterInfoType) {
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.capacitiveEnergyReadingVARh!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 2
+                    st38 = 2
                 } else if (msg.bPT_InductiveEnergyReadingVARh != null) {
                     w.writeBits(1u, 3)   // BPT_InductiveEnergyReadingVARh
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.bPT_InductiveEnergyReadingVARh!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 3
+                    st38 = 3
                 } else if (msg.meterSignature != null) {
                     w.writeBits(2u, 3)   // MeterSignature
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeBinary(w, msg.meterSignature!!)
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 4
+                    st38 = 4
                 } else if (msg.meterStatus != null) {
                     w.writeBits(3u, 3)   // MeterStatus
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 5
+                    st38 = 5
                 } else if (msg.meterTimestamp != null) {
                     w.writeBits(4u, 3)   // MeterTimestamp
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 6
+                    st38 = 6
                 } else {
                     w.writeBits(5u, 3)   // element EE
-                    done42 = true
+                    done38 = true
                 }
             }
             2 -> {
@@ -130,28 +130,28 @@ internal fun encodeMeterInfoType(w: BitWriter, msg: MeterInfoType) {
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.bPT_InductiveEnergyReadingVARh!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 3
+                    st38 = 3
                 } else if (msg.meterSignature != null) {
                     w.writeBits(1u, 3)   // MeterSignature
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeBinary(w, msg.meterSignature!!)
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 4
+                    st38 = 4
                 } else if (msg.meterStatus != null) {
                     w.writeBits(2u, 3)   // MeterStatus
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 5
+                    st38 = 5
                 } else if (msg.meterTimestamp != null) {
                     w.writeBits(3u, 3)   // MeterTimestamp
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 6
+                    st38 = 6
                 } else {
                     w.writeBits(4u, 3)   // element EE
-                    done42 = true
+                    done38 = true
                 }
             }
             3 -> {
@@ -160,22 +160,22 @@ internal fun encodeMeterInfoType(w: BitWriter, msg: MeterInfoType) {
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeBinary(w, msg.meterSignature!!)
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 4
+                    st38 = 4
                 } else if (msg.meterStatus != null) {
                     w.writeBits(1u, 3)   // MeterStatus
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 5
+                    st38 = 5
                 } else if (msg.meterTimestamp != null) {
                     w.writeBits(2u, 3)   // MeterTimestamp
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 6
+                    st38 = 6
                 } else {
                     w.writeBits(3u, 3)   // element EE
-                    done42 = true
+                    done38 = true
                 }
             }
             4 -> {
@@ -184,16 +184,16 @@ internal fun encodeMeterInfoType(w: BitWriter, msg: MeterInfoType) {
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeSignedInteger(w, msg.meterStatus!!.toLong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 5
+                    st38 = 5
                 } else if (msg.meterTimestamp != null) {
                     w.writeBits(1u, 2)   // MeterTimestamp
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 6
+                    st38 = 6
                 } else {
                     w.writeBits(2u, 2)   // element EE
-                    done42 = true
+                    done38 = true
                 }
             }
             5 -> {
@@ -202,15 +202,15 @@ internal fun encodeMeterInfoType(w: BitWriter, msg: MeterInfoType) {
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.meterTimestamp!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st42 = 6
+                    st38 = 6
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done42 = true
+                    done38 = true
                 }
             }
             6 -> {
                 w.writeBits(0u, 1)   // element EE
-                done42 = true
+                done38 = true
             }
         }
     }
@@ -231,49 +231,49 @@ internal fun decodeMeterInfoType(r: BitReader): MeterInfoType {
     var _meterSignature: ByteArray? = null
     var _meterStatus: Short? = null
     var _meterTimestamp: ULong? = null
-    var st43 = 0
-    var done43 = false
-    while (!done43) {
-        when (st43) {
+    var st39 = 0
+    var done39 = false
+    while (!done39) {
+        when (st39) {
             0 -> {
                 when (r.readBits(3)) {
                     0u -> {
                         r.readBits(1)   // value-start
                         _bPT_DischargedEnergyReadingWh = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 1
+                        st39 = 1
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _capacitiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 2
+                        st39 = 2
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _bPT_InductiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 3
+                        st39 = 3
                     }
                     3u -> {
                         r.readBits(1)   // value-start
                         _meterSignature = ExiPrimitives.readBinary(r)
                         r.readBits(1)   // child EE
-                        st43 = 4
+                        st39 = 4
                     }
                     4u -> {
                         r.readBits(1)   // value-start
                         _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
                         r.readBits(1)   // child EE
-                        st43 = 5
+                        st39 = 5
                     }
                     5u -> {
                         r.readBits(1)   // value-start
                         _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 6
+                        st39 = 6
                     }
-                    6u -> done43 = true   // element EE
+                    6u -> done39 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -283,33 +283,33 @@ internal fun decodeMeterInfoType(r: BitReader): MeterInfoType {
                         r.readBits(1)   // value-start
                         _capacitiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 2
+                        st39 = 2
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _bPT_InductiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 3
+                        st39 = 3
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _meterSignature = ExiPrimitives.readBinary(r)
                         r.readBits(1)   // child EE
-                        st43 = 4
+                        st39 = 4
                     }
                     3u -> {
                         r.readBits(1)   // value-start
                         _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
                         r.readBits(1)   // child EE
-                        st43 = 5
+                        st39 = 5
                     }
                     4u -> {
                         r.readBits(1)   // value-start
                         _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 6
+                        st39 = 6
                     }
-                    5u -> done43 = true   // element EE
+                    5u -> done39 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -319,27 +319,27 @@ internal fun decodeMeterInfoType(r: BitReader): MeterInfoType {
                         r.readBits(1)   // value-start
                         _bPT_InductiveEnergyReadingVARh = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 3
+                        st39 = 3
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _meterSignature = ExiPrimitives.readBinary(r)
                         r.readBits(1)   // child EE
-                        st43 = 4
+                        st39 = 4
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
                         r.readBits(1)   // child EE
-                        st43 = 5
+                        st39 = 5
                     }
                     3u -> {
                         r.readBits(1)   // value-start
                         _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 6
+                        st39 = 6
                     }
-                    4u -> done43 = true   // element EE
+                    4u -> done39 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -349,21 +349,21 @@ internal fun decodeMeterInfoType(r: BitReader): MeterInfoType {
                         r.readBits(1)   // value-start
                         _meterSignature = ExiPrimitives.readBinary(r)
                         r.readBits(1)   // child EE
-                        st43 = 4
+                        st39 = 4
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
                         r.readBits(1)   // child EE
-                        st43 = 5
+                        st39 = 5
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 6
+                        st39 = 6
                     }
-                    3u -> done43 = true   // element EE
+                    3u -> done39 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -373,15 +373,15 @@ internal fun decodeMeterInfoType(r: BitReader): MeterInfoType {
                         r.readBits(1)   // value-start
                         _meterStatus = ExiPrimitives.readSignedInteger(r).toShort()
                         r.readBits(1)   // child EE
-                        st43 = 5
+                        st39 = 5
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 6
+                        st39 = 6
                     }
-                    2u -> done43 = true   // element EE
+                    2u -> done39 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -391,15 +391,15 @@ internal fun decodeMeterInfoType(r: BitReader): MeterInfoType {
                         r.readBits(1)   // value-start
                         _meterTimestamp = ExiPrimitives.readUnsignedInteger(r).toULong()
                         r.readBits(1)   // child EE
-                        st43 = 6
+                        st39 = 6
                     }
-                    1u -> done43 = true   // element EE
+                    1u -> done39 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             6 -> {
                 when (r.readBits(1)) {
-                    0u -> done43 = true   // element EE
+                    0u -> done39 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

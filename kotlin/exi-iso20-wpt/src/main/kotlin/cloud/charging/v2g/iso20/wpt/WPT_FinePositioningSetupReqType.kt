@@ -50,54 +50,20 @@ internal fun encodeWPT_FinePositioningSetupReqType(w: BitWriter, msg: WPT_FinePo
     w.writeBits(0u, 1)   // value-start
     ExiPrimitives.writeUnsignedInteger(w, msg.naturalOffset.toULong())
     w.writeBits(0u, 1)   // child EE
-    require(msg.vendorSpecificDataContainer.size <= 2) { "VendorSpecificDataContainer: cbV2G's grammar for this position caps this list at 2 items." }
-    var st0 = 0
-    var done0 = false
-    while (!done0) {
-        when (st0) {
-            0 -> {
-                if (msg.vendorSpecificDataContainer.isNotEmpty()) {
-                    w.writeBits(0u, 2)   // VendorSpecificDataContainer
-                    w.writeBits(0u, 1)   // value-start
-                    ExiPrimitives.writeBinary(w, msg.vendorSpecificDataContainer[0])
-                    w.writeBits(0u, 1)   // child EE
-                    st0 = 1
-                } else {
-                    require(msg.lF_SystemSetupData == null) { "LF_SystemSetupData cannot be encoded while VendorSpecificDataContainer is empty: cbV2G's grammar for this position only reaches it after at least one list item." }
-                    w.writeBits(1u, 2)   // element EE
-                    done0 = true
-                }
-            }
-            1 -> {
-                if (msg.vendorSpecificDataContainer.size > 1) {
-                    w.writeBits(0u, 2)   // VendorSpecificDataContainer
-                    w.writeBits(0u, 1)   // value-start
-                    ExiPrimitives.writeBinary(w, msg.vendorSpecificDataContainer[1])
-                    w.writeBits(0u, 1)   // child EE
-                    st0 = 2
-                } else if (msg.lF_SystemSetupData != null) {
-                    w.writeBits(1u, 2)   // LF_SystemSetupData
-                    encodeWPT_LF_SystemSetupDataType(w, msg.lF_SystemSetupData!!)
-                    w.writeBits(0u, 1)   // element EE
-                    done0 = true
-                } else {
-                    w.writeBits(2u, 2)   // element EE
-                    done0 = true
-                }
-            }
-            2 -> {
-                if (msg.lF_SystemSetupData != null) {
-                    w.writeBits(0u, 2)   // LF_SystemSetupData
-                    encodeWPT_LF_SystemSetupDataType(w, msg.lF_SystemSetupData!!)
-                    w.writeBits(0u, 1)   // element EE
-                    done0 = true
-                } else {
-                    w.writeBits(1u, 2)   // element EE
-                    done0 = true
-                }
-            }
-        }
+    require(msg.vendorSpecificDataContainer.size <= 16) { "VendorSpecificDataContainer: at most 16 item(s) per the schema." }
+    for (item in msg.vendorSpecificDataContainer) {
+        w.writeBits(0u, 2)   // VendorSpecificDataContainer
+        w.writeBits(0u, 1)   // value-start
+        ExiPrimitives.writeBinary(w, item)
+        w.writeBits(0u, 1)   // child EE
     }
+    if (msg.lF_SystemSetupData != null) {
+        w.writeBits(1u, 2)   // LF_SystemSetupData
+        encodeWPT_LF_SystemSetupDataType(w, msg.lF_SystemSetupData!!)
+        w.writeBits(0u, 1)   // element EE
+    }
+    else
+        w.writeBits(2u, 2)   // element EE
 }
 
 internal fun decodeWPT_FinePositioningSetupReqType(r: BitReader): WPT_FinePositioningSetupReqType {
@@ -119,54 +85,22 @@ internal fun decodeWPT_FinePositioningSetupReqType(r: BitReader): WPT_FinePositi
     r.readBits(1)   // child EE
     val vendorSpecificDataContainerList = ArrayList<ByteArray>()
     var _lF_SystemSetupData: WPT_LF_SystemSetupDataType? = null
-    var st1 = 0
-    var done1 = false
-    while (!done1) {
-        when (st1) {
-            0 -> {
-                when (r.readBits(2)) {
-                    0u -> {   // VendorSpecificDataContainer
-                        r.readBits(1)   // value-start
-                        val vendorSpecificDataContainerListFirst = ExiPrimitives.readBinary(r)
-                        r.readBits(1)   // child EE
-                        vendorSpecificDataContainerList.add(vendorSpecificDataContainerListFirst)
-                        st1 = 1
-                    }
-                    1u -> done1 = true   // element EE
-                    else -> throw IllegalArgumentException("invalid optional-run event code")
+    var done0 = false
+    while (!done0) {
+        when (r.readBits(2)) {
+                0u -> {   // VendorSpecificDataContainer
+                    r.readBits(1)   // value-start
+                    val vendorSpecificDataContainerListItem = ExiPrimitives.readBinary(r)
+                    r.readBits(1)   // child EE
+                    vendorSpecificDataContainerList.add(vendorSpecificDataContainerListItem)
                 }
-            }
-            1 -> {
-                when (r.readBits(2)) {
-                    0u -> {   // VendorSpecificDataContainer
-                        r.readBits(1)   // value-start
-                        val vendorSpecificDataContainerListNext = ExiPrimitives.readBinary(r)
-                        r.readBits(1)   // child EE
-                        vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
-                        st1 = 2
-                    }
-                    1u -> {   // LF_SystemSetupData
-                        _lF_SystemSetupData = decodeWPT_LF_SystemSetupDataType(r)
-                        st1 = 3
-                    }
-                    2u -> done1 = true   // element EE
-                    else -> throw IllegalArgumentException("invalid optional-run event code")
+                1u -> {   // LF_SystemSetupData
+                    _lF_SystemSetupData = decodeWPT_LF_SystemSetupDataType(r)
+                    r.readBits(1)   // element EE
+                    done0 = true
                 }
-            }
-            2 -> {
-                when (r.readBits(2)) {
-                    0u -> {   // LF_SystemSetupData
-                        _lF_SystemSetupData = decodeWPT_LF_SystemSetupDataType(r)
-                        st1 = 3
-                    }
-                    1u -> done1 = true   // element EE
-                    else -> throw IllegalArgumentException("invalid optional-run event code")
-                }
-            }
-            3 -> {
-                r.readBits(1)   // element EE
-                done1 = true
-            }
+                2u -> done0 = true   // element EE
+                else -> throw IllegalArgumentException("invalid optional-run event code")
         }
     }
     return WPT_FinePositioningSetupReqType(_header, _eVProcessing, _eVDeviceFinePositioningMethodList, _eVDevicePairingMethodList, _eVDeviceAlignmentCheckMethodList, _naturalOffset, vendorSpecificDataContainerList, _lF_SystemSetupData)

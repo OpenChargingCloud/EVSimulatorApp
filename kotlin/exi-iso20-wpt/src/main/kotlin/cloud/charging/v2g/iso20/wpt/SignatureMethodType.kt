@@ -31,26 +31,26 @@ data class SignatureMethodType(
 internal fun encodeSignatureMethodType(w: BitWriter, msg: SignatureMethodType) {
     w.writeBits(0u, 1)   // AT(required attribute)
     ExiPrimitives.writeStringValue(w, msg.algorithm)
-    var st56 = 0
-    var done56 = false
-    while (!done56) {
-        when (st56) {
+    var st52 = 0
+    var done52 = false
+    while (!done52) {
+        when (st52) {
             0 -> {
                 if (msg.hMACOutputLength != null) {
                     w.writeBits(0u, 3)   // HMACOutputLength
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeSignedInteger(w, msg.hMACOutputLength!!.toLong())
                     w.writeBits(0u, 1)   // child EE
-                    st56 = 1
+                    st52 = 1
                 } else if (msg.aNY != null) {
                     w.writeBits(3u, 3)   // ANY
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeBinary(w, msg.aNY!!)
                     w.writeBits(0u, 1)   // child EE
-                    st56 = 2
+                    st52 = 2
                 } else {
                     w.writeBits(2u, 3)   // element EE
-                    done56 = true
+                    done52 = true
                 }
             }
             1 -> {
@@ -59,15 +59,15 @@ internal fun encodeSignatureMethodType(w: BitWriter, msg: SignatureMethodType) {
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeBinary(w, msg.aNY!!)
                     w.writeBits(0u, 1)   // child EE
-                    st56 = 2
+                    st52 = 2
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done56 = true
+                    done52 = true
                 }
             }
             2 -> {
                 w.writeBits(0u, 1)   // element EE
-                done56 = true
+                done52 = true
             }
         }
     }
@@ -78,43 +78,43 @@ internal fun decodeSignatureMethodType(r: BitReader): SignatureMethodType {
     val _algorithm = ExiPrimitives.readStringValue(r, "Algorithm")
     var _hMACOutputLength: Long? = null
     var _aNY: ByteArray? = null
-    var st57 = 0
-    var done57 = false
-    while (!done57) {
-        when (st57) {
+    var st53 = 0
+    var done53 = false
+    while (!done53) {
+        when (st53) {
             0 -> {
                 when (r.readBits(3)) {
                     0u -> {
                         r.readBits(1)   // value-start
                         _hMACOutputLength = ExiPrimitives.readSignedInteger(r).toLong()
                         r.readBits(1)   // child EE
-                        st57 = 1
+                        st53 = 1
                     }
-                    2u -> done57 = true   // element EE
+                    2u -> done53 = true   // element EE
                     3u -> {   // ANY
                         r.readBits(1)   // value-start
                         _aNY = ExiPrimitives.readBinary(r)
                         r.readBits(1)   // child EE
-                        st57 = 2
+                        st53 = 2
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             1 -> {
                 when (r.readBits(2)) {
-                    1u -> done57 = true   // element EE
+                    1u -> done53 = true   // element EE
                     2u -> {   // ANY
                         r.readBits(1)   // value-start
                         _aNY = ExiPrimitives.readBinary(r)
                         r.readBits(1)   // child EE
-                        st57 = 2
+                        st53 = 2
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             2 -> {
                 when (r.readBits(1)) {
-                    0u -> done57 = true   // element EE
+                    0u -> done53 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

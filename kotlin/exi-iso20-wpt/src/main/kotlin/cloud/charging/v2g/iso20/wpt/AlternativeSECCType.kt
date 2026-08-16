@@ -30,38 +30,38 @@ data class AlternativeSECCType(
 )
 
 internal fun encodeAlternativeSECCType(w: BitWriter, msg: AlternativeSECCType) {
-    var st36 = 0
-    var done36 = false
-    while (!done36) {
-        when (st36) {
+    var st32 = 0
+    var done32 = false
+    while (!done32) {
+        when (st32) {
             0 -> {
                 if (msg.sSID != null) {
                     w.writeBits(0u, 3)   // SSID
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeStringValue(w, msg.sSID!!)
                     w.writeBits(0u, 1)   // child EE
-                    st36 = 1
+                    st32 = 1
                 } else if (msg.bSSID != null) {
                     w.writeBits(1u, 3)   // BSSID
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeStringValue(w, msg.bSSID!!)
                     w.writeBits(0u, 1)   // child EE
-                    st36 = 2
+                    st32 = 2
                 } else if (msg.iPAddress != null) {
                     w.writeBits(2u, 3)   // IPAddress
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeStringValue(w, msg.iPAddress!!)
                     w.writeBits(0u, 1)   // child EE
-                    st36 = 3
+                    st32 = 3
                 } else if (msg.port != null) {
                     w.writeBits(3u, 3)   // Port
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.port!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st36 = 4
+                    st32 = 4
                 } else {
                     w.writeBits(4u, 3)   // element EE
-                    done36 = true
+                    done32 = true
                 }
             }
             1 -> {
@@ -70,22 +70,22 @@ internal fun encodeAlternativeSECCType(w: BitWriter, msg: AlternativeSECCType) {
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeStringValue(w, msg.bSSID!!)
                     w.writeBits(0u, 1)   // child EE
-                    st36 = 2
+                    st32 = 2
                 } else if (msg.iPAddress != null) {
                     w.writeBits(1u, 3)   // IPAddress
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeStringValue(w, msg.iPAddress!!)
                     w.writeBits(0u, 1)   // child EE
-                    st36 = 3
+                    st32 = 3
                 } else if (msg.port != null) {
                     w.writeBits(2u, 3)   // Port
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.port!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st36 = 4
+                    st32 = 4
                 } else {
                     w.writeBits(3u, 3)   // element EE
-                    done36 = true
+                    done32 = true
                 }
             }
             2 -> {
@@ -94,16 +94,16 @@ internal fun encodeAlternativeSECCType(w: BitWriter, msg: AlternativeSECCType) {
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeStringValue(w, msg.iPAddress!!)
                     w.writeBits(0u, 1)   // child EE
-                    st36 = 3
+                    st32 = 3
                 } else if (msg.port != null) {
                     w.writeBits(1u, 2)   // Port
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.port!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st36 = 4
+                    st32 = 4
                 } else {
                     w.writeBits(2u, 2)   // element EE
-                    done36 = true
+                    done32 = true
                 }
             }
             3 -> {
@@ -112,15 +112,15 @@ internal fun encodeAlternativeSECCType(w: BitWriter, msg: AlternativeSECCType) {
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeUnsignedInteger(w, msg.port!!.toULong())
                     w.writeBits(0u, 1)   // child EE
-                    st36 = 4
+                    st32 = 4
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done36 = true
+                    done32 = true
                 }
             }
             4 -> {
                 w.writeBits(0u, 1)   // element EE
-                done36 = true
+                done32 = true
             }
         }
     }
@@ -131,37 +131,37 @@ internal fun decodeAlternativeSECCType(r: BitReader): AlternativeSECCType {
     var _bSSID: String? = null
     var _iPAddress: String? = null
     var _port: UShort? = null
-    var st37 = 0
-    var done37 = false
-    while (!done37) {
-        when (st37) {
+    var st33 = 0
+    var done33 = false
+    while (!done33) {
+        when (st33) {
             0 -> {
                 when (r.readBits(3)) {
                     0u -> {
                         r.readBits(1)   // value-start
                         _sSID = ExiPrimitives.readStringValue(r, "SSID")
                         r.readBits(1)   // child EE
-                        st37 = 1
+                        st33 = 1
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _bSSID = ExiPrimitives.readStringValue(r, "BSSID")
                         r.readBits(1)   // child EE
-                        st37 = 2
+                        st33 = 2
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _iPAddress = ExiPrimitives.readStringValue(r, "IPAddress")
                         r.readBits(1)   // child EE
-                        st37 = 3
+                        st33 = 3
                     }
                     3u -> {
                         r.readBits(1)   // value-start
                         _port = ExiPrimitives.readUnsignedInteger(r).toUShort()
                         r.readBits(1)   // child EE
-                        st37 = 4
+                        st33 = 4
                     }
-                    4u -> done37 = true   // element EE
+                    4u -> done33 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -171,21 +171,21 @@ internal fun decodeAlternativeSECCType(r: BitReader): AlternativeSECCType {
                         r.readBits(1)   // value-start
                         _bSSID = ExiPrimitives.readStringValue(r, "BSSID")
                         r.readBits(1)   // child EE
-                        st37 = 2
+                        st33 = 2
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _iPAddress = ExiPrimitives.readStringValue(r, "IPAddress")
                         r.readBits(1)   // child EE
-                        st37 = 3
+                        st33 = 3
                     }
                     2u -> {
                         r.readBits(1)   // value-start
                         _port = ExiPrimitives.readUnsignedInteger(r).toUShort()
                         r.readBits(1)   // child EE
-                        st37 = 4
+                        st33 = 4
                     }
-                    3u -> done37 = true   // element EE
+                    3u -> done33 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -195,15 +195,15 @@ internal fun decodeAlternativeSECCType(r: BitReader): AlternativeSECCType {
                         r.readBits(1)   // value-start
                         _iPAddress = ExiPrimitives.readStringValue(r, "IPAddress")
                         r.readBits(1)   // child EE
-                        st37 = 3
+                        st33 = 3
                     }
                     1u -> {
                         r.readBits(1)   // value-start
                         _port = ExiPrimitives.readUnsignedInteger(r).toUShort()
                         r.readBits(1)   // child EE
-                        st37 = 4
+                        st33 = 4
                     }
-                    2u -> done37 = true   // element EE
+                    2u -> done33 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
@@ -213,15 +213,15 @@ internal fun decodeAlternativeSECCType(r: BitReader): AlternativeSECCType {
                         r.readBits(1)   // value-start
                         _port = ExiPrimitives.readUnsignedInteger(r).toUShort()
                         r.readBits(1)   // child EE
-                        st37 = 4
+                        st33 = 4
                     }
-                    1u -> done37 = true   // element EE
+                    1u -> done33 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             4 -> {
                 when (r.readBits(1)) {
-                    0u -> done37 = true   // element EE
+                    0u -> done33 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

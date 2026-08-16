@@ -37,21 +37,21 @@ internal fun encodeWPT_AlignmentCheckReq(w: BitWriter, msg: WPT_AlignmentCheckRe
     w.writeBits(0u, 1)   // value-start
     w.writeBits(msg.eVProcessing.ordinal.toUInt(), 2)
     w.writeBits(0u, 1)   // child EE
-    var st82 = 0
-    var done82 = false
-    while (!done82) {
-        when (st82) {
+    var st74 = 0
+    var done74 = false
+    while (!done74) {
+        when (st74) {
             0 -> {
                 if (msg.targetCoilCurrent != null) {
                     w.writeBits(0u, 2)   // TargetCoilCurrent
                     encodeRationalNumberType(w, msg.targetCoilCurrent!!)
-                    st82 = 1
+                    st74 = 1
                 } else {
                     w.writeBits(1u, 2)   // SE(EVResultCode)
                     w.writeBits(0u, 1)   // value-start
                     w.writeBits(msg.eVResultCode.ordinal.toUInt(), 2)
                     w.writeBits(0u, 1)   // child EE
-                    done82 = true
+                    done74 = true
                 }
             }
             1 -> {
@@ -59,14 +59,14 @@ internal fun encodeWPT_AlignmentCheckReq(w: BitWriter, msg: WPT_AlignmentCheckRe
                 w.writeBits(0u, 1)   // value-start
                 w.writeBits(msg.eVResultCode.ordinal.toUInt(), 2)
                 w.writeBits(0u, 1)   // child EE
-                done82 = true
+                done74 = true
             }
         }
     }
-    var st83 = 0
-    var done83 = false
-    while (!done83) {
-        when (st83) {
+    var st75 = 0
+    var done75 = false
+    while (!done75) {
+        when (st75) {
             0 -> {
                 if (msg.vendorSpecificDataContainer.isNotEmpty()) {
                     require(msg.vendorSpecificDataContainer.size <= 16) { "list size out of schema range" }
@@ -81,15 +81,15 @@ internal fun encodeWPT_AlignmentCheckReq(w: BitWriter, msg: WPT_AlignmentCheckRe
                         w.writeBits(0u, 1)   // child EE
                     }
                     w.writeBits(1u, 2)   // element EE (list end)
-                    done83 = true
+                    done75 = true
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done83 = true
+                    done75 = true
                 }
             }
             1 -> {
                 w.writeBits(0u, 1)   // element EE
-                done83 = true
+                done75 = true
             }
         }
     }
@@ -104,21 +104,21 @@ internal fun decodeWPT_AlignmentCheckReq(r: BitReader): WPT_AlignmentCheckReq {
     r.readBits(1)   // child EE
     var _targetCoilCurrent: RationalNumberType? = null
     var _eVResultCode: WPT_EVResult? = null
-    var st84 = 0
-    var done84 = false
-    while (!done84) {
-        when (st84) {
+    var st76 = 0
+    var done76 = false
+    while (!done76) {
+        when (st76) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
                         _targetCoilCurrent = decodeRationalNumberType(r)
-                        st84 = 1
+                        st76 = 1
                     }
                     1u -> {   // SE(EVResultCode)
                         r.readBits(1)   // value-start
                         _eVResultCode = WPT_EVResult.entries[r.readBits(2).toInt()]
                         r.readBits(1)   // child EE
-                        done84 = true
+                        done76 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -129,7 +129,7 @@ internal fun decodeWPT_AlignmentCheckReq(r: BitReader): WPT_AlignmentCheckReq {
                         r.readBits(1)   // value-start
                         _eVResultCode = WPT_EVResult.entries[r.readBits(2).toInt()]
                         r.readBits(1)   // child EE
-                        done84 = true
+                        done76 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -137,10 +137,10 @@ internal fun decodeWPT_AlignmentCheckReq(r: BitReader): WPT_AlignmentCheckReq {
         }
     }
     val vendorSpecificDataContainerList = ArrayList<ByteArray>()
-    var st85 = 0
-    var done85 = false
-    while (!done85) {
-        when (st85) {
+    var st77 = 0
+    var done77 = false
+    while (!done77) {
+        when (st77) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {   // VendorSpecificDataContainer
@@ -157,15 +157,15 @@ internal fun decodeWPT_AlignmentCheckReq(r: BitReader): WPT_AlignmentCheckReq {
                             r.readBits(1)   // child EE
                             vendorSpecificDataContainerList.add(vendorSpecificDataContainerListNext)
                         }
-                        done85 = true
+                        done77 = true
                     }
-                    1u -> done85 = true   // element EE
+                    1u -> done77 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             1 -> {
                 when (r.readBits(1)) {
-                    0u -> done85 = true   // element EE
+                    0u -> done77 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

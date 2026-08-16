@@ -30,25 +30,25 @@ data class SignedInfoType(
 )
 
 internal fun encodeSignedInfoType(w: BitWriter, msg: SignedInfoType) {
-    var st52 = 0
-    var done52 = false
-    while (!done52) {
-        when (st52) {
+    var st48 = 0
+    var done48 = false
+    while (!done48) {
+        when (st48) {
             0 -> {
                 if (msg.id != null) {
                     w.writeBits(0u, 2)   // Id
                     ExiPrimitives.writeStringValue(w, msg.id!!)
-                    st52 = 1
+                    st48 = 1
                 } else {
                     w.writeBits(1u, 2)   // SE(CanonicalizationMethod)
                     encodeCanonicalizationMethodType(w, msg.canonicalizationMethod)
-                    done52 = true
+                    done48 = true
                 }
             }
             1 -> {
                 w.writeBits(0u, 1)   // SE(CanonicalizationMethod)
                 encodeCanonicalizationMethodType(w, msg.canonicalizationMethod)
-                done52 = true
+                done48 = true
             }
         }
     }
@@ -66,19 +66,19 @@ internal fun encodeSignedInfoType(w: BitWriter, msg: SignedInfoType) {
 internal fun decodeSignedInfoType(r: BitReader): SignedInfoType {
     var _id: String? = null
     var _canonicalizationMethod: CanonicalizationMethodType? = null
-    var st53 = 0
-    var done53 = false
-    while (!done53) {
-        when (st53) {
+    var st49 = 0
+    var done49 = false
+    while (!done49) {
+        when (st49) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
                         _id = ExiPrimitives.readStringValue(r, "Id")
-                        st53 = 1
+                        st49 = 1
                     }
                     1u -> {   // SE(CanonicalizationMethod)
                         _canonicalizationMethod = decodeCanonicalizationMethodType(r)
-                        done53 = true
+                        done49 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
@@ -87,7 +87,7 @@ internal fun decodeSignedInfoType(r: BitReader): SignedInfoType {
                 when (r.readBits(1)) {
                     0u -> {   // SE(CanonicalizationMethod)
                         _canonicalizationMethod = decodeCanonicalizationMethodType(r)
-                        done53 = true
+                        done49 = true
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }

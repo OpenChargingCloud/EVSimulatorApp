@@ -30,25 +30,25 @@ data class CanonicalizationMethodType(
 internal fun encodeCanonicalizationMethodType(w: BitWriter, msg: CanonicalizationMethodType) {
     w.writeBits(0u, 1)   // AT(required attribute)
     ExiPrimitives.writeStringValue(w, msg.algorithm)
-    var st54 = 0
-    var done54 = false
-    while (!done54) {
-        when (st54) {
+    var st50 = 0
+    var done50 = false
+    while (!done50) {
+        when (st50) {
             0 -> {
                 if (msg.aNY != null) {
                     w.writeBits(2u, 2)   // ANY
                     w.writeBits(0u, 1)   // value-start
                     ExiPrimitives.writeBinary(w, msg.aNY!!)
                     w.writeBits(0u, 1)   // child EE
-                    st54 = 1
+                    st50 = 1
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done54 = true
+                    done50 = true
                 }
             }
             1 -> {
                 w.writeBits(0u, 1)   // element EE
-                done54 = true
+                done50 = true
             }
         }
     }
@@ -58,25 +58,25 @@ internal fun decodeCanonicalizationMethodType(r: BitReader): CanonicalizationMet
     r.readBits(1)   // AT(required attribute)
     val _algorithm = ExiPrimitives.readStringValue(r, "Algorithm")
     var _aNY: ByteArray? = null
-    var st55 = 0
-    var done55 = false
-    while (!done55) {
-        when (st55) {
+    var st51 = 0
+    var done51 = false
+    while (!done51) {
+        when (st51) {
             0 -> {
                 when (r.readBits(2)) {
-                    1u -> done55 = true   // element EE
+                    1u -> done51 = true   // element EE
                     2u -> {   // ANY
                         r.readBits(1)   // value-start
                         _aNY = ExiPrimitives.readBinary(r)
                         r.readBits(1)   // child EE
-                        st55 = 1
+                        st51 = 1
                     }
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             1 -> {
                 when (r.readBits(1)) {
-                    0u -> done55 = true   // element EE
+                    0u -> done51 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }

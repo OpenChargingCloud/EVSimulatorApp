@@ -37,23 +37,23 @@ internal fun encodeMessageHeaderType(w: BitWriter, msg: MessageHeaderType) {
     w.writeBits(0u, 1)   // value-start
     ExiPrimitives.writeUnsignedInteger(w, msg.timeStamp.toULong())
     w.writeBits(0u, 1)   // child EE
-    var st38 = 0
-    var done38 = false
-    while (!done38) {
-        when (st38) {
+    var st34 = 0
+    var done34 = false
+    while (!done34) {
+        when (st34) {
             0 -> {
                 if (msg.signature != null) {
                     w.writeBits(0u, 2)   // Signature
                     encodeSignatureType(w, msg.signature!!)
-                    st38 = 1
+                    st34 = 1
                 } else {
                     w.writeBits(1u, 2)   // element EE
-                    done38 = true
+                    done34 = true
                 }
             }
             1 -> {
                 w.writeBits(0u, 1)   // element EE
-                done38 = true
+                done34 = true
             }
         }
     }
@@ -69,23 +69,23 @@ internal fun decodeMessageHeaderType(r: BitReader): MessageHeaderType {
     val _timeStamp = ExiPrimitives.readUnsignedInteger(r).toULong()
     r.readBits(1)   // child EE
     var _signature: SignatureType? = null
-    var st39 = 0
-    var done39 = false
-    while (!done39) {
-        when (st39) {
+    var st35 = 0
+    var done35 = false
+    while (!done35) {
+        when (st35) {
             0 -> {
                 when (r.readBits(2)) {
                     0u -> {
                         _signature = decodeSignatureType(r)
-                        st39 = 1
+                        st35 = 1
                     }
-                    1u -> done39 = true   // element EE
+                    1u -> done35 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
             1 -> {
                 when (r.readBits(1)) {
-                    0u -> done39 = true   // element EE
+                    0u -> done35 = true   // element EE
                     else -> throw IllegalArgumentException("invalid optional-run event code")
                 }
             }
