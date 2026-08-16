@@ -111,32 +111,84 @@ that is stage 2's list, below, no longer a prediction.
 Half of this stage arrived the moment the gate could run. The **codec** drift is measured; the
 **session** drift still has to be provoked.
 
-### 2a · The codec drift, measured 2026-08-16
+### 2a-i · The two grammar switches — **done 2026-08-16**
 
-Five Kotlin modules are red, and the cause is one commit: **`914d1da`, 2026-08-08, "Where cbexigen
-and the schema disagree, follow the schema"**. It changed what the C# codec *emits* for two
-constructs — ACDP's document-element numbering and WPT's mid-run particle grammar — and moved the
-vectors to match. The ports never received the change. `6ab05b8` the same day added six more vectors,
-for the four `minOccurs>=2` particles nothing had ever populated.
+`EVSimulatorApp.Codegen` now takes `--doc-order` and `--particles`, the three `regenerate.sh` state
+them, and all three ports were regenerated. Three decisions worth keeping:
 
-| Red module | Corpus that moved | Kotlin | Swift |
-|---|---|---|---|
-| ACDP | `Iso15118_20.ACDP.vectors.json` | 6/8 round-trip | 2 of 8 vectors differ |
-| AC_DER_IEC | its corpus gained two vectors | 16/18 | anchored count 16, corpus has 18 |
-| AC_DER_SAE | same | 15/16 | disagrees with C# on bytes |
-| WPT | `Iso15118_20.WPT.vectors.json` | 8/16, and `v2g-dispatch`'s WPT frame | no WPT module — refused on principle |
-| JSON-LD | `JsonLd.documents.json` | 3 of 3 | 3 of 3, incl. `bitstreamExhausted` |
+- **They default to what this project decided**, `ExiSorted` / `SchemaConformant`, not to the
+  library's cbexigen-compatible default. The tool's only consumers are the ports here, and a default
+  that needs a flag to be correct is a default that will be forgotten — which is exactly what
+  happened for nine days.
+- **An unknown value is refused**, where the source generator's own reader falls back to its default.
+  A misspelling in a csproj must not break somebody's build; a misspelling in a regeneration script
+  that silently emits the *other* wire format is the failure this whole exercise exists to undo.
+- **Every run prints the grammar it used**, so a regeneration log can be read afterwards.
 
-**Swift carries the same defect**, which the first CI run on macOS showed — 8 of 222 tests, the same
-four corpora. TypeScript has no gate on these sets at all and should be assumed to carry it too.
+What that fixed: **ACDP went from 6/8 to 8/8** in Kotlin, and the one Swift file matching it changed
+too. TypeScript changed **nothing at all**, correctly — it has no ACDP, WPT or DER port.
 
-**Regenerating the ports today would not fix it, and that is the actual task.** The two switches are
-MSBuild properties — `ExiDocumentElementOrder`, `ExiParticleGrammar` — set in
-`libs/WWCP_ISO15118/Directory.Build.props` and passed to the source generator by each codec's csproj.
-`tools/EVSimulatorApp.Codegen` sits *above* that directory, so it inherits neither, and its command
-line has no flag for either: `--xsd --out --lang --namespace --codec --fragments`. So the work is, in
-order: **give the Codegen tool the two switches**, have the three `regenerate.sh` scripts pass them,
-regenerate all three back ends, and watch the modules go green.
+**And what regenerating showed, which is the finding:** `--doc-order` reaches the ports;
+`--particles` does not. Exactly one generated file changed per language, the ACDP codec. Not one WPT
+byte moved, though the flag was passed and accepted.
+
+The two switches are not symmetric, and nothing had said so:
+
+| | Decided in | Consumed by |
+|---|---|---|
+| `--doc-order` | `Grammar/GrammarBuilder.cs` — the **shared** front end | the plan's element order, which every emitter reads |
+| `--particles` | carried on the plan, and acted on in `Emit/CodecEmitter.cs` | **the C# emitter alone** |
+
+`grep -rn ParticleGrammar` over both `Emit/` directories finds three hits, all of them in
+`CodecEmitter.cs`. So for Kotlin, Swift and TypeScript the flag is accepted and ignored — which is
+why WPT sat at 8/16 before the switch and sits at 8/16 after it.
+
+### 2a-ii · Two emitter-side rules the ports do not implement
+
+The rest of the red is emitter work, not regeneration, and it is two rules rather than one — both
+living in `WWCP_ISO15118_EXI_SourceGenerator/Emit/CodecEmitter.cs`, **which emits C#**.
+
+1. **The WPT mid-run particle grammar** — `plan.ParticleGrammar`, above. The port emitters never read
+   it.
+2. **The forced-occurrence width.** `e86277d` (2026-08-08), *"A forced occurrence is not a choice:
+   minOccurs≥2 narrows the SE code"*, changed 134 lines of that same file: the SE width while an
+   occurrence is still forced, the list terminator for any bounded `maxOccurs` rather than only 2,
+   its decode counterpart, the minimum-count check, and a refusal to generate the one combination
+   nothing has verified. This is what the AC DER corpora exercise.
+
+The Kotlin, Swift and TypeScript emitters live here, in `tools/EVSimulatorApp.Codegen/Emit/`, at
+roughly 2 400, 1 900 and 2 700 lines, each carrying its own copy of the emission logic. The Codegen
+csproj names the cost out loud already: *"CodecEmitter is the base class all four back ends
+specialise, and it stays on the other side of the submodule boundary. A change to it is a change to
+two repositories."* Two such changes were made on one side only.
+
+So the task is: implement both rules in the three port emitters, regenerate, and hold the result to
+the same vectors — with the `minOccurs≥2` particles as the oracle, since that is what `6ab05b8`
+recorded them for.
+
+### What is still red, measured 2026-08-16 after 2a-i
+
+| Corpus | Before 2a-i | After |
+|---|---|---|
+| **ACDP** | 6/8 | **8/8** ✅ |
+| AppProtocol · `-2` · `-2` fragments | 17/17 · 39/39 · 4/4 | unchanged ✅ |
+| `-20` AC · DC · CommonMessages | 10/10 · 16/16 · 26/26 | unchanged ✅ |
+| AC_DER_IEC | 16/18 | 16/18 |
+| AC_DER_SAE | 15/16 | 15/16 |
+| WPT | 8/16, and `v2g-dispatch`'s WPT frame | 8/16 |
+| JSON-LD | 3 of 3 failing | 3 of 3 failing |
+
+Everything still short is a `minOccurs≥2` particle, which is 2a-ii. Swift carries the same, shown by
+the first macOS CI run — 8 of 222 tests. TypeScript has no port of these three sets, so it has
+nothing to carry.
+
+### Found on the way: a suite in no gate at all
+
+`EVSimulatorApp.Codegen.Tests` is **19 red out of 77**, and was before any of this — verified by
+stashing the whole change and re-running. It is in neither gate: not in the conformance repository's
+`dotnet test` (four assemblies, none of them this one), and not in `port-gates.sh`. The failures look
+like the same forced-occurrence family, so 2a-ii may well close them; that has to be measured, not
+assumed. Either way the suite belongs in a gate, which is a stage 1 item that stage 1 missed.
 
 ### 2b · The session drift, still to be provoked
 
@@ -225,12 +277,13 @@ declined.
 | Stage | Blocks | Blocked by |
 |---|---|---|
 | 1 · instrument | everything | **done 2026-08-16** |
-| 2a · codec drift | a green gate, and therefore every claim made from one | nothing — the diagnosis is finished, the task is named |
+| 2a-i · grammar switches | 2a-ii | **done 2026-08-16** |
+| 2a-ii · forced-occurrence emitters | a green gate, and every claim made from one | nothing — diagnosed and sized |
 | 2b · session corpus | 3, and Resume specifically | nothing |
 | 3 · state machines | — | 2b |
 | 4 · TLS | shipping anything that claims conformance | its own measurement, which needs nothing |
 | 5 · discovery + shell | — | 4 for the iOS entitlement timing |
 
-**2a is the one to take next**, and not only because it is next: CI is now red, on a cause that is
-dated, understood and sized. The two items that need nobody's permission and no other work first are
-2a and stage 4's measurement.
+**2a-ii is the one to take next**, and it is the last thing between the gate and green. It needs
+nobody's permission and nothing else first — as does stage 4's measurement, still the one item that
+could change the shape of the rest.

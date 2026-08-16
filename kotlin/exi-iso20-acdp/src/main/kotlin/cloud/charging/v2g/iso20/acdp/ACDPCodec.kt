@@ -62,7 +62,7 @@ object ACDPCodec {
         val buf = ByteArray(MAX_MESSAGE_BYTES)
         buf[0] = EXI_HEADER
         val w = BitWriter(buf, 1)
-        w.writeBits(2u, 6)   // document element selector
+        w.writeBits(1u, 6)   // document element selector
         encodeACDP_ConnectRes(w, msg)
         w.alignToByte()
         return buf.copyOf(1 + w.bytesWritten)
@@ -72,7 +72,7 @@ object ACDPCodec {
         val buf = ByteArray(MAX_MESSAGE_BYTES)
         buf[0] = EXI_HEADER
         val w = BitWriter(buf, 1)
-        w.writeBits(1u, 6)   // document element selector
+        w.writeBits(2u, 6)   // document element selector
         encodeACDP_DisconnectReq(w, msg)
         w.alignToByte()
         return buf.copyOf(1 + w.bytesWritten)
@@ -112,8 +112,8 @@ object ACDPCodec {
     fun encodeAny(msg: Any): ByteArray =
         when (msg) {
             is ACDP_ConnectReq -> encode(msg)
-            is ACDP_DisconnectReq -> encode(msg)
             is ACDP_ConnectRes -> encode(msg)
+            is ACDP_DisconnectReq -> encode(msg)
             is ACDP_DisconnectRes -> encode(msg)
             is ACDP_SystemStatusReq -> encode(msg)
             is ACDP_SystemStatusRes -> encode(msg)
@@ -131,8 +131,8 @@ object ACDPCodec {
             6u -> decodeACDP_VehiclePositioningReq(r)
             7u -> decodeACDP_VehiclePositioningRes(r)
             0u -> decodeACDP_ConnectReq(r)
-            2u -> decodeACDP_ConnectRes(r)
-            1u -> decodeACDP_DisconnectReq(r)
+            1u -> decodeACDP_ConnectRes(r)
+            2u -> decodeACDP_DisconnectReq(r)
             3u -> decodeACDP_DisconnectRes(r)
             4u -> decodeACDP_SystemStatusReq(r)
             5u -> decodeACDP_SystemStatusRes(r)

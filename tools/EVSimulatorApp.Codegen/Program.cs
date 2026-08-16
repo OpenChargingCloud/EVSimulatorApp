@@ -82,8 +82,14 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Codegen
                                  string.Join(", ", Emitters.Select(e => e.Language)));
 
             var schema = XsdReader.ParseSet(opts.XsdPaths.Select(File.ReadAllText));
-            var plan   = GrammarBuilder.Build(schema, opts.Fragments);
+            var plan   = GrammarBuilder.Build(schema, opts.Fragments, opts.DocOrder, opts.Particles);
             var files  = emitter.Emit(plan, opts.Namespace, opts.CodecClass);
+
+            // Which grammar produced these bytes, on the line above the files it produced. Both
+            // switches are wire-format forks, and a regeneration log that does not say which one it
+            // took cannot be read afterwards — the whole reason this tool needed them at all is that
+            // the answer used to be invisible.
+            Console.Error.WriteLine($"grammar: document elements {opts.DocOrder}, particles {opts.Particles}");
 
             // --out is the directory the files go in. Every back end emits one file per type, so a
             // path that looks like a file is a leftover from the single-file era; quietly treating
@@ -156,9 +162,11 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Codegen
             Console.Error.WriteLine("""
                 Usage:
                   cloud.charging.open.protocols.ISO15118.EXI.Codegen --xsd <file>[;<file>...] --out <path>
-                                            [--lang csharp|kotlin|swift]
+                                            [--lang csharp|kotlin|swift|typescript]
                                             [--namespace <ns>] [--codec <class>]
                                             [--fragments <Elem>[,<Elem>...]]
+                                            [--doc-order ExiSorted|CbV2GCompatible]
+                                            [--particles SchemaConformant|CbV2GCompatible]
 
                   --xsd        One or more XSD files forming ONE schema set (types resolve across
                                the whole set). Repeatable, or ';'-separated.
@@ -169,6 +177,18 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Codegen
                   --namespace  Generated namespace / package.
                   --codec      Generated codec class name.
                   --fragments  Global elements to emit EXI fragment codecs for (XMLDSig).
+
+                  --doc-order  How the document grammar numbers global elements. Differs for exactly
+                               one ISO 15118 schema, ACDP. Default: ExiSorted.
+                  --particles  How the optional-repeating-then-optional construct is given a grammar.
+                               Affects WPT and the two AC DER sets. Default: SchemaConformant.
+
+                The two grammar switches are wire-format forks, and both default to what this
+                project decided on 2026-08-08: follow ISO's schema where cbexigen disagrees with it
+                (WWCP_ISO15118/Directory.Build.props sets the same pair for the C# codecs). The
+                CbV2GCompatible values are still reachable, because producing both encodings is how a
+                conformance question gets answered rather than argued — but a port generated with
+                them will not match this repository's vectors.
                 """);
         }
 
@@ -180,13 +200,40 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Codegen
             string                Language,
             string                Namespace,
             string                CodecClass,
-            string[]              Fragments)
+            string[]              Fragments,
+            DocumentElementOrder  DocOrder,
+            ParticleGrammar       Particles)
         {
+
+            /// <summary>
+            /// Parses one of the two grammar switches, and <b>refuses</b> a value it does not know.
+            /// <para>
+            /// The source generator's own reader deliberately falls back to its default for an
+            /// unrecognised value, because a misspelling in a csproj must not fail somebody's build.
+            /// Here the opposite is right: this tool is run by a script, on purpose, to produce files
+            /// that are checked in — and silently emitting the *other* wire format because a flag was
+            /// misspelt is precisely the failure this whole exercise exists to undo. The ports spent
+            /// nine days on the wrong grammar because nothing said which one they had.
+            /// </para>
+            /// </summary>
+            private static T Grammar<T>(string flag, string value) where T : struct, Enum =>
+                Enum.TryParse<T>(value, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed)
+                    ? parsed
+                    : throw new UsageException(
+                          $"{flag} '{value}' is not one of: " + string.Join(", ", Enum.GetNames<T>()));
+
             public static Options Parse(string[] args)
             {
                 var xsds       = new List<string>();
                 string? output = null, lang = null, ns = null, codec = null;
                 var fragments  = Array.Empty<string>();
+
+                // Defaulting to what this project decided on 2026-08-08, rather than to the library's
+                // cbexigen-compatible default. The only consumers of this tool are the three ports in
+                // this repository, and they must agree with the C# codecs beside them; a default that
+                // needs a flag to be correct is a default that will be forgotten.
+                var docOrder   = DocumentElementOrder.ExiSorted;
+                var particles  = ParticleGrammar.SchemaConformant;
 
                 for (var i = 0; i < args.Length; i++)
                 {
@@ -206,6 +253,12 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Codegen
                             fragments = Next("--fragments")
                                         .Split([',', ' '], StringSplitOptions.RemoveEmptyEntries);
                             break;
+                        case "--doc-order":
+                            docOrder  = Grammar<DocumentElementOrder>("--doc-order", Next("--doc-order"));
+                            break;
+                        case "--particles":
+                            particles = Grammar<ParticleGrammar>("--particles", Next("--particles"));
+                            break;
                         default:
                             throw new UsageException($"unexpected argument '{args[i]}'.");
                     }
@@ -224,7 +277,9 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Codegen
                     lang  ?? "csharp",
                     ns    ?? "Generated",
                     codec ?? "Codec",
-                    fragments);
+                    fragments,
+                    docOrder,
+                    particles);
             }
         }
     }
