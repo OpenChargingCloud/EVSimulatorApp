@@ -43,6 +43,29 @@ run() {                   # run <name> <command...>
 
 skip() { RESULT[$1]="SKIPPED — $2"; echo; echo "===== $1 ====="; echo "skipped: $2"; }
 
+# `swift test` is not to be trusted by its exit code alone. Measured on a macOS runner, 2026-08-16:
+# it returned 0 while its own output said `Executed 222 tests, with 13 failures` and
+# `Test Suite 'All tests' failed`. This gate went green over eight genuinely failing tests, which is
+# the same lie as an aborted `dotnet test` printing per-assembly "Bestanden!" lines — just one layer
+# further down. So the summary is read as well, and either signal fails the gate.
+swift_gate() {
+
+    local log; log=$(mktemp)
+
+    swift test --package-path swift 2>&1 | tee "$log"
+    local code=${PIPESTATUS[0]}
+
+    if grep -qE "Test Suite '.*' failed|with [1-9][0-9]* failures?" "$log"; then
+        echo
+        echo "port-gates: the Swift suite reported failures in its own output," \
+             "whatever 'swift test' returned (exit $code). Failing the gate on that."
+        code=1
+    fi
+
+    rm -f "$log"
+    return $code
+}
+
 if [ -f "$CORPUS" ]; then
     echo "corpus: found — the conformance repository is above this one"
 else
@@ -66,7 +89,7 @@ for gate in "${WANTED[@]}"; do
 
     swift)
         if command -v swift >/dev/null 2>&1
-            then run swift swift test --package-path swift
+            then run swift swift_gate
             else skip swift "no Swift toolchain on this machine (the gate needs macOS or a Linux Swift install)"
         fi ;;
 

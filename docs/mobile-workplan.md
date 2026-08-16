@@ -48,7 +48,7 @@ What the gates said on 2026-08-16, on Windows — before stage 1, and after:
 | `typescript/` | 34 green | **34 green** |
 | `capacitor/` | would not run — `@capacitor/core` not installed | **11 green** (the script installs) |
 | `kotlin/` | would not **configure** — Gradle 7.0.2 on the PATH against KGP 2.1.0, no wrapper checked in | runs, and is **red in five modules** — see stage 2a |
-| `swift/` | no toolchain on this platform | unchanged; skipped loudly, and CI runs it on macOS |
+| `swift/` | no toolchain here, so never run at all | CI runs it on macOS: **8 of 222 tests fail**, the same drift as Kotlin |
 
 Before stage 1 **neither repository had CI**. Kotlin and Swift had run by hand or not at all since
 2026-08-07, which is why nine days of drift went unseen — and why the first full run found it in
@@ -93,6 +93,16 @@ Two things had to be fixed to get there, and both were the instrument rather tha
   copies are now one blob with the right mode, and `.gitattributes` pins `gradlew` and `*.bat` so
   which line endings a file has stops depending on who committed it.
 
+And one that only the first real CI run could have shown, because no Swift toolchain exists on the
+machine this was written on:
+
+- **`swift test` exits 0 while its own suite fails.** Measured on the macOS runner: `Executed 222
+  tests, with 13 failures (2 unexpected)` and `Test Suite 'All tests' failed` — and a zero exit
+  status. The gate reported PASSED and the job went green over eight genuinely failing tests. That is
+  the same lie as an aborted `dotnet test` printing per-assembly "Bestanden!" lines, one layer
+  further down, and it landed in a script written specifically to refuse it. `port-gates.sh` now
+  reads the suite's own summary as well, and either signal fails the gate.
+
 **What the repaired instrument said, immediately:** the Kotlin gate is **red in five modules** — and
 that is stage 2's list, below, no longer a prediction.
 
@@ -109,12 +119,16 @@ constructs — ACDP's document-element numbering and WPT's mid-run particle gram
 vectors to match. The ports never received the change. `6ab05b8` the same day added six more vectors,
 for the four `minOccurs>=2` particles nothing had ever populated.
 
-| Red module | Corpus that moved |
-|---|---|
-| `exi-iso20-acdp` | `Iso15118_20.ACDP.vectors.json` — 6/8 round-trip |
-| `exi-iso20-acderiec` · `exi-iso20-acdersae` | the two AC DER corpora |
-| `exi-iso20-wpt`, and `v2g-dispatch`'s WPT frame | `Iso15118_20.WPT.vectors.json` |
-| `jsonld-agreement` | `JsonLd.documents.json` |
+| Red module | Corpus that moved | Kotlin | Swift |
+|---|---|---|---|
+| ACDP | `Iso15118_20.ACDP.vectors.json` | 6/8 round-trip | 2 of 8 vectors differ |
+| AC_DER_IEC | its corpus gained two vectors | 16/18 | anchored count 16, corpus has 18 |
+| AC_DER_SAE | same | 15/16 | disagrees with C# on bytes |
+| WPT | `Iso15118_20.WPT.vectors.json` | 8/16, and `v2g-dispatch`'s WPT frame | no WPT module — refused on principle |
+| JSON-LD | `JsonLd.documents.json` | 3 of 3 | 3 of 3, incl. `bitstreamExhausted` |
+
+**Swift carries the same defect**, which the first CI run on macOS showed — 8 of 222 tests, the same
+four corpora. TypeScript has no gate on these sets at all and should be assumed to carry it too.
 
 **Regenerating the ports today would not fix it, and that is the actual task.** The two switches are
 MSBuild properties — `ExiDocumentElementOrder`, `ExiParticleGrammar` — set in
@@ -122,8 +136,7 @@ MSBuild properties — `ExiDocumentElementOrder`, `ExiParticleGrammar` — set i
 `tools/EVSimulatorApp.Codegen` sits *above* that directory, so it inherits neither, and its command
 line has no flag for either: `--xsd --out --lang --namespace --codec --fragments`. So the work is, in
 order: **give the Codegen tool the two switches**, have the three `regenerate.sh` scripts pass them,
-regenerate, and watch the five modules go green. Swift and TypeScript carry the same defect and have
-no gate on this machine to say so.
+regenerate all three back ends, and watch the modules go green.
 
 ### 2b · The session drift, still to be provoked
 
