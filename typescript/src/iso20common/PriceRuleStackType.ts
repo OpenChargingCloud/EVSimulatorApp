@@ -41,7 +41,8 @@ export function encodePriceRuleStackType(w: BitWriter, msg: PriceRuleStackType):
         w.writeBits(0, i === 0 ? 1 : 2);   // SE(item)
         encodePriceRuleType(w, priceRuleList[i])
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if (priceRuleList.length >= 8) w.writeBits(0, 1)   // element EE (list at max)
+    else w.writeBits(1, 2)   // element EE
 }
 
 export function decodePriceRuleStackType(r: BitReader): PriceRuleStackType {
@@ -53,6 +54,7 @@ export function decodePriceRuleStackType(r: BitReader): PriceRuleStackType {
     r.readBits(1)   // SE(item) first
     priceRuleList.push(decodePriceRuleType(r));
     while (true) {
+        if (priceRuleList.length >= 8) { r.readBits(1); break }   // element EE (list at max)
         const ec = r.readBits(2)
         if (ec === 1) break;   // element EE
         if (!(ec === 0 && priceRuleList.length < 8)) throw ExiError.invalidEventCode("repeating element");

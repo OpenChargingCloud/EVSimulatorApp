@@ -34,7 +34,8 @@ internal func encodeTaxRuleListType(_ w: BitWriter, _ msg: TaxRuleListType) {
         w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)
         encodeTaxRuleType(w, item)
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if list.count >= 10 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodeTaxRuleListType(_ r: BitReader) throws -> TaxRuleListType {
@@ -42,6 +43,7 @@ internal func decodeTaxRuleListType(_ r: BitReader) throws -> TaxRuleListType {
     _ = try r.readBits(1)   // SE(item) first
     list.append(try decodeTaxRuleType(r))
     while true {
+        if list.count >= 10 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, list.count < 10 else {

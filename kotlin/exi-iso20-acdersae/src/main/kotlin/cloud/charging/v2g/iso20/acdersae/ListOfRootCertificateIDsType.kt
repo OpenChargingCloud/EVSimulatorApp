@@ -32,7 +32,8 @@ internal fun encodeListOfRootCertificateIDsType(w: BitWriter, msg: ListOfRootCer
         w.writeBits(0u, if (i == 0) 1 else 2)   // SE(item)
         encodeX509IssuerSerialType(w, list[i])
     }
-    w.writeBits(1u, 2)   // list terminator / element EE
+    if (list.size >= 20) w.writeBits(0u, 1)   // element EE (list at max)
+    else w.writeBits(1u, 2)   // element EE
 }
 
 internal fun decodeListOfRootCertificateIDsType(r: BitReader): ListOfRootCertificateIDsType {
@@ -40,6 +41,7 @@ internal fun decodeListOfRootCertificateIDsType(r: BitReader): ListOfRootCertifi
     r.readBits(1)   // SE(item) first
     list.add(decodeX509IssuerSerialType(r))
     while (true) {
+        if (list.size >= 20) { r.readBits(1); break }   // element EE (list at max)
         val ec = r.readBits(2)
         if (ec == 1u) break   // element EE
         require(ec == 0u && list.size < 20) { "invalid repeating-element event code" }

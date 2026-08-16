@@ -38,7 +38,8 @@ internal func encodeConsumptionCostType(_ w: BitWriter, _ msg: ConsumptionCostTy
         w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)
         encodeCostType(w, item)
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if costList.count >= 3 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodeConsumptionCostType(_ r: BitReader) throws -> ConsumptionCostType {
@@ -48,6 +49,7 @@ internal func decodeConsumptionCostType(_ r: BitReader) throws -> ConsumptionCos
     _ = try r.readBits(1)   // SE(item) first
     costList.append(try decodeCostType(r))
     while true {
+        if costList.count >= 3 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, costList.count < 3 else {

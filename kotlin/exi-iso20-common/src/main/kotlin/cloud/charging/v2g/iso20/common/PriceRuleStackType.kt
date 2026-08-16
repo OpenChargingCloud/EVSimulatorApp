@@ -38,7 +38,8 @@ internal fun encodePriceRuleStackType(w: BitWriter, msg: PriceRuleStackType) {
         w.writeBits(0u, if (i == 0) 1 else 2)   // SE(item)
         encodePriceRuleType(w, priceRuleList[i])
     }
-    w.writeBits(1u, 2)   // list terminator / element EE
+    if (priceRuleList.size >= 8) w.writeBits(0u, 1)   // element EE (list at max)
+    else w.writeBits(1u, 2)   // element EE
 }
 
 internal fun decodePriceRuleStackType(r: BitReader): PriceRuleStackType {
@@ -50,6 +51,7 @@ internal fun decodePriceRuleStackType(r: BitReader): PriceRuleStackType {
     r.readBits(1)   // SE(item) first
     priceRuleList.add(decodePriceRuleType(r))
     while (true) {
+        if (priceRuleList.size >= 8) { r.readBits(1); break }   // element EE (list at max)
         val ec = r.readBits(2)
         if (ec == 1u) break   // element EE
         require(ec == 0u && priceRuleList.size < 8) { "invalid repeating-element event code" }

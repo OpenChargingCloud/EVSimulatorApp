@@ -618,30 +618,54 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.SourceGenerator.Emit
             }
 
             /// <summary>
-            /// A repeating child: first item takes a 1-bit SE, every following item and the
-            /// terminator a 2-bit event code (item = 0, EE = 1). Mirrors the C# and Kotlin emitters.
+            /// How many occurrences of a repeating particle the grammar <b>forces</b> before it offers
+            /// any alternative: <c>minOccurs</c>, but never fewer than one. Mirrors
+            /// <c>CodecEmitter.ForcedOccurrences</c> and the Kotlin emitter — see either for the
+            /// finding. In Swift's sets this is <c>CurveDataPoint</c>, in both AC DER variants.
+            /// </summary>
+            private static int ForcedOccurrences(int listMin) => Math.Max(1, listMin);
+
+            /// <summary>The SE event-code width for occurrence <c>i</c>: one bit while the occurrence is
+            /// still forced, two once the state also offers a way out. Rendered as the original
+            /// <c>i == 0 ? 1 : 2</c> whenever only the first is forced, so every <c>minOccurs≤1</c>
+            /// particle generates exactly as before.</summary>
+            private static string SeWidthExpr(string index, int forced)
+                => forced <= 1 ? index + " == 0 ? 1 : 2"
+                               : index + " < " + forced + " ? 1 : 2";
+
+            private static string SeWidthComment(int forced)
+                => forced <= 1 ? "   // SE(item)"
+                               : "   // SE(item): 1-bit while forced (minOccurs=" + forced + "), 2-bit loop";
+
+            /// <summary>
+            /// A repeating child: one SE per item, narrow while the occurrence is forced and wide once
+            /// it is not. Mirrors the C# and Kotlin emitters.
             /// </summary>
             private void EmitEncodeRepeating(ChildPlan c, string list, int min, int max, string ind)
             {
+                int forced = ForcedOccurrences(min);
                 _sb.Append(ind).Append("precondition((").Append(min).Append("...").Append(max)
                    .Append(").contains(").Append(list).AppendLine(".count), \"list size out of schema range\")");
                 _sb.Append(ind).Append("for (i, item) in ").Append(list).AppendLine(".enumerated() {");
-                _sb.Append(ind).AppendLine("    w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)");
+                _sb.Append(ind).Append("    w.writeBits(0, ").Append(SeWidthExpr("i", forced)).Append(")")
+                   .AppendLine(SeWidthComment(forced));
                 EmitWriteFramedValue(c, "item", ind + "    ");
                 _sb.Append(ind).AppendLine("}");
                 EmitEncodeListTerminator(list, max, ind);
             }
 
             /// <summary>
-            /// At maxOccurs=2 a full list has no "another item" production left, so the grammar
-            /// closes it with the 1-bit element EE rather than the 2-bit terminator.
+            /// A list that has reached its <c>maxOccurs</c> is in a state whose only production is the
+            /// end-element, so the EE there is a 1-bit code; at any shorter length the state still
+            /// offers another item and the EE is the 2-bit loop code. Unbounded lists have no such
+            /// state. Written only for <c>maxOccurs=2</c> until 2026-08-16; it is the general rule.
             /// </summary>
             private void EmitEncodeListTerminator(string list, int max, string ind)
             {
-                if (max == 2)
+                if (max != int.MaxValue)
                 {
-                    _sb.Append(ind).Append("if ").Append(list)
-                       .AppendLine(".count >= 2 { w.writeBits(0, 1) }   // element EE (list at max)");
+                    _sb.Append(ind).Append("if ").Append(list).Append(".count >= ").Append(max)
+                       .AppendLine(" { w.writeBits(0, 1) }   // element EE (list at max)");
                     _sb.Append(ind).AppendLine("else { w.writeBits(1, 2) }   // element EE");
                     return;
                 }
@@ -974,8 +998,12 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.SourceGenerator.Emit
                 if (kids.Count == 1 && kids[0].Shape == ChildShape.BoundedRepeating)
                 {
                     var c   = kids[0];
+                    // Both bounds, derived exactly as EmitEncodeList derives them: a lone repeating
+                    // child carries its minOccurs on the SEQUENCE, not on the child. Taking only the
+                    // maximum here is what left the decoder blind to a forced second occurrence.
+                    var min = sp.ListMin > 0 ? sp.ListMin : Math.Max(1, c.ListMin);
                     var max = sp.ListMax > 0 ? sp.ListMax : c.ListMax;
-                    EmitDecodeRepeating(c, "list", max, "    ");
+                    EmitDecodeRepeating(c, "list", min, max, "    ");
                     _sb.Append("    return ").Append(name).Append("(").Append(Prop(c.FieldName)).AppendLine(": list)");
                     _sb.AppendLine("}");
                     _sb.AppendLine();
@@ -1034,7 +1062,7 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.SourceGenerator.Emit
 
                     if (c.Shape == ChildShape.BoundedRepeating && c.ListMin > 0 && i == kids.Count - 1)
                     {
-                        EmitDecodeRepeating(c, Camel(c.FieldName) + "List", c.ListMax, "    ");
+                        EmitDecodeRepeating(c, Camel(c.FieldName) + "List", Math.Max(1, c.ListMin), c.ListMax, "    ");
                         closed = true;
                         i++;
                         continue;
@@ -1138,20 +1166,29 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.SourceGenerator.Emit
             }
 
             /// <summary>
-            /// Reads a repeating child into <paramref name="list"/>. At maxOccurs=2 a full list has
+            /// Reads a repeating child into <paramref name="list"/>. A list at its <c>maxOccurs</c> has
             /// no "another item" production, so the grammar closes it with the 1-bit element EE —
-            /// reading the 2-bit terminator there would consume a bit that was never written.
+            /// reading the 2-bit terminator there would consume a bit that was never written. The
+            /// occurrences the grammar <i>forces</i> are unrolled ahead of the loop for the same
+            /// reason, one bit each: see <see cref="ForcedOccurrences"/>.
             /// </summary>
-            private void EmitDecodeRepeating(ChildPlan c, string list, int max, string ind)
+            private void EmitDecodeRepeating(ChildPlan c, string list, int min, int max, string ind)
             {
                 _sb.Append(ind).Append("var ").Append(list).Append(" = [").Append(Type(c.Type)).AppendLine("]()");
                 _sb.Append(ind).AppendLine("_ = try r.readBits(1)   // SE(item) first");
                 EmitDecodeItem(c, list, ind);
 
+                for (int f = 1; f < ForcedOccurrences(min); f++)
+                {
+                    _sb.Append(ind).Append("_ = try r.readBits(1)   // SE(item): forced by minOccurs=")
+                       .Append(min).AppendLine();
+                    EmitDecodeItem(c, list, ind);
+                }
+
                 _sb.Append(ind).AppendLine("while true {");
-                if (max == 2)
-                    _sb.Append(ind).Append("    if ").Append(list)
-                       .AppendLine(".count >= 2 { _ = try r.readBits(1); break }   // element EE (list at max)");
+                if (max != int.MaxValue)
+                    _sb.Append(ind).Append("    if ").Append(list).Append(".count >= ").Append(max)
+                       .AppendLine(" { _ = try r.readBits(1); break }   // element EE (list at max)");
                 _sb.Append(ind).AppendLine("    let ec = try r.readBits(2)");
                 _sb.Append(ind).AppendLine("    if ec == 1 { break }   // element EE");
                 _sb.Append(ind).Append("    guard ec == 0, ").Append(list).Append(".count < ").Append(max).AppendLine(" else {");

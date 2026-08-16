@@ -34,7 +34,8 @@ internal func encodeScheduled_SEResControlModeType(_ w: BitWriter, _ msg: Schedu
         w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)
         encodeScheduleTupleType(w, item)
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if list.count >= 3 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodeScheduled_SEResControlModeType(_ r: BitReader) throws -> Scheduled_SEResControlModeType {
@@ -42,6 +43,7 @@ internal func decodeScheduled_SEResControlModeType(_ r: BitReader) throws -> Sch
     _ = try r.readBits(1)   // SE(item) first
     list.append(try decodeScheduleTupleType(r))
     while true {
+        if list.count >= 3 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, list.count < 3 else {

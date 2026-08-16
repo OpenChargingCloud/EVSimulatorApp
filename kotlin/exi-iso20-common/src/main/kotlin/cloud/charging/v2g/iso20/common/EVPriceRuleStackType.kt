@@ -38,7 +38,8 @@ internal fun encodeEVPriceRuleStackType(w: BitWriter, msg: EVPriceRuleStackType)
         w.writeBits(0u, if (i == 0) 1 else 2)   // SE(item)
         encodeEVPriceRuleType(w, eVPriceRuleList[i])
     }
-    w.writeBits(1u, 2)   // list terminator / element EE
+    if (eVPriceRuleList.size >= 8) w.writeBits(0u, 1)   // element EE (list at max)
+    else w.writeBits(1u, 2)   // element EE
 }
 
 internal fun decodeEVPriceRuleStackType(r: BitReader): EVPriceRuleStackType {
@@ -50,6 +51,7 @@ internal fun decodeEVPriceRuleStackType(r: BitReader): EVPriceRuleStackType {
     r.readBits(1)   // SE(item) first
     eVPriceRuleList.add(decodeEVPriceRuleType(r))
     while (true) {
+        if (eVPriceRuleList.size >= 8) { r.readBits(1); break }   // element EE (list at max)
         val ec = r.readBits(2)
         if (ec == 1u) break   // element EE
         require(ec == 0u && eVPriceRuleList.size < 8) { "invalid repeating-element event code" }

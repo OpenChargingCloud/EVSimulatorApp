@@ -143,28 +143,51 @@ The two switches are not symmetric, and nothing had said so:
 `CodecEmitter.cs`. So for Kotlin, Swift and TypeScript the flag is accepted and ignored — which is
 why WPT sat at 8/16 before the switch and sits at 8/16 after it.
 
-### 2a-ii · Two emitter-side rules the ports do not implement
+### 2a-ii · The forced-occurrence rule — **done 2026-08-16**
 
-The rest of the red is emitter work, not regeneration, and it is two rules rather than one — both
-living in `WWCP_ISO15118_EXI_SourceGenerator/Emit/CodecEmitter.cs`, **which emits C#**.
+Ported into all three emitters, and the AC DER corpora are byte-exact:
 
-1. **The WPT mid-run particle grammar** — `plan.ParticleGrammar`, above. The port emitters never read
-   it.
-2. **The forced-occurrence width.** `e86277d` (2026-08-08), *"A forced occurrence is not a choice:
-   minOccurs≥2 narrows the SE code"*, changed 134 lines of that same file: the SE width while an
-   occurrence is still forced, the list terminator for any bounded `maxOccurs` rather than only 2,
-   its decode counterpart, the minimum-count check, and a refusal to generate the one combination
-   nothing has verified. This is what the AC DER corpora exercise.
+| Corpus | Before | After |
+|---|---|---|
+| AC_DER_IEC | 16/18 | **18/18** ✅ |
+| AC_DER_SAE | 15/16 | **16/16** ✅ |
 
-The Kotlin, Swift and TypeScript emitters live here, in `tools/EVSimulatorApp.Codegen/Emit/`, at
-roughly 2 400, 1 900 and 2 700 lines, each carrying its own copy of the emission logic. The Codegen
-csproj names the cost out loud already: *"CodecEmitter is the base class all four back ends
-specialise, and it stays on the other side of the submodule boundary. A change to it is a change to
-two repositories."* Two such changes were made on one side only.
+**The bug was not where the diff was.** Fixing the encode side changed 45 generated files and moved
+*nothing*: the encoder had been writing the narrow SE correctly within a minute of the change, and
+the decoder still read a 2-bit code where its own encoder had just written a 1-bit one. The reason
+was a parameter that was never passed — a lone repeating child carries `minOccurs` on the
+**sequence**, not on the child, and `EmitDecodeRepeating` took only the maximum:
 
-So the task is: implement both rules in the three port emitters, regenerate, and hold the result to
-the same vectors — with the `minOccurs≥2` particles as the oracle, since that is what `6ab05b8`
-recorded them for.
+```
+EmitDecodeRepeating(c, "list", ListBounds(c, sp).Max, "        ");   // Min silently dropped
+```
+
+Both bounds now come from the same place the encode side takes them, in all three emitters, and the
+forced occurrences are unrolled ahead of the loop rather than looped — each has the single production
+`SE(item)`, so its code is one bit and there is nothing to branch on.
+
+TypeScript carries the rule and changes no byte: none of its sets has a `minOccurs≥2` particle, since
+all five in ISO 15118 sit in WPT and the two AC DER sets. It is carried anyway — three emitters
+implementing the same grammar differently is how the ports drifted in the first place.
+
+### 2a-iii · The WPT particle grammar, still to port
+
+**WPT is 8/16, and it is the one rule left.** `plan.ParticleGrammar` is carried on the plan and read
+by `Emit/CodecEmitter.cs` alone. Where that file branches between
+`EmitEncodeOptionalRunWithMidListSchema` and `...WithMidList` — and between the decode pair beside
+them — the Kotlin emitter has a single `EmitEncodeMidRunList` / `EmitDecodeMidRunList`, which is the
+cbexigen-compatible one.
+
+So the task is to add the schema-conformant variant beside it and branch on `ParticleGrammar`. The C#
+original is about 35 lines per direction and *simpler* than the one already there, because it is one
+grammar state rather than three.
+
+**Kotlin only.** Swift has no WPT module — refused on principle, because `WPT_LF_TransmitterDataType`
+is the construct cbexigen's own encoder cannot represent, so there is no oracle — and TypeScript has
+neither WPT nor ACDP nor the DER sets. That also makes the last red module the one language whose
+gate runs on Linux, so CI judges it directly.
+
+The three `jsonld-agreement` failures and `v2g-dispatch`'s WPT frame ride on the same rule.
 
 ### What is still red, measured 2026-08-16 after 2a-i
 
@@ -278,12 +301,13 @@ declined.
 |---|---|---|
 | 1 · instrument | everything | **done 2026-08-16** |
 | 2a-i · grammar switches | 2a-ii | **done 2026-08-16** |
-| 2a-ii · forced-occurrence emitters | a green gate, and every claim made from one | nothing — diagnosed and sized |
+| 2a-ii · forced-occurrence rule | AC DER agreement | **done 2026-08-16** |
+| 2a-iii · WPT particle grammar | a green gate, and every claim made from one | nothing — Kotlin only, ~35 lines per direction |
 | 2b · session corpus | 3, and Resume specifically | nothing |
 | 3 · state machines | — | 2b |
 | 4 · TLS | shipping anything that claims conformance | its own measurement, which needs nothing |
 | 5 · discovery + shell | — | 4 for the iOS entitlement timing |
 
-**2a-ii is the one to take next**, and it is the last thing between the gate and green. It needs
+**2a-iii is the one to take next**, and it is the last thing between the gate and green. It needs
 nobody's permission and nothing else first — as does stage 4's measurement, still the one item that
 could change the shape of the rest.

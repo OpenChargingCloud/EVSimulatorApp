@@ -35,7 +35,8 @@ internal fun encodeEMAIDListType(w: BitWriter, msg: EMAIDListType) {
         ExiPrimitives.writeStringValue(w, list[i])
         w.writeBits(0u, 1)   // child EE
     }
-    w.writeBits(1u, 2)   // list terminator / element EE
+    if (list.size >= 8) w.writeBits(0u, 1)   // element EE (list at max)
+    else w.writeBits(1u, 2)   // element EE
 }
 
 internal fun decodeEMAIDListType(r: BitReader): EMAIDListType {
@@ -46,6 +47,7 @@ internal fun decodeEMAIDListType(r: BitReader): EMAIDListType {
     r.readBits(1)   // child EE
     list.add(listFirst)
     while (true) {
+        if (list.size >= 8) { r.readBits(1); break }   // element EE (list at max)
         val ec = r.readBits(2)
         if (ec == 1u) break   // element EE
         require(ec == 0u && list.size < 8) { "invalid repeating-element event code" }

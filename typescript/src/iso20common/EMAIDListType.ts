@@ -36,7 +36,8 @@ export function encodeEMAIDListType(w: BitWriter, msg: EMAIDListType): void {
         ExiPrimitives.writeStringValue(w, list[i])
         w.writeBits(0, 1)   // child EE
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if (list.length >= 8) w.writeBits(0, 1)   // element EE (list at max)
+    else w.writeBits(1, 2)   // element EE
 }
 
 export function decodeEMAIDListType(r: BitReader): EMAIDListType {
@@ -47,6 +48,7 @@ export function decodeEMAIDListType(r: BitReader): EMAIDListType {
     r.readBits(1)   // child EE
     list.push(listFirst);
     while (true) {
+        if (list.length >= 8) { r.readBits(1); break }   // element EE (list at max)
         const ec = r.readBits(2)
         if (ec === 1) break;   // element EE
         if (!(ec === 0 && list.length < 8)) throw ExiError.invalidEventCode("repeating element");
