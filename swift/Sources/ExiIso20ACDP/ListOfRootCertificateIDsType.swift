@@ -34,7 +34,8 @@ internal func encodeListOfRootCertificateIDsType(_ w: BitWriter, _ msg: ListOfRo
         w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)
         encodeX509IssuerSerialType(w, item)
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if list.count >= 20 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodeListOfRootCertificateIDsType(_ r: BitReader) throws -> ListOfRootCertificateIDsType {
@@ -42,6 +43,7 @@ internal func decodeListOfRootCertificateIDsType(_ r: BitReader) throws -> ListO
     _ = try r.readBits(1)   // SE(item) first
     list.append(try decodeX509IssuerSerialType(r))
     while true {
+        if list.count >= 20 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, list.count < 20 else {

@@ -41,7 +41,8 @@ export function encodeParameterSetType(w: BitWriter, msg: ParameterSetType): voi
         w.writeBits(0, i === 0 ? 1 : 2);   // SE(item)
         encodeParameterType(w, parameterList[i])
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if (parameterList.length >= 32) w.writeBits(0, 1)   // element EE (list at max)
+    else w.writeBits(1, 2)   // element EE
 }
 
 export function decodeParameterSetType(r: BitReader): ParameterSetType {
@@ -53,6 +54,7 @@ export function decodeParameterSetType(r: BitReader): ParameterSetType {
     r.readBits(1)   // SE(item) first
     parameterList.push(decodeParameterType(r));
     while (true) {
+        if (parameterList.length >= 32) { r.readBits(1); break }   // element EE (list at max)
         const ec = r.readBits(2)
         if (ec === 1) break;   // element EE
         if (!(ec === 0 && parameterList.length < 32)) throw ExiError.invalidEventCode("repeating element");

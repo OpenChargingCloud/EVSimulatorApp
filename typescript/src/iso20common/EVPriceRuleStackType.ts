@@ -41,7 +41,8 @@ export function encodeEVPriceRuleStackType(w: BitWriter, msg: EVPriceRuleStackTy
         w.writeBits(0, i === 0 ? 1 : 2);   // SE(item)
         encodeEVPriceRuleType(w, eVPriceRuleList[i])
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if (eVPriceRuleList.length >= 8) w.writeBits(0, 1)   // element EE (list at max)
+    else w.writeBits(1, 2)   // element EE
 }
 
 export function decodeEVPriceRuleStackType(r: BitReader): EVPriceRuleStackType {
@@ -53,6 +54,7 @@ export function decodeEVPriceRuleStackType(r: BitReader): EVPriceRuleStackType {
     r.readBits(1)   // SE(item) first
     eVPriceRuleList.push(decodeEVPriceRuleType(r));
     while (true) {
+        if (eVPriceRuleList.length >= 8) { r.readBits(1); break }   // element EE (list at max)
         const ec = r.readBits(2)
         if (ec === 1) break;   // element EE
         if (!(ec === 0 && eVPriceRuleList.length < 8)) throw ExiError.invalidEventCode("repeating element");

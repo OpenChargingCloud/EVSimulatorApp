@@ -37,7 +37,8 @@ export function encodeSupportedEnergyTransferModeType(w: BitWriter, msg: Support
         w.writeBits(list[i], 3)
         w.writeBits(0, 1)   // child EE
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if (list.length >= 6) w.writeBits(0, 1)   // element EE (list at max)
+    else w.writeBits(1, 2)   // element EE
 }
 
 export function decodeSupportedEnergyTransferModeType(r: BitReader): SupportedEnergyTransferModeType {
@@ -48,6 +49,7 @@ export function decodeSupportedEnergyTransferModeType(r: BitReader): SupportedEn
     r.readBits(1)   // child EE
     list.push(listFirst);
     while (true) {
+        if (list.length >= 6) { r.readBits(1); break }   // element EE (list at max)
         const ec = r.readBits(2)
         if (ec === 1) break;   // element EE
         if (!(ec === 0 && list.length < 6)) throw ExiError.invalidEventCode("repeating element");

@@ -31,17 +31,21 @@ internal func encodeCurveDataPointsListType(_ w: BitWriter, _ msg: CurveDataPoin
     let list = msg.curveDataPoint
     precondition((2...10).contains(list.count), "list size out of schema range")
     for (i, item) in list.enumerated() {
-        w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)
+        w.writeBits(0, i < 2 ? 1 : 2)   // SE(item): 1-bit while forced (minOccurs=2), 2-bit loop
         encodeDataTupleType(w, item)
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if list.count >= 10 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodeCurveDataPointsListType(_ r: BitReader) throws -> CurveDataPointsListType {
     var list = [DataTupleType]()
     _ = try r.readBits(1)   // SE(item) first
     list.append(try decodeDataTupleType(r))
+    _ = try r.readBits(1)   // SE(item): forced by minOccurs=2
+    list.append(try decodeDataTupleType(r))
     while true {
+        if list.count >= 10 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, list.count < 10 else {

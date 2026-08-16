@@ -36,7 +36,8 @@ internal func encodeServiceIDListType(_ w: BitWriter, _ msg: ServiceIDListType) 
         ExiPrimitives.writeUnsignedInteger(w, UInt64(item))
         w.writeBits(0, 1)   // child EE
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if list.count >= 16 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodeServiceIDListType(_ r: BitReader) throws -> ServiceIDListType {
@@ -47,6 +48,7 @@ internal func decodeServiceIDListType(_ r: BitReader) throws -> ServiceIDListTyp
     _ = try r.readBits(1)   // child EE
     list.append(item)
     while true {
+        if list.count >= 16 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, list.count < 16 else {

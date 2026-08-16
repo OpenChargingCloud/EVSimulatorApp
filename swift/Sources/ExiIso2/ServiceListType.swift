@@ -34,7 +34,8 @@ internal func encodeServiceListType(_ w: BitWriter, _ msg: ServiceListType) {
         w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)
         encodeServiceType(w, item)
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if list.count >= 8 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodeServiceListType(_ r: BitReader) throws -> ServiceListType {
@@ -42,6 +43,7 @@ internal func decodeServiceListType(_ r: BitReader) throws -> ServiceListType {
     _ = try r.readBits(1)   // SE(item) first
     list.append(try decodeServiceType(r))
     while true {
+        if list.count >= 8 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, list.count < 8 else {

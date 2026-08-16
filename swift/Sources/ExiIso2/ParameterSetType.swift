@@ -40,7 +40,8 @@ internal func encodeParameterSetType(_ w: BitWriter, _ msg: ParameterSetType) {
         w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)
         encodeParameterType(w, item)
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if parameterList.count >= 16 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodeParameterSetType(_ r: BitReader) throws -> ParameterSetType {
@@ -52,6 +53,7 @@ internal func decodeParameterSetType(_ r: BitReader) throws -> ParameterSetType 
     _ = try r.readBits(1)   // SE(item) first
     parameterList.append(try decodeParameterType(r))
     while true {
+        if parameterList.count >= 16 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, parameterList.count < 16 else {

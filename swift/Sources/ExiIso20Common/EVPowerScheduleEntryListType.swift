@@ -34,7 +34,8 @@ internal func encodeEVPowerScheduleEntryListType(_ w: BitWriter, _ msg: EVPowerS
         w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)
         encodeEVPowerScheduleEntryType(w, item)
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if list.count >= 1024 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodeEVPowerScheduleEntryListType(_ r: BitReader) throws -> EVPowerScheduleEntryListType {
@@ -42,6 +43,7 @@ internal func decodeEVPowerScheduleEntryListType(_ r: BitReader) throws -> EVPow
     _ = try r.readBits(1)   // SE(item) first
     list.append(try decodeEVPowerScheduleEntryType(r))
     while true {
+        if list.count >= 1024 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, list.count < 1024 else {

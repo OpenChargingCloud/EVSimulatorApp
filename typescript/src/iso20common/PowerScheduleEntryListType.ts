@@ -35,7 +35,8 @@ export function encodePowerScheduleEntryListType(w: BitWriter, msg: PowerSchedul
         w.writeBits(0, i === 0 ? 1 : 2);   // SE(item)
         encodePowerScheduleEntryType(w, list[i])
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if (list.length >= 1024) w.writeBits(0, 1)   // element EE (list at max)
+    else w.writeBits(1, 2)   // element EE
 }
 
 export function decodePowerScheduleEntryListType(r: BitReader): PowerScheduleEntryListType {
@@ -43,6 +44,7 @@ export function decodePowerScheduleEntryListType(r: BitReader): PowerScheduleEnt
     r.readBits(1)   // SE(item) first
     list.push(decodePowerScheduleEntryType(r));
     while (true) {
+        if (list.length >= 1024) { r.readBits(1); break }   // element EE (list at max)
         const ec = r.readBits(2)
         if (ec === 1) break;   // element EE
         if (!(ec === 0 && list.length < 1024)) throw ExiError.invalidEventCode("repeating element");

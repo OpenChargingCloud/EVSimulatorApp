@@ -34,10 +34,11 @@ internal fun encodeWPT_LF_ReceiverDataType(w: BitWriter, msg: WPT_LF_ReceiverDat
     val rxSpecDataList = msg.rxSpecData
     require(rxSpecDataList.size in 2..255) { "list size out of schema range" }
     for (i in rxSpecDataList.indices) {
-        w.writeBits(0u, if (i == 0) 1 else 2)   // SE(item)
+        w.writeBits(0u, if (i < 2) 1 else 2)   // SE(item): 1-bit while forced (minOccurs=2), 2-bit loop
         encodeWPT_TxRxSpecDataType(w, rxSpecDataList[i])
     }
-    w.writeBits(1u, 2)   // list terminator / element EE
+    if (rxSpecDataList.size >= 255) w.writeBits(0u, 1)   // element EE (list at max)
+    else w.writeBits(1u, 2)   // element EE
 }
 
 internal fun decodeWPT_LF_ReceiverDataType(r: BitReader): WPT_LF_ReceiverDataType {
@@ -48,7 +49,10 @@ internal fun decodeWPT_LF_ReceiverDataType(r: BitReader): WPT_LF_ReceiverDataTyp
     val rxSpecDataList = ArrayList<WPT_TxRxSpecDataType>()
     r.readBits(1)   // SE(item) first
     rxSpecDataList.add(decodeWPT_TxRxSpecDataType(r))
+    r.readBits(1)   // SE(item): forced by minOccurs=2
+    rxSpecDataList.add(decodeWPT_TxRxSpecDataType(r))
     while (true) {
+        if (rxSpecDataList.size >= 255) { r.readBits(1); break }   // element EE (list at max)
         val ec = r.readBits(2)
         if (ec == 1u) break   // element EE
         require(ec == 0u && rxSpecDataList.size < 255) { "invalid repeating-element event code" }

@@ -40,7 +40,8 @@ internal func encodePriceRuleStackType(_ w: BitWriter, _ msg: PriceRuleStackType
         w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)
         encodePriceRuleType(w, item)
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if priceRuleList.count >= 8 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodePriceRuleStackType(_ r: BitReader) throws -> PriceRuleStackType {
@@ -52,6 +53,7 @@ internal func decodePriceRuleStackType(_ r: BitReader) throws -> PriceRuleStackT
     _ = try r.readBits(1)   // SE(item) first
     priceRuleList.append(try decodePriceRuleType(r))
     while true {
+        if priceRuleList.count >= 8 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, priceRuleList.count < 8 else {

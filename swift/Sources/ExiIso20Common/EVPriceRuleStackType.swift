@@ -40,7 +40,8 @@ internal func encodeEVPriceRuleStackType(_ w: BitWriter, _ msg: EVPriceRuleStack
         w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)
         encodeEVPriceRuleType(w, item)
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if eVPriceRuleList.count >= 8 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodeEVPriceRuleStackType(_ r: BitReader) throws -> EVPriceRuleStackType {
@@ -52,6 +53,7 @@ internal func decodeEVPriceRuleStackType(_ r: BitReader) throws -> EVPriceRuleSt
     _ = try r.readBits(1)   // SE(item) first
     eVPriceRuleList.append(try decodeEVPriceRuleType(r))
     while true {
+        if eVPriceRuleList.count >= 8 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, eVPriceRuleList.count < 8 else {

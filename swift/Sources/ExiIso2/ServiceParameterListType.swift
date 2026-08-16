@@ -34,7 +34,8 @@ internal func encodeServiceParameterListType(_ w: BitWriter, _ msg: ServiceParam
         w.writeBits(0, i == 0 ? 1 : 2)   // SE(item)
         encodeParameterSetType(w, item)
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if list.count >= 255 { w.writeBits(0, 1) }   // element EE (list at max)
+    else { w.writeBits(1, 2) }   // element EE
 }
 
 internal func decodeServiceParameterListType(_ r: BitReader) throws -> ServiceParameterListType {
@@ -42,6 +43,7 @@ internal func decodeServiceParameterListType(_ r: BitReader) throws -> ServicePa
     _ = try r.readBits(1)   // SE(item) first
     list.append(try decodeParameterSetType(r))
     while true {
+        if list.count >= 255 { _ = try r.readBits(1); break }   // element EE (list at max)
         let ec = try r.readBits(2)
         if ec == 1 { break }   // element EE
         guard ec == 0, list.count < 255 else {

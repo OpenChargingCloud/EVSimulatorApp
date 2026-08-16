@@ -38,7 +38,8 @@ internal fun encodeParameterSetType(w: BitWriter, msg: ParameterSetType) {
         w.writeBits(0u, if (i == 0) 1 else 2)   // SE(item)
         encodeParameterType(w, parameterList[i])
     }
-    w.writeBits(1u, 2)   // list terminator / element EE
+    if (parameterList.size >= 16) w.writeBits(0u, 1)   // element EE (list at max)
+    else w.writeBits(1u, 2)   // element EE
 }
 
 internal fun decodeParameterSetType(r: BitReader): ParameterSetType {
@@ -50,6 +51,7 @@ internal fun decodeParameterSetType(r: BitReader): ParameterSetType {
     r.readBits(1)   // SE(item) first
     parameterList.add(decodeParameterType(r))
     while (true) {
+        if (parameterList.size >= 16) { r.readBits(1); break }   // element EE (list at max)
         val ec = r.readBits(2)
         if (ec == 1u) break   // element EE
         require(ec == 0u && parameterList.size < 16) { "invalid repeating-element event code" }

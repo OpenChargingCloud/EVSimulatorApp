@@ -35,7 +35,8 @@ export function encodeSelectedServiceListType(w: BitWriter, msg: SelectedService
         w.writeBits(0, i === 0 ? 1 : 2);   // SE(item)
         encodeSelectedServiceType(w, list[i])
     }
-    w.writeBits(1, 2)   // list terminator / element EE
+    if (list.length >= 16) w.writeBits(0, 1)   // element EE (list at max)
+    else w.writeBits(1, 2)   // element EE
 }
 
 export function decodeSelectedServiceListType(r: BitReader): SelectedServiceListType {
@@ -43,6 +44,7 @@ export function decodeSelectedServiceListType(r: BitReader): SelectedServiceList
     r.readBits(1)   // SE(item) first
     list.push(decodeSelectedServiceType(r));
     while (true) {
+        if (list.length >= 16) { r.readBits(1); break }   // element EE (list at max)
         const ec = r.readBits(2)
         if (ec === 1) break;   // element EE
         if (!(ec === 0 && list.length < 16)) throw ExiError.invalidEventCode("repeating element");

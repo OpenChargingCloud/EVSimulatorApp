@@ -29,17 +29,21 @@ internal fun encodeCurveDataPointsListType(w: BitWriter, msg: CurveDataPointsLis
     val list = msg.curveDataPoint
     require(list.size in 2..10) { "list size out of schema range" }
     for (i in list.indices) {
-        w.writeBits(0u, if (i == 0) 1 else 2)   // SE(item)
+        w.writeBits(0u, if (i < 2) 1 else 2)   // SE(item): 1-bit while forced (minOccurs=2), 2-bit loop
         encodeDataTupleType(w, list[i])
     }
-    w.writeBits(1u, 2)   // list terminator / element EE
+    if (list.size >= 10) w.writeBits(0u, 1)   // element EE (list at max)
+    else w.writeBits(1u, 2)   // element EE
 }
 
 internal fun decodeCurveDataPointsListType(r: BitReader): CurveDataPointsListType {
     val list = ArrayList<DataTupleType>()
     r.readBits(1)   // SE(item) first
     list.add(decodeDataTupleType(r))
+    r.readBits(1)   // SE(item): forced by minOccurs=2
+    list.add(decodeDataTupleType(r))
     while (true) {
+        if (list.size >= 10) { r.readBits(1); break }   // element EE (list at max)
         val ec = r.readBits(2)
         if (ec == 1u) break   // element EE
         require(ec == 0u && list.size < 10) { "invalid repeating-element event code" }
