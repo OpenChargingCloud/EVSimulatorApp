@@ -1,0 +1,74 @@
+# The port gates: the suites that hold the Kotlin, Swift and TypeScript back ends to the C# side.
+#
+# Why two checkouts. Five Kotlin modules and five Swift test targets read their corpus from
+# `../../ISO15118ConformanceTests.Simulation/Vectors/` — the conformance repository, the parent that
+# carries this one as a submodule. A checkout of EVSimulatorApp on its own cannot pass them, so the
+# workflow lays out the tree the tests expect: the parent first, then this commit in the place the
+# parent's gitlink points at. Only the corpus is taken from the parent; nothing of its code is built.
+#
+# What is deliberately absent: `dotnet test`. The C# build runs its source generators over the ISO
+# schemas, which are ISO's and are not redistributed — a fresh clone fetches them with
+# download-schemas.sh, and running that is a person accepting a licence. That gate lives with the
+# conformance repository and its maintainer, not in an automated run here. None of the gates below
+# needs a schema: every codec is generated and checked in, and so are the vectors.
+
+name: Port gates
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+
+  jvm-and-node:
+    name: Kotlin · TypeScript · Capacitor · app
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Check out the conformance repository (it carries the session corpus)
+        uses: actions/checkout@v4
+        with:
+          repository: OpenChargingCloud/ISO15118ConformanceTests
+          path: harness
+
+      - name: Check out this commit where the harness expects it
+        uses: actions/checkout@v4
+        with:
+          path: harness/libs/EVSimulatorApp
+          submodules: recursive          # WWCP_ISO15118 holds the codec vectors
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      # The npm test scripts run `node --test` over .ts sources with no flag, so the floor is a Node
+      # that strips types unflagged rather than the 22.6 that first offered it behind one.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - run: bash tools/port-gates.sh kotlin typescript capacitor app
+        working-directory: harness/libs/EVSimulatorApp
+
+  swift:
+    name: Swift
+    runs-on: macos-latest
+    steps:
+
+      - name: Check out the conformance repository (it carries the session corpus)
+        uses: actions/checkout@v4
+        with:
+          repository: OpenChargingCloud/ISO15118ConformanceTests
+          path: harness
+
+      - name: Check out this commit where the harness expects it
+        uses: actions/checkout@v4
+        with:
+          path: harness/libs/EVSimulatorApp
+          submodules: recursive
+
+      - run: bash tools/port-gates.sh swift
+        working-directory: harness/libs/EVSimulatorApp

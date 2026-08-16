@@ -2,3 +2,16 @@
 # them at the first line ("$'\r': command not found"), and core.autocrlf on a Windows checkout
 # would introduce it silently. Pin them to LF regardless.
 *.sh text eol=lf
+
+# The Gradle wrapper is the same pair of scripts three times over (kotlin/, capacitor/android/,
+# shell/android/), and it had been stored three different ways — the two Android copies with CRLF
+# in the blob, a fresh `git add` of the very same bytes with LF, because nothing here covered a file
+# called `gradlew` or a `.bat`. Which line endings a file has should not depend on who committed it,
+# so both are pinned and the existing copies were renormalised onto the rule: all three are now one
+# blob. `gradlew` is a shell script that happens to have no extension; the `.bat` is for cmd.exe,
+# the one interpreter that genuinely wants CRLF in the working tree.
+gradlew  text eol=lf
+*.bat    text eol=crlf
+
+# The wrapper jar is binary — never touched by any of the above, and stated rather than assumed.
+*.jar binary
