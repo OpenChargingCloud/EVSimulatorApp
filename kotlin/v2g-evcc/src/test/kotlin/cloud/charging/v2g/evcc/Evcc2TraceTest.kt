@@ -25,7 +25,7 @@ import cloud.charging.v2g.tp.V2GTPDispatcher
  */
 class Evcc2TraceTest {
 
-    private fun replay(name: String, mode: PowerMode): TraceReplay {
+    private fun replay(name: String, mode: PowerMode, configure: (Evcc2) -> Unit = { }): TraceReplay {
 
         val trace  = SessionTrace.load(name)
         val replay = TraceReplay(trace)
@@ -34,7 +34,7 @@ class Evcc2TraceTest {
         // No wall-clock waiting: the poll loops are driven by the recorded responses, and a real
         // delay here would only make the suite slower, never more truthful.
         SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_2, mode)
-        Evcc2(stream, mode, pollDelay = { }).run()
+        Evcc2(stream, mode, pollDelay = { }).also(configure).run()
 
         return replay
     }
@@ -53,6 +53,36 @@ class Evcc2TraceTest {
         assertTrue(replay.complete,
             "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
             "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /**
+     * Recorded 2026-08-16, and this port is expected to fail it until the battery is ported.
+     *
+     * Every other recording here charges for a fixed count of cycles; this one charges until the
+     * battery reaches its target state of charge, which is what the C# car has done since
+     * 2026-08-08. A port without a battery model ends the loop somewhere else, and that difference
+     * is the point of the recording — it is the drift stated as a failure rather than as prose.
+     * See `../../docs/mobile-workplan.md`, stage 2b.
+     */
+    @Test
+    fun theDcSessionWithABatteryMatchesTheRecordingByteForByte() {
+        val replay = replay("iso2-dc-eim-battery", PowerMode.Dc)
+        assertTrue(replay.complete,
+            "the session stopped after ${replay.replayed} recorded exchanges — the recorded car " +
+            "charges to a target state of charge, this one to a cycle count")
+    }
+
+    /**
+     * Recorded 2026-08-16. Renegotiation ([V2G2-841]) is ported, but on DC it returns through
+     * CableCheck and PreCharge rather than straight back to the charge loop, and nothing had ever
+     * held this port to that return path.
+     */
+    @Test
+    fun theDcRenegotiationMatchesTheRecordingByteForByte() {
+        val replay = replay("iso2-dc-eim-renegotiate", PowerMode.Dc) { it.renegotiate = true }
+        assertTrue(replay.complete,
+            "the session stopped after ${replay.replayed} recorded exchanges — the DC return path " +
+            "through CableCheck and PreCharge is where to look")
     }
 
     /**
