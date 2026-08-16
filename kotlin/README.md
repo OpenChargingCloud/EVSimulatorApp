@@ -45,11 +45,31 @@ DEX file's 64k method limit all at once), and made the smallest schema change re
 | `v2g-session` | The live runner: a socket to a station (TLS pinned to the pairing code's root), the state machines above it, and a bridge event for every frame. Held to the same recordings, reached through a real socket. |
 
 ```bash
-gradle -p kotlin test --rerun-tasks
+cd kotlin && ./gradlew test --rerun-tasks --continue
 ```
 
+Or through [`tools/port-gates.sh`](../tools/port-gates.sh), which runs this and the other back ends'
+gates with one definition of what "the gates" are:
+
+```bash
+bash tools/port-gates.sh kotlin
+```
+
+**Use the wrapper, not a `gradle` on the PATH.** The build pins the Kotlin plugin at 2.1.0, which
+needs a Gradle far newer than several still in circulation, and until 2026-08-16 nothing here said
+which — a machine carrying 7.0.2 got a plugin-isolation error naming neither version. The wrapper is
+the same 8.14.3 one `capacitor/android` and `shell/android` already carried, byte for byte.
+
 `--rerun-tasks` matters: Gradle caches the `test` task and will report `BUILD SUCCESSFUL`
-without having run anything.
+without having run anything. `--continue` matters for a different reason: without it Gradle stops at
+the first failing module, so one red module hides whatever the other nineteen would have said.
+
+**Five modules read their corpus from the conformance repository** — `v2g-evcc`, `v2g-session`,
+`v2g-certificates`, `v2g-metering` and `v2g-bridge` load `Session.*.trace.json`,
+`Certificate.chain.vectors.json` and `Bridge.events.json` from
+`../../ISO15118ConformanceTests.Simulation/Vectors/`. A checkout of EVSimulatorApp on its own cannot
+pass them: they end at `session trace not found at …`, once per test. Check this repository out as
+`ISO15118ConformanceTests/libs/EVSimulatorApp`, which is where it belongs anyway.
 
 ## Regenerating the codecs
 

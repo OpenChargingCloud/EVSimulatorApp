@@ -34,6 +34,35 @@ The WebView app is its own npm package:
 cd app && npm install && npm test && npm run build
 ```
 
+## The port gates
+
+The suites that hold the language back ends to the C# side. One script defines them, so a person and
+CI cannot end up running different things:
+
+```bash
+bash tools/port-gates.sh
+```
+
+| Gate | What it needs |
+|---|---|
+| `kotlin` | a JDK. Uses the wrapper in `kotlin/` — **not** a `gradle` on the PATH |
+| `swift` | a Swift toolchain, so macOS in practice. Skipped, loudly, where there is none |
+| `typescript` · `app` | Node. No install step |
+| `capacitor` | Node, and an `npm ci` the script runs itself |
+
+Named gates run alone: `bash tools/port-gates.sh kotlin typescript`.
+
+**None of them needs the ISO schemas** — every codec is generated and checked in, and so are the
+vectors. `download-schemas.sh` is for the C# build above.
+
+**They do need the conformance repository.** Five Kotlin modules and five Swift test targets read
+their corpus from `../../ISO15118ConformanceTests.Simulation/Vectors/`, so this repository has to sit
+where its parent expects it — as `ISO15118ConformanceTests/libs/EVSimulatorApp`. The script checks
+for the corpus first and says so rather than letting fifty tests discover it one at a time.
+
+Both repositories run these on push
+([`.github/workflows/port-gates.yml`](.github/workflows/port-gates.yml)).
+
 ## What is in here
 
 **The EV simulator**
