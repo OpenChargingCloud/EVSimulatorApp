@@ -8,6 +8,9 @@ import { Iso15118_2Codec } from "../src/iso2/Iso15118_2Codec.ts";
 import { V2G_Message } from "../src/iso2/V2G_Message.ts";
 import { AuthorizationReqType } from "../src/iso2/AuthorizationReqType.ts";
 import { MeteringReceiptReqType } from "../src/iso2/MeteringReceiptReqType.ts";
+import { ChargeParameterDiscoveryResType } from "../src/iso2/ChargeParameterDiscoveryResType.ts";
+import { SAScheduleListType } from "../src/iso2/SAScheduleListType.ts";
+import { SalesTariffType } from "../src/iso2/SalesTariffType.ts";
 
 /**
  * The digest of a signed message, re-derived from its own frame.
@@ -63,17 +66,39 @@ const sha256 = async (bytes: Uint8Array) =>
 
 
 /**
- * The fragment encoder for a body element, by the element's own type.
+ * The elements a -2 message actually signs, as reference-URI/fragment pairs.
  *
- * A `switch` and not a lookup by name: this back end has three fragment encoders, the -2 signed
- * messages are two of them, and a message this build cannot re-encode has to be *reported* rather
- * than guessed at. Returning null is what lets the caller say "not checked" instead of "wrong".
+ * **Two shapes, not one.** A Plug & Charge *request* signs its own body element under a single
+ * reference — that was the only shape recorded here until `iso2-ac-eim-tariff`, and this helper
+ * returned one fragment because one was all that existed. A §7.9.2.5 tariff signature is the other
+ * shape: it rides on a *response*, and it covers the SalesTariffs **inside** the body, one reference
+ * per tariff. "The signature covers the body element" was a PnC-shaped assumption wearing the clothes
+ * of a general rule, and the first signed offer recorded is what took them off.
+ *
+ * A `switch` and not a lookup by name, for the reason it always was: a message this build cannot
+ * re-encode has to be *reported* rather than guessed at, and null is what lets the caller say "not
+ * checked" instead of "wrong".
  */
-function fragmentOf(element: unknown): Uint8Array | null {
+function signedElementsOf(element: unknown): { uri: string, fragment: Uint8Array }[] | null {
+
     if (element instanceof AuthorizationReqType)
-        return Iso15118_2Codec.encodeFragment_AuthorizationReq(element);
+        return [{ uri: "#" + element.id,
+                  fragment: Iso15118_2Codec.encodeFragment_AuthorizationReq(element) }];
+
     if (element instanceof MeteringReceiptReqType)
-        return Iso15118_2Codec.encodeFragment_MeteringReceiptReq(element);
+        return [{ uri: "#" + element.id,
+                  fragment: Iso15118_2Codec.encodeFragment_MeteringReceiptReq(element) }];
+
+    if (element instanceof ChargeParameterDiscoveryResType) {
+        const offer = element.sASchedules;
+        if (!(offer instanceof SAScheduleListType)) return null;
+        return offer.sAScheduleTuple
+                    .map(tuple => tuple.salesTariff)
+                    .filter((tariff): tariff is SalesTariffType => tariff?.id != null)
+                    .map(tariff => ({ uri: "#" + tariff.id,
+                                      fragment: Iso15118_2Codec.encodeFragment_SalesTariff(tariff) }));
+    }
+
     return null;
 }
 
@@ -81,7 +106,8 @@ function fragmentOf(element: unknown): Uint8Array | null {
 test("the digest of every signed -2 message re-derives from its own frame", async () => {
 
     /** @see the assertion at the end for why this list is spelled out rather than counted. */
-    const expected = ["AuthorizationReqType", "MeteringReceiptReqType"];
+    const expected = ["AuthorizationReqType", "MeteringReceiptReqType",
+                      "ChargeParameterDiscoveryResType"];
 
     /** @type {string[]} */
     const checkedNames: string[] = [];
@@ -103,31 +129,46 @@ test("the digest of every signed -2 message re-derives from its own frame", asyn
             const message = Iso15118_2Codec.decodeAny(payload) as V2G_Message;
             const element = message.body.bodyElement;
 
-            const fragment = fragmentOf(element);
-            assert.notEqual(fragment, null,
+            const signed = signedElementsOf(element);
+            assert.notEqual(signed, null,
                             `${name} seq ${event.seq}: no fragment encoder for ${element?.constructor?.name}`);
 
             const references = Array.isArray(signature.signedInfo.reference)
                                    ? signature.signedInfo.reference
                                    : [signature.signedInfo.reference];
 
-            assert.equal(references.length, 1,
-                         `${name} seq ${event.seq}: expected exactly one reference`);
+            // One reference per signed element, matched by URI rather than by position. A tariff
+            // signature carries one per SalesTariff, and comparing them in offer order would pass a
+            // SignedInfo that referenced the same tariff twice.
+            assert.equal(references.length, signed!.length,
+                         `${name} seq ${event.seq}: ${signed!.length} signed element(s), `
+                       + `${references.length} reference(s)`);
 
-            assert.equal(await sha256(fragment!), String(references[0].digestValue).toLowerCase(),
-                         `${name} seq ${event.seq} (${event.messageName}): the digest re-derived here `
-                       + "differs from the one C# recorded — this back end's fragment encoder and C#'s "
-                       + "disagree about the canonical EXI of the signed element");
+            for (const { uri, fragment } of signed!) {
+
+                // `uri` — the JSON-LD name, which is not the codec's `uRI`. Nothing caught the
+                // difference before because a one-reference signature never had to be matched.
+                const reference = references.find(r => String(r.uri) === uri);
+                assert.notEqual(reference, undefined,
+                                `${name} seq ${event.seq}: nothing references ${uri}`);
+
+                assert.equal(await sha256(fragment), String(reference.digestValue).toLowerCase(),
+                             `${name} seq ${event.seq} (${event.messageName}) ${uri}: the digest `
+                           + "re-derived here differs from the one C# recorded — this back end's "
+                           + "fragment encoder and C#'s disagree about the canonical EXI of the "
+                           + "signed element");
+            }
 
             checkedNames.push(String(event.messageName));
             checked++;
         }
     }
 
-    // Named rather than counted, because the two are the two *kinds* of -2 signature this project
-    // produces — the signed AuthorizationReq that authorizes, and the signed MeteringReceiptReq that
-    // countersigns the station's meter reading — and each exercises a different fragment encoder. A
-    // count would go on passing if one of them stopped being recorded.
+    // Named rather than counted, because these are the *kinds* of -2 signature this project produces
+    // — the signed AuthorizationReq that authorizes, the signed MeteringReceiptReq that countersigns
+    // the station's meter reading, and the signed SalesTariffs a station offers under §7.9.2.5 — and
+    // each exercises a different fragment encoder. A count would go on passing if one of them stopped
+    // being recorded, which is how the tariff shape could have gone missing again after being added.
     assert.deepEqual(checkedNames.sort(), expected.sort(),
                      `checked ${checked} signed -2 message(s): ${checkedNames.join(", ")}`);
 });
@@ -141,7 +182,7 @@ test("a digest check that cannot see the content fails rather than passing quiet
 
     const payload = parseHex(signed.exi).slice(V2GTP_HEADER_BYTES);
     const message = Iso15118_2Codec.decodeAny(payload) as V2G_Message;
-    const fragment = fragmentOf(message.body.bodyElement)!;
+    const fragment = signedElementsOf(message.body.bodyElement)![0].fragment;
 
     // One bit of the *content* moves and the digest must move with it. Without this, a check that
     // hashed a constant would pass the test above just as happily.

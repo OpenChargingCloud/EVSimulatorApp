@@ -1,3 +1,5 @@
+import CryptoKit
+import Foundation
 import XCTest
 import ExiIso2
 import ExiIso20DC
@@ -260,6 +262,81 @@ final class EvccTraceTests: XCTestCase {
 
         XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
         XCTAssertEqual(evcc.authorizationMode, "pnc-signed")
+    }
+
+    // ── the signed tariff offer ───────────────────────────────────────────
+
+    /// The Mobility Operator's public key, read out of `Tariff.signature.vectors.json`.
+    ///
+    /// The recorded session and that corpus are signed by the *same* key on purpose, so this is one
+    /// operator identity rather than two. It is not carried in the trace itself: the trace schema has
+    /// places for the PnC and meter keys because those sessions need them to be readable at all, and
+    /// adding a third would give one key two homes and a way to disagree with itself.
+    private static func tariffVerifyKey() throws -> P256.Signing.PublicKey {
+
+        var dir = URL(fileURLWithPath: #filePath)
+        for _ in 0..<12 {
+            dir.deleteLastPathComponent()
+            if FileManager.default.fileExists(atPath:
+                dir.appendingPathComponent("EVSimulatorApp.slnx").path) { break }
+        }
+
+        let url = dir.appendingPathComponent("vectors/Tariff.signature.vectors.json")
+        guard let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any],
+              let cases = json["cases"] as? [[String: Any]],
+              let signed = cases.first(where: { $0["name"] as? String == "signed-msgdef" }),
+              let key = signed["verifyKey"] as? [String: Any],
+              let x = key["x"] as? String, let y = key["y"] as? String
+        else { throw XCTSkip("tariff corpus not found at \(url.path)") }
+
+        let hex = { (s: String) in stride(from: 0, to: s.count, by: 2).map { i -> UInt8 in
+            let start = s.index(s.startIndex, offsetBy: i)
+            return UInt8(s[start...s.index(start, offsetBy: 1)], radix: 16)!
+        } }
+        return try P256.Signing.PublicKey(x963Representation: Data([0x04] + hex(x) + hex(y)))
+    }
+
+    func testSignedTariffSessionMatchesTheRecordingByteForByte() throws {
+        let (replay, _) = try replay2("iso2-ac-eim-tariff", .ac)
+        XCTAssertTrue(replay.complete,
+            "the session stopped after \(replay.replayed) recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /// What the wire cannot show. The bytes above prove this port *read* a signed two-tuple offer the
+    /// way the C# EVCC did; they say nothing about the verdict, because the EV never tells the station
+    /// what it concluded. Only the fields below do, and only with the operator's key in hand.
+    func testTheSignedTariffOfferVerifiesAndTheCheaperTupleWins() throws {
+
+        let key = try Self.tariffVerifyKey()
+        let (_, evcc) = try replay2("iso2-ac-eim-tariff", .ac) { $0.tariffVerifyKey = key }
+        let tariff = try XCTUnwrap(evcc.tariff)
+
+        XCTAssertEqual(tariff.tuplesOffered, 2, "the station offered a choice, not a formality")
+        XCTAssertTrue(tariff.signaturePresent)
+        XCTAssertTrue(tariff.digestOk, "each SalesTariff must digest to its own Reference")
+        XCTAssertTrue(tariff.signatureOk)
+        XCTAssertEqual(tariff.signatureGrammar, "iso2-msgdef",
+                       "our own station signs under ISO's grammar; xmldsig-standalone here would mean " +
+                       "the recording was made against a Josev-shaped signer")
+
+        // Tuple 2 averages EPriceLevel 1.5 against tuple 1's 2.5, and carries two PMax steps.
+        XCTAssertEqual(tariff.chosenTupleId, 2, "a price-aware EV takes the cheaper tuple")
+        XCTAssertEqual(tariff.profileEntries, 2)
+    }
+
+    /// Without the key the digest half is still answered — and must be, because it is the half that
+    /// catches a tariff edited after signing. Reporting it as unknown would throw away the only check
+    /// an EV without an operator key can still make.
+    func testWithoutTheOperatorKeyTheDigestIsStillChecked() throws {
+
+        let (_, evcc) = try replay2("iso2-ac-eim-tariff", .ac)
+        let tariff = try XCTUnwrap(evcc.tariff)
+
+        XCTAssertTrue(tariff.signaturePresent)
+        XCTAssertTrue(tariff.digestOk)
+        XCTAssertFalse(tariff.signatureOk, "no key was offered, so nothing was established")
+        XCTAssertEqual(tariff.signatureGrammar, "none")
     }
 
     // ── the station's meter ───────────────────────────────────────────────

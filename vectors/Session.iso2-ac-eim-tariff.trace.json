@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 3,
+  "generator": "ISO15118ConformanceTests.Simulation.Traces.SessionTraceCorpusTests.RegenerateTheCorpus",
+  "name": "iso2-ac-eim-tariff",
+  "protocol": "iso15118-2",
+  "mode": "ac",
+  "note": "AC, EIM, with signed SalesTariffs: the station offers two priced tuples and signs both into the ChargeParameterDiscoveryRes header (one reference per tariff, \u00A77.9.2.5). The EV picks the cheaper tuple on average EPriceLevel and shapes its ChargingProfile to it. The only recorded session where the schedule offer is a decision rather than a formality.",
+  "exchanges": [
+    {
+      "index": 0,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "SupportedAppProtocolReq",
+        "frame": "01fe8001000000248000ebab9371d34b9b79d189a98989c1d191d191818999d26b9b3a232b30020000040040"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "SupportedAppProtocolRes",
+        "frame": "01fe80010000000480400040"
+      }
+    },
+    {
+      "index": 1,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "SessionSetupReqType",
+        "frame": "01fe800100000015809802000000000000000011d01aaf37bc04080c00"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "SessionSetupResType",
+        "frame": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c4101e5ad940c0"
+      }
+    },
+    {
+      "index": 2,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "ServiceDiscoveryReqType",
+        "frame": "01fe80010000000d8098020282c3034383c40451b8"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "ServiceDiscoveryResType",
+        "frame": "01fe8001000000178098020282c3034383c40451c00008004011050c050248"
+      }
+    },
+    {
+      "index": 3,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "PaymentServiceSelectionReqType",
+        "frame": "01fe8001000000108098020282c3034383c4045132001280"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "PaymentServiceSelectionResType",
+        "frame": "01fe80010000000e8098020282c3034383c404514000"
+      }
+    },
+    {
+      "index": 4,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "AuthorizationReqType",
+        "frame": "01fe80010000000d8098020282c3034383c4045008"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "AuthorizationResType",
+        "frame": "01fe80010000000f8098020282c3034383c40450100000"
+      }
+    },
+    {
+      "index": 5,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "ChargeParameterDiscoveryReqType",
+        "frame": "01fe80010000001f8098020282c3034383c4045094423183c2ac040c409003030c0800c3006000"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "ChargeParameterDiscoveryResType",
+        "frame": "01fe80010000021d8098020282c3034383c4044a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910791b9b0b632b9aa30b934b33318812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e632373686132353642035fe00f90d8ab1744081df7e92f02f6c0197adf87cdccea9a9d16f28f4239d8c041e46e6c2d8cae6a8c2e4d2cccc6404ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d90812aec7116c169257f20d096632e1f74953fbe37319e671e3e9da673796d9c4e804a0631a31b5799d6623f260f62a86e83834d653056a04feba83cb411cc8d5541616828988a1ed3853030cf920223219ad6b5630a5c151d3f5c4fc0f6e5c691dee35a0a00000000000240700c50a056080739b0b632b9aa30b934b33318800014e6e8c2dcc8c2e4c8006000100440880e200ca00100001101c0628601c8022038220380c50c0ac01080739b0b632b9aa30b934b33319002020decccc5ae0cac2d640c4dedee6e8006000100240880e2008a4000000310398040c302000",
+        "signature": "c634636af33acc47e4c1ec550dd07069aca60ad409fd750796823991aaa82c2d05131143da70a60619f2404464335ad6ac614b82a3a7eb89f81edcb8d23bdc6b"
+      }
+    },
+    {
+      "index": 6,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "PowerDeliveryReqType",
+        "frame": "01fe80010000001e8098020282c3034383c4045150002000018a1807221101c0c50c0ac01160"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "PowerDeliveryResType",
+        "frame": "01fe8001000000118098020282c3034383c404516000000000"
+      }
+    },
+    {
+      "index": 7,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusReqType",
+        "frame": "01fe80010000000d8098020282c3034383c40450b0"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusResType",
+        "frame": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40098000000"
+      }
+    },
+    {
+      "index": 8,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusReqType",
+        "frame": "01fe80010000000d8098020282c3034383c40450b0"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusResType",
+        "frame": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40098000000"
+      }
+    },
+    {
+      "index": 9,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusReqType",
+        "frame": "01fe80010000000d8098020282c3034383c40450b0"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusResType",
+        "frame": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40098000000"
+      }
+    },
+    {
+      "index": 10,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "PowerDeliveryReqType",
+        "frame": "01fe8001000000108098020282c3034383c4045151002600"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "PowerDeliveryResType",
+        "frame": "01fe8001000000118098020282c3034383c404516000000000"
+      }
+    },
+    {
+      "index": 11,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "SessionStopReqType",
+        "frame": "01fe80010000000e8098020282c3034383c40451f000"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "SessionStopResType",
+        "frame": "01fe80010000000e8098020282c3034383c404520000"
+      }
+    }
+  ]
+}

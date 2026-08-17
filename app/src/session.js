@@ -503,8 +503,19 @@ export function signatureFor(event) {
             "Not verified here. The digest can be re-derived without any key — re-encode the covered "
           + "element as canonical EXI and SHA-256 it — but that needs the codec's fragment encoder, "
           + "which this screen does not have.",
-            "Verifying the signature itself needs the signer's public key, which arrives earlier in "
-          + "the session inside PaymentDetailsReq.",
+            // Whose key, and where it comes from, is not the same question for both kinds of -2
+            // signature. A Plug & Charge request is signed by the car's contract certificate, which
+            // travelled earlier in this very session. A signed SalesTariff offer (§7.9.2.5) is signed
+            // by the Mobility Operator and relayed by the station, and nothing in the session carries
+            // that key — the car either has it or cannot answer the question at all. Saying
+            // "PaymentDetailsReq" over a tariff signature would send a reader looking for something
+            // that is not there.
+            String(event.messageName ?? "").endsWith("Res")
+                ? "Verifying the signature itself needs the Mobility Operator's public key. It is not "
+                + "in this session: the station relays a signature made elsewhere, so a car can only "
+                + "check it against a key it already holds."
+                : "Verifying the signature itself needs the signer's public key, which arrives earlier "
+                + "in the session inside PaymentDetailsReq.",
         ],
     };
 }

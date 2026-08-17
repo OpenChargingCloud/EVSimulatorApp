@@ -315,9 +315,17 @@ test("a poll loop that outstays the Ongoing budget is called out", () => {
 
 // ── the signature ─────────────────────────────────────────────────────────────────────────────
 
-test("the recorded PnC sessions show a signature, and the EIM ones show none", () => {
+test("the sessions that carry a signature show one, and the rest show none", () => {
 
     let signed = 0;
+
+    // Two kinds of -2 signature reach this screen, and for a long time only one of them existed in
+    // the corpus — so this test asserted "signed implies PnC" and was right by accident. A signed
+    // SalesTariff offer (§7.9.2.5) is EIM, rides on a *response*, and covers elements inside the body
+    // rather than the body itself. Naming both is what keeps the assertion honest; a session that
+    // grows a signature for a third reason should fail here rather than slip through.
+    const signedRequests  = (/** @type {string} */ name) => name.includes("pnc");
+    const signedOffer     = (/** @type {string} */ name) => name.endsWith("-tariff");
 
     for (const [name, events] of Object.entries(sessions)) {
         for (const event of events) {
@@ -325,7 +333,8 @@ test("the recorded PnC sessions show a signature, and the EIM ones show none", (
             const view = signatureFor(event);
             if (!view.present) continue;
 
-            assert.ok(name.includes("pnc"), `${name}: a signature in a session that is not PnC`);
+            assert.ok(signedRequests(name) || signedOffer(name),
+                      `${name}: a signature in a session that is neither PnC nor a signed offer`);
 
             const labels = view.facts.map((/** @type {any} */ f) => f.label);
             for (const wanted of ["Signature method", "Covers", "Digest", "Signature"])
