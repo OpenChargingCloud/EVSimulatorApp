@@ -192,6 +192,94 @@ class Evcc2TraceTest {
         }
     }
 
+    // ── the signed tariff offer ───────────────────────────────────────────
+
+    /**
+     * The Mobility Operator's public key, read out of `Tariff.signature.vectors.json`.
+     *
+     * The recorded session and that corpus are signed by the *same* key on purpose, so this is one
+     * operator identity rather than two. It is not carried in the trace itself: the schema has places
+     * for the PnC and meter keys because those sessions are unreadable without them, and a third would
+     * give one key two homes and a way to disagree with itself.
+     */
+    private fun tariffVerifyKey(): java.security.PublicKey {
+
+        var dir = java.io.File(".").absoluteFile
+        while (!java.io.File(dir, "EVSimulatorApp.slnx").isFile)
+            dir = dir.parentFile ?: error("repository root not found")
+
+        val file = java.io.File(dir, "vectors/Tariff.signature.vectors.json")
+        require(file.isFile) { "tariff corpus not found at $file" }
+
+        val key = com.google.gson.JsonParser.parseString(file.readText()).asJsonObject
+            .getAsJsonArray("cases")
+            .map { it.asJsonObject }
+            .first { it.get("name").asString == "signed-msgdef" }
+            .getAsJsonObject("verifyKey")
+
+        val params = java.security.AlgorithmParameters.getInstance("EC")
+            .apply { init(java.security.spec.ECGenParameterSpec("secp256r1")) }
+            .getParameterSpec(java.security.spec.ECParameterSpec::class.java)
+
+        return java.security.KeyFactory.getInstance("EC").generatePublic(
+            java.security.spec.ECPublicKeySpec(
+                java.security.spec.ECPoint(
+                    java.math.BigInteger(key.get("x").asString, 16),
+                    java.math.BigInteger(key.get("y").asString, 16)),
+                params))
+    }
+
+    @Test
+    fun theSignedTariffSessionMatchesTheRecordingByteForByte() {
+        val replay = replay("iso2-ac-eim-tariff", PowerMode.Ac)
+        assertTrue(replay.complete,
+            "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /**
+     * **What the wire cannot show.** The bytes above prove this port *read* a signed two-tuple offer
+     * the way the C# EVCC did; they say nothing about the verdict, because the EV never tells the
+     * station what it concluded. Only the fields below do, and only with the operator's key in hand.
+     */
+    @Test
+    fun theSignedTariffOfferVerifiesAndTheCheaperTupleWins() {
+
+        var evcc: Evcc2? = null
+        replay("iso2-ac-eim-tariff", PowerMode.Ac) { evcc = it; it.tariffVerifyKey = tariffVerifyKey() }
+        val tariff = evcc!!.tariff!!
+
+        assertEquals(2, tariff.tuplesOffered, "the station offered a choice, not a formality")
+        assertTrue(tariff.signaturePresent)
+        assertTrue(tariff.digestOk, "each SalesTariff must digest to its own Reference")
+        assertTrue(tariff.signatureOk)
+        assertEquals("iso2-msgdef", tariff.signatureGrammar,
+            "our own station signs under ISO's grammar; xmldsig-standalone here would mean the " +
+            "recording was made against a Josev-shaped signer")
+
+        // Tuple 2 averages EPriceLevel 1.5 against tuple 1's 2.5, and carries two PMax steps.
+        assertEquals(2u.toUByte(), tariff.chosenTupleId, "a price-aware EV takes the cheaper tuple")
+        assertEquals(2, tariff.profileEntries)
+    }
+
+    /**
+     * Without the key the digest half is still answered — and must be, because it is the half that
+     * catches a tariff edited after signing. Reporting it as unknown would throw away the only check
+     * an EV without an operator key can still make.
+     */
+    @Test
+    fun withoutTheOperatorKeyTheDigestIsStillChecked() {
+
+        var evcc: Evcc2? = null
+        replay("iso2-ac-eim-tariff", PowerMode.Ac) { evcc = it }
+        val tariff = evcc!!.tariff!!
+
+        assertTrue(tariff.signaturePresent)
+        assertTrue(tariff.digestOk)
+        assertEquals(false, tariff.signatureOk, "no key was offered, so nothing was established")
+        assertEquals("none", tariff.signatureGrammar)
+    }
+
     @Test
     fun theMeteredAcSessionMatchesTheRecordingByteForByte() {
         val replay = replay("iso2-ac-eim-meter", PowerMode.Ac)

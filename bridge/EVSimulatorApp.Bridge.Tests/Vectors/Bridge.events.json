@@ -1514,6 +1514,903 @@
         "outcome": "completed"
       }
     ],
+    "iso2-ac-eim-tariff": [
+      {
+        "seq": 0,
+        "atMillis": 1,
+        "kind": "sessionStarted",
+        "name": "iso2-ac-eim-tariff",
+        "protocol": "iso15118-2",
+        "mode": "ac"
+      },
+      {
+        "seq": 1,
+        "atMillis": 2,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "SupportedAppProtocolReq",
+        "exi": "01fe8001000000248000ebab9371d34b9b79d189a98989c1d191d191818999d26b9b3a232b30020000040040",
+        "json": {
+          "@context": "urn:iso:15118:2:2010:AppProtocol",
+          "@type": "SupportedAppProtocolReq",
+          "appProtocol": [
+            {
+              "@type": "AppProtocolType",
+              "protocolNamespace": "urn:iso:15118:2:2013:MsgDef",
+              "versionNumberMajor": 2,
+              "versionNumberMinor": 0,
+              "schemaID": 1,
+              "priority": 1
+            }
+          ]
+        }
+      },
+      {
+        "seq": 2,
+        "atMillis": 3,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "SupportedAppProtocolRes",
+        "exi": "01fe80010000000480400040",
+        "json": {
+          "@context": "urn:iso:15118:2:2010:AppProtocol",
+          "@type": "SupportedAppProtocolRes",
+          "responseCode": "OK_SuccessfulNegotiation",
+          "schemaID": 1
+        }
+      },
+      {
+        "seq": 3,
+        "atMillis": 4,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "SessionSetupReqType",
+        "exi": "01fe800100000015809802000000000000000011d01aaf37bc04080c00",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0000000000000000"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "SessionSetupReqType",
+              "evccid": "abcdef010203"
+            }
+          }
+        }
+      },
+      {
+        "seq": 4,
+        "atMillis": 5,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "SessionSetupResType",
+        "exi": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c4101e5ad940c0",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "SessionSetupResType",
+              "responseCode": "OK_NewSessionEstablished",
+              "evseid": "DE*ABC*E1",
+              "evseTimeStamp": "1767225600"
+            }
+          }
+        }
+      },
+      {
+        "seq": 5,
+        "atMillis": 6,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "ServiceDiscoveryReqType",
+        "exi": "01fe80010000000d8098020282c3034383c40451b8",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "ServiceDiscoveryReqType"
+            }
+          }
+        }
+      },
+      {
+        "seq": 6,
+        "atMillis": 7,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "ServiceDiscoveryResType",
+        "exi": "01fe8001000000178098020282c3034383c40451c00008004011050c050248",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "ServiceDiscoveryResType",
+              "responseCode": "OK",
+              "paymentOptionList": {
+                "@type": "PaymentOptionListType",
+                "paymentOption": [
+                  "Contract",
+                  "ExternalPayment"
+                ]
+              },
+              "chargeService": {
+                "@type": "ChargeServiceType",
+                "serviceID": 1,
+                "serviceName": "AC",
+                "serviceCategory": "EVCharging",
+                "freeService": true,
+                "supportedEnergyTransferMode": {
+                  "@type": "SupportedEnergyTransferModeType",
+                  "energyTransferMode": [
+                    "AC_three_phase_core"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "seq": 7,
+        "atMillis": 8,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "PaymentServiceSelectionReqType",
+        "exi": "01fe8001000000108098020282c3034383c4045132001280",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "PaymentServiceSelectionReqType",
+              "selectedPaymentOption": "ExternalPayment",
+              "selectedServiceList": {
+                "@type": "SelectedServiceListType",
+                "selectedService": [
+                  {
+                    "@type": "SelectedServiceType",
+                    "serviceID": 1
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "seq": 8,
+        "atMillis": 9,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "PaymentServiceSelectionResType",
+        "exi": "01fe80010000000e8098020282c3034383c404514000",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "PaymentServiceSelectionResType",
+              "responseCode": "OK"
+            }
+          }
+        }
+      },
+      {
+        "seq": 9,
+        "atMillis": 10,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "AuthorizationReqType",
+        "exi": "01fe80010000000d8098020282c3034383c4045008",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "AuthorizationReqType"
+            }
+          }
+        }
+      },
+      {
+        "seq": 10,
+        "atMillis": 11,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "AuthorizationResType",
+        "exi": "01fe80010000000f8098020282c3034383c40450100000",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "AuthorizationResType",
+              "responseCode": "OK",
+              "evseProcessing": "Finished"
+            }
+          }
+        }
+      },
+      {
+        "seq": 11,
+        "atMillis": 12,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "ChargeParameterDiscoveryReqType",
+        "exi": "01fe80010000001f8098020282c3034383c4045094423183c2ac040c409003030c0800c3006000",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "ChargeParameterDiscoveryReqType",
+              "requestedEnergyTransferMode": "AC_three_phase_core",
+              "evChargeParameter": {
+                "@type": "AC_EVChargeParameterType",
+                "eAmount": {
+                  "@type": "PhysicalValueType",
+                  "multiplier": 0,
+                  "unit": "Wh",
+                  "value": 22000
+                },
+                "evMaxVoltage": {
+                  "@type": "PhysicalValueType",
+                  "multiplier": 0,
+                  "unit": "V",
+                  "value": 400
+                },
+                "evMaxCurrent": {
+                  "@type": "PhysicalValueType",
+                  "multiplier": 0,
+                  "unit": "A",
+                  "value": 32
+                },
+                "evMinCurrent": {
+                  "@type": "PhysicalValueType",
+                  "multiplier": 0,
+                  "unit": "A",
+                  "value": 6
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "seq": 12,
+        "atMillis": 13,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "ChargeParameterDiscoveryResType",
+        "exi": "01fe80010000021d8098020282c3034383c4044a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910791b9b0b632b9aa30b934b33318812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e632373686132353642035fe00f90d8ab1744081df7e92f02f6c0197adf87cdccea9a9d16f28f4239d8c041e46e6c2d8cae6a8c2e4d2cccc6404ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d90812aec7116c169257f20d096632e1f74953fbe37319e671e3e9da673796d9c4e804a0631a31b5799d6623f260f62a86e83834d653056a04feba83cb411cc8d5541616828988a1ed3853030cf920223219ad6b5630a5c151d3f5c4fc0f6e5c691dee35a0a00000000000240700c50a056080739b0b632b9aa30b934b33318800014e6e8c2dcc8c2e4c8006000100440880e200ca00100001101c0628601c8022038220380c50c0ac01080739b0b632b9aa30b934b33319002020decccc5ae0cac2d640c4dedee6e8006000100240880e2008a4000000310398040c302000",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011",
+            "signature": {
+              "@type": "SignatureType",
+              "signedInfo": {
+                "@type": "SignedInfoType",
+                "canonicalizationMethod": {
+                  "@type": "CanonicalizationMethodType",
+                  "algorithm": "http://www.w3.org/TR/canonical-exi/"
+                },
+                "signatureMethod": {
+                  "@type": "SignatureMethodType",
+                  "algorithm": "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"
+                },
+                "reference": [
+                  {
+                    "@type": "ReferenceType",
+                    "uri": "#salesTariff1",
+                    "transforms": {
+                      "@type": "TransformsType",
+                      "transform": [
+                        {
+                          "@type": "TransformType",
+                          "algorithm": "http://www.w3.org/TR/canonical-exi/"
+                        }
+                      ]
+                    },
+                    "digestMethod": {
+                      "@type": "DigestMethodType",
+                      "algorithm": "http://www.w3.org/2001/04/xmlenc#sha256"
+                    },
+                    "digestValue": "35fe00f90d8ab1744081df7e92f02f6c0197adf87cdccea9a9d16f28f4239d8c"
+                  },
+                  {
+                    "@type": "ReferenceType",
+                    "uri": "#salesTariff2",
+                    "transforms": {
+                      "@type": "TransformsType",
+                      "transform": [
+                        {
+                          "@type": "TransformType",
+                          "algorithm": "http://www.w3.org/TR/canonical-exi/"
+                        }
+                      ]
+                    },
+                    "digestMethod": {
+                      "@type": "DigestMethodType",
+                      "algorithm": "http://www.w3.org/2001/04/xmlenc#sha256"
+                    },
+                    "digestValue": "4abb1c45b05a495fc8342598cb87dd254fef8dcc6799c78fa7699cde5b6713a0"
+                  }
+                ]
+              },
+              "signatureValue": {
+                "@type": "SignatureValueType",
+                "value": "c634636af33acc47e4c1ec550dd07069aca60ad409fd750796823991aaa82c2d05131143da70a60619f2404464335ad6ac614b82a3a7eb89f81edcb8d23bdc6b"
+              }
+            }
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "ChargeParameterDiscoveryResType",
+              "responseCode": "OK",
+              "evseProcessing": "Finished",
+              "saSchedules": {
+                "@type": "SAScheduleListType",
+                "saScheduleTuple": [
+                  {
+                    "@type": "SAScheduleTupleType",
+                    "saScheduleTupleID": 1,
+                    "pMaxSchedule": {
+                      "@type": "PMaxScheduleType",
+                      "pMaxScheduleEntry": [
+                        {
+                          "@type": "PMaxScheduleEntryType",
+                          "timeInterval": {
+                            "@type": "RelativeTimeIntervalType",
+                            "start": 0,
+                            "duration": 3600
+                          },
+                          "pMax": {
+                            "@type": "PhysicalValueType",
+                            "multiplier": 0,
+                            "unit": "W",
+                            "value": 11040
+                          }
+                        }
+                      ]
+                    },
+                    "salesTariff": {
+                      "@type": "SalesTariffType",
+                      "id": "salesTariff1",
+                      "salesTariffID": 1,
+                      "salesTariffDescription": "standard",
+                      "numEPriceLevels": 3,
+                      "salesTariffEntry": [
+                        {
+                          "@type": "SalesTariffEntryType",
+                          "timeInterval": {
+                            "@type": "RelativeTimeIntervalType",
+                            "start": 0
+                          },
+                          "ePriceLevel": 2,
+                          "consumptionCost": []
+                        },
+                        {
+                          "@type": "SalesTariffEntryType",
+                          "timeInterval": {
+                            "@type": "RelativeTimeIntervalType",
+                            "start": 1800
+                          },
+                          "ePriceLevel": 3,
+                          "consumptionCost": []
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "@type": "SAScheduleTupleType",
+                    "saScheduleTupleID": 2,
+                    "pMaxSchedule": {
+                      "@type": "PMaxScheduleType",
+                      "pMaxScheduleEntry": [
+                        {
+                          "@type": "PMaxScheduleEntryType",
+                          "timeInterval": {
+                            "@type": "RelativeTimeIntervalType",
+                            "start": 0,
+                            "duration": 1800
+                          },
+                          "pMax": {
+                            "@type": "PhysicalValueType",
+                            "multiplier": 0,
+                            "unit": "W",
+                            "value": 7360
+                          }
+                        },
+                        {
+                          "@type": "PMaxScheduleEntryType",
+                          "timeInterval": {
+                            "@type": "RelativeTimeIntervalType",
+                            "start": 1800,
+                            "duration": 1800
+                          },
+                          "pMax": {
+                            "@type": "PhysicalValueType",
+                            "multiplier": 0,
+                            "unit": "W",
+                            "value": 22080
+                          }
+                        }
+                      ]
+                    },
+                    "salesTariff": {
+                      "@type": "SalesTariffType",
+                      "id": "salesTariff2",
+                      "salesTariffID": 2,
+                      "salesTariffDescription": "off-peak boost",
+                      "numEPriceLevels": 3,
+                      "salesTariffEntry": [
+                        {
+                          "@type": "SalesTariffEntryType",
+                          "timeInterval": {
+                            "@type": "RelativeTimeIntervalType",
+                            "start": 0
+                          },
+                          "ePriceLevel": 1,
+                          "consumptionCost": []
+                        },
+                        {
+                          "@type": "SalesTariffEntryType",
+                          "timeInterval": {
+                            "@type": "RelativeTimeIntervalType",
+                            "start": 1800
+                          },
+                          "ePriceLevel": 2,
+                          "consumptionCost": []
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "evseChargeParameter": {
+                "@type": "AC_EVSEChargeParameterType",
+                "ac_EVSEStatus": {
+                  "@type": "AC_EVSEStatusType",
+                  "notificationMaxDelay": 0,
+                  "evseNotification": "None",
+                  "rcd": false
+                },
+                "evseNominalVoltage": {
+                  "@type": "PhysicalValueType",
+                  "multiplier": 0,
+                  "unit": "V",
+                  "value": 230
+                },
+                "evseMaxCurrent": {
+                  "@type": "PhysicalValueType",
+                  "multiplier": 0,
+                  "unit": "A",
+                  "value": 32
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "seq": 13,
+        "atMillis": 14,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "PowerDeliveryReqType",
+        "exi": "01fe80010000001e8098020282c3034383c4045150002000018a1807221101c0c50c0ac01160",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "PowerDeliveryReqType",
+              "chargeProgress": "Start",
+              "saScheduleTupleID": 2,
+              "chargingProfile": {
+                "@type": "ChargingProfileType",
+                "profileEntry": [
+                  {
+                    "@type": "ProfileEntryType",
+                    "chargingProfileEntryStart": 0,
+                    "chargingProfileEntryMaxPower": {
+                      "@type": "PhysicalValueType",
+                      "multiplier": 0,
+                      "unit": "W",
+                      "value": 7360
+                    }
+                  },
+                  {
+                    "@type": "ProfileEntryType",
+                    "chargingProfileEntryStart": 1800,
+                    "chargingProfileEntryMaxPower": {
+                      "@type": "PhysicalValueType",
+                      "multiplier": 0,
+                      "unit": "W",
+                      "value": 22080
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "seq": 14,
+        "atMillis": 15,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "PowerDeliveryResType",
+        "exi": "01fe8001000000118098020282c3034383c404516000000000",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "PowerDeliveryResType",
+              "responseCode": "OK",
+              "evseStatus": {
+                "@type": "AC_EVSEStatusType",
+                "notificationMaxDelay": 0,
+                "evseNotification": "None",
+                "rcd": false
+              }
+            }
+          }
+        }
+      },
+      {
+        "seq": 15,
+        "atMillis": 16,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "ChargingStatusReqType",
+        "exi": "01fe80010000000d8098020282c3034383c40450b0",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "ChargingStatusReqType"
+            }
+          }
+        }
+      },
+      {
+        "seq": 16,
+        "atMillis": 17,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "ChargingStatusResType",
+        "exi": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40098000000",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "ChargingStatusResType",
+              "responseCode": "OK",
+              "evseid": "DE*ABC*E1",
+              "saScheduleTupleID": 2,
+              "ac_EVSEStatus": {
+                "@type": "AC_EVSEStatusType",
+                "notificationMaxDelay": 0,
+                "evseNotification": "None",
+                "rcd": false
+              }
+            }
+          }
+        }
+      },
+      {
+        "seq": 17,
+        "atMillis": 18,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "ChargingStatusReqType",
+        "exi": "01fe80010000000d8098020282c3034383c40450b0",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "ChargingStatusReqType"
+            }
+          }
+        }
+      },
+      {
+        "seq": 18,
+        "atMillis": 19,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "ChargingStatusResType",
+        "exi": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40098000000",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "ChargingStatusResType",
+              "responseCode": "OK",
+              "evseid": "DE*ABC*E1",
+              "saScheduleTupleID": 2,
+              "ac_EVSEStatus": {
+                "@type": "AC_EVSEStatusType",
+                "notificationMaxDelay": 0,
+                "evseNotification": "None",
+                "rcd": false
+              }
+            }
+          }
+        }
+      },
+      {
+        "seq": 19,
+        "atMillis": 20,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "ChargingStatusReqType",
+        "exi": "01fe80010000000d8098020282c3034383c40450b0",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "ChargingStatusReqType"
+            }
+          }
+        }
+      },
+      {
+        "seq": 20,
+        "atMillis": 21,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "ChargingStatusResType",
+        "exi": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40098000000",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "ChargingStatusResType",
+              "responseCode": "OK",
+              "evseid": "DE*ABC*E1",
+              "saScheduleTupleID": 2,
+              "ac_EVSEStatus": {
+                "@type": "AC_EVSEStatusType",
+                "notificationMaxDelay": 0,
+                "evseNotification": "None",
+                "rcd": false
+              }
+            }
+          }
+        }
+      },
+      {
+        "seq": 21,
+        "atMillis": 22,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "PowerDeliveryReqType",
+        "exi": "01fe8001000000108098020282c3034383c4045151002600",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "PowerDeliveryReqType",
+              "chargeProgress": "Stop",
+              "saScheduleTupleID": 2
+            }
+          }
+        }
+      },
+      {
+        "seq": 22,
+        "atMillis": 23,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "PowerDeliveryResType",
+        "exi": "01fe8001000000118098020282c3034383c404516000000000",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "PowerDeliveryResType",
+              "responseCode": "OK",
+              "evseStatus": {
+                "@type": "AC_EVSEStatusType",
+                "notificationMaxDelay": 0,
+                "evseNotification": "None",
+                "rcd": false
+              }
+            }
+          }
+        }
+      },
+      {
+        "seq": 23,
+        "atMillis": 24,
+        "kind": "message",
+        "direction": "out",
+        "payloadType": "0x8001",
+        "messageName": "SessionStopReqType",
+        "exi": "01fe80010000000e8098020282c3034383c40451f000",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "SessionStopReqType",
+              "chargingSession": "Terminate"
+            }
+          }
+        }
+      },
+      {
+        "seq": 24,
+        "atMillis": 25,
+        "kind": "message",
+        "direction": "in",
+        "payloadType": "0x8001",
+        "messageName": "SessionStopResType",
+        "exi": "01fe80010000000e8098020282c3034383c404520000",
+        "json": {
+          "@context": "urn:iso:15118:2:2013:MsgDef",
+          "@type": "V2G_Message",
+          "header": {
+            "@type": "MessageHeaderType",
+            "sessionID": "0a0b0c0d0e0f1011"
+          },
+          "body": {
+            "@type": "BodyType",
+            "bodyElement": {
+              "@type": "SessionStopResType",
+              "responseCode": "OK"
+            }
+          }
+        }
+      },
+      {
+        "seq": 25,
+        "atMillis": 26,
+        "kind": "sessionFinished",
+        "exchanges": 12,
+        "outcome": "completed"
+      }
+    ],
     "iso2-ac-eim": [
       {
         "seq": 0,

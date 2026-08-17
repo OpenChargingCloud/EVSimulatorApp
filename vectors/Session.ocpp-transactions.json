@@ -183,6 +183,60 @@
         }
       ]
     },
+    "iso2-ac-eim-tariff": {
+      "schemaVersion": 1,
+      "source": "station-recording",
+      "transactionId": "TX-iso2-ac-eim-tariff",
+      "evseId": "DE*ABC*E1",
+      "v2gSessionId": "0a0b0c0d0e0f1011",
+      "meterValues": [
+        {
+          "timestamp": "2026-01-01T00:00:00Z",
+          "sampledValue": [
+            {
+              "value": "123",
+              "context": "Sample.Periodic",
+              "measurand": "Energy.Active.Import.Register",
+              "unitOfMeasure": {
+                "unit": "Wh",
+                "multiplier": 0
+              },
+              "location": "Outlet"
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-01-01T00:00:00Z",
+          "sampledValue": [
+            {
+              "value": "246",
+              "context": "Sample.Periodic",
+              "measurand": "Energy.Active.Import.Register",
+              "unitOfMeasure": {
+                "unit": "Wh",
+                "multiplier": 0
+              },
+              "location": "Outlet"
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-01-01T00:00:00Z",
+          "sampledValue": [
+            {
+              "value": "369",
+              "context": "Transaction.End",
+              "measurand": "Energy.Active.Import.Register",
+              "unitOfMeasure": {
+                "unit": "Wh",
+                "multiplier": 0
+              },
+              "location": "Outlet"
+            }
+          ]
+        }
+      ]
+    },
     "iso2-ac-pnc": {
       "schemaVersion": 1,
       "source": "station-recording",
