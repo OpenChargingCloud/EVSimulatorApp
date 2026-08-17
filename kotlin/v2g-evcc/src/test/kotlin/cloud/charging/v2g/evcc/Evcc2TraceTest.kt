@@ -2,6 +2,7 @@ package cloud.charging.v2g.evcc
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -176,10 +177,16 @@ class Evcc2TraceTest {
     @Test
     fun theRecordedSignatureVerifiesUnderThisPortsOwnEncoder() {
 
-        for (name in listOf("iso2-ac-pnc", "iso20-dc-pnc")) {
+        for (name in listOf("iso2-ac-pnc", "iso20-dc-pnc",
+                            "iso2-ac-eim-certinstall", "iso2-ac-eim-certupdate",
+                            "iso20-dc-eim-certinstall")) {
 
             val trace = SessionTrace.load(name)
-            val key   = SignedFrame.publicKey(trace.signingKey!!.x, trace.signingKey.y)
+            // The curve comes from the trace: a contract key is P-256, a -20 OEM provisioning key
+            // P-521, and reading 66-byte coordinates as 32-byte ones would report a perfectly good
+            // signature as invalid.
+            val key   = SignedFrame.publicKey(trace.signingKey!!.x, trace.signingKey.y,
+                                              trace.signingKey.curve)
             val signed = trace.exchanges.filter { it.request.isSigned }
 
             assertTrue(signed.isNotEmpty(), "$name records no signed request")
@@ -189,6 +196,88 @@ class Evcc2TraceTest {
                     "$name exchange ${exchange.index} (${exchange.request.message}): the signature C# " +
                     "recorded does not verify here. The two standalone-xmldsig encoders disagree, " +
                     "which no other check in this suite can see.")
+        }
+    }
+
+    // ── contract provisioning ─────────────────────────────────────────────
+    //
+    // What these add over `Contract.provisioning.vectors.json`, which already pins the verdict and
+    // the unwrapped key: **where in the session the exchange sits**. That is on the wire and nowhere
+    // else, and it is the half a corpus of frames cannot state. A port that ran provisioning in the
+    // wrong place would satisfy every corpus case and still produce a session no station follows.
+
+    /**
+     * -2 installation: the ServiceList is read, the certificate service selected by id with parameter
+     * set 1, and the signed request goes out before PaymentDetails.
+     */
+    @Test
+    fun `the -2 certificate installation session matches the recording`() {
+
+        val trace  = SessionTrace.load("iso2-ac-eim-certinstall")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_2, PowerMode.Ac)
+        val evcc = Evcc2(stream, PowerMode.Ac, pollDelay = { })
+            .apply { certInstallRequest = OemMaterial.iso2Install }
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+
+        // The session ran to the end, so the unwrap and its certificate check both passed — an
+        // unwrap that produced the wrong key aborts rather than carries on. What is asserted here is
+        // that the exchange happened at all, which byte-exactness alone does not say out loud.
+        assertNotNull(evcc.installedContractKey, "the session completed without installing a key")
+        assertEquals("DE-VAN-C00000001-6", evcc.installedEmaid)
+        assertEquals(4, evcc.installedContractVerdict?.references,
+            "§7.9.2.4.2 signs four elements; a different count means a different message was judged")
+        assertTrue(evcc.installedContractSignatureOk,
+            "the recorded response is soundly signed, so a false here is this port's verdict failing")
+    }
+
+    /**
+     * -2 renewal: the same shape with the expiring contract in place of the OEM certificate, and
+     * parameter set 2. A port that handled only the installation message stops at the response.
+     */
+    @Test
+    fun `the -2 certificate update session matches the recording`() {
+
+        val trace  = SessionTrace.load("iso2-ac-eim-certupdate")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_2, PowerMode.Ac)
+        val evcc = Evcc2(stream, PowerMode.Ac, pollDelay = { })
+            .apply { certInstallRequest = OemMaterial.iso2Update }
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+        assertNotNull(evcc.installedContractKey)
+
+        // A renewal renews a contract; it does not issue a different one. The eMAID the car sent is
+        // the eMAID that came back.
+        assertEquals("DE-VAN-C00000009-7", evcc.installedEmaid)
+        assertTrue(evcc.installedContractSignatureOk)
+    }
+
+    /**
+     * The sequence, stated as an order rather than left implicit in the byte comparison: -2 asks
+     * after service selection, which is what makes provisioning a *service* here rather than a flag.
+     */
+    @Test
+    fun `-2 provisioning is selected as a service before it is used`() {
+
+        for (name in listOf("iso2-ac-eim-certinstall", "iso2-ac-eim-certupdate")) {
+
+            val messages = SessionTrace.load(name).exchanges.map { it.request.message }
+            val provisioning  = messages.indexOfFirst { it.startsWith("Certificate") }
+            val selection     = messages.indexOf("PaymentServiceSelectionReqType")
+            val authorization = messages.indexOf("AuthorizationReqType")
+
+            assertTrue(provisioning > 0, "$name records no provisioning request")
+            assertTrue(selection < provisioning,
+                "$name: -2 provisioning is a service that has to be selected before it is used")
+            assertTrue(provisioning < authorization, name)
         }
     }
 

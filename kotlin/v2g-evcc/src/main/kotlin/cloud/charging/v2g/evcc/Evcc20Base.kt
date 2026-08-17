@@ -1,5 +1,7 @@
 package cloud.charging.v2g.evcc
 
+import java.security.PrivateKey
+
 import cloud.charging.v2g.metering.EvMeter
 import cloud.charging.v2g.iso20.common.*
 import cloud.charging.v2g.tp.MessageSet
@@ -102,6 +104,28 @@ abstract class Evcc20Base(
      *  authorizes with a signed AuthorizationReq instead of EIM. */
     var pnc: PncEvccOptions? = null
 
+    /** OEM-provisioning credentials. When set — and the station announces
+     *  `CertificateInstallationService` — the EVCC runs the contract-provisioning exchange before
+     *  authorization. Null (the default) skips it. */
+    var certInstallRequest: CertInstallEvccOptions? = null
+
+    /** The contract certificate (DER) installed via CertificateInstallation, once recovered. */
+    var installedContractCertificate: ByteArray? = null
+        private set
+
+    /** The unwrapped contract private key (P-521). GCM's tag check already refused a wrong one, so
+     *  unlike -2 there is no certificate comparison standing behind this. */
+    var installedContractKey: PrivateKey? = null
+        private set
+
+    /** The full verdict over the CertificateInstallationRes, once one has arrived. */
+    var installedContractVerdict: Iso20ContractVerdict? = null
+        private set
+
+    /** Whether that response's CPS signature held — both halves of [installedContractVerdict]. */
+    var installedContractSignatureOk: Boolean = false
+        private set
+
     /** How this session authorized: `"eim"`, or `"pnc-signed"`. */
     /**
      * The vehicle's own energy counter — what this EV thinks it took, kept independently of what the
@@ -145,6 +169,44 @@ abstract class Evcc20Base(
      * challenge that has not changed. The C# original makes the same split, and getting it backwards
      * is invisible until something checks the bytes.
      */
+    /**
+     * Runs the -20 contract-provisioning exchange: sends the signed OEM provisioning chain (Id "id1",
+     * Josev-interop signature form over the chain's EXI fragment), then judges the response's CPS
+     * signature over `SignedInstallationData` and ECDH-unwraps the issued contract private key.
+     *
+     * One reference where -2 has four, and no certificate check behind the unwrap: -20 signs the whole
+     * `SignedInstallationData` as a unit, and its AES-GCM tag refuses a wrong key outright. See
+     * [Iso20ContractCheck] and [ContractProvisioning20].
+     */
+    private fun runCertificateInstallation(oem: CertInstallEvccOptions) {
+
+        val chain = SignedCertificateChainType(
+            "id1", oem.oemCertificate,
+            if (oem.oemSubCertificates.isEmpty()) null else SubCertificatesType(oem.oemSubCertificates))
+
+        val signature = XmlDsigInterop.sign20(
+            "id1", CommonMessagesCodec.encodeFragment_OEMProvisioningCertificateChain(chain),
+            oem.oemSignKey)
+
+        val res = exchange<CertificateInstallationRes>(MessageSet.Iso20CommonMessages,
+            CommonMessagesCodec.encode(CertificateInstallationReq(
+                sessionCtx.toCommonHeader().copy(signature = signature),
+                chain,
+                ListOfRootCertificateIDsType(listOf(X509IssuerSerialType("CN=V2GRootCA (dev)", 1L))),
+                maximumContractCertificateChains = 1u,
+                prioritizedEMAIDs = null)))
+
+        val verdict = Iso20ContractCheck.evaluate(res, res.header.signature)
+        installedContractVerdict     = verdict
+        installedContractSignatureOk = verdict.digestOk && verdict.signatureOk
+
+        res.signedInstallationData.sECP521_EncryptedPrivateKey?.let { wrapped ->
+            installedContractKey = ContractProvisioning20.recoverContractKey(
+                oem.oemKeyAgreement, res.signedInstallationData.dHPublicKey, wrapped)
+            installedContractCertificate = res.signedInstallationData.contractCertificateChain.certificate
+        }
+    }
+
     private fun buildAuthorizationReq(authSetup: AuthorizationSetupRes): () -> ByteArray {
 
         val credentials = pnc
@@ -279,6 +341,14 @@ abstract class Evcc20Base(
 
         val authSetup = exchange<AuthorizationSetupRes>(MessageSet.Iso20CommonMessages,
             CommonMessagesCodec.encode(AuthorizationSetupReq(sessionCtx.toCommonHeader())))
+
+        // A car that needs a contract asks for one here — before it authorizes, and before service
+        // discovery. That position is the whole difference from -2, where provisioning is a
+        // value-added service to be discovered and selected first, and it is the one thing about this
+        // exchange that only a recorded session can state.
+        certInstallRequest?.let { oem ->
+            if (authSetup.certificateInstallationService) runCertificateInstallation(oem)
+        }
 
         // Plug & Charge only if we have credentials AND the station offers it with a challenge;
         // anything else falls back to EIM. Built once — the challenge does not change across polls,

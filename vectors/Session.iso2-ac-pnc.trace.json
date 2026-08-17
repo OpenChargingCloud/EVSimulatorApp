@@ -7,7 +7,8 @@
   "note": "AC, Plug \u0026 Charge: PaymentDetails carries the contract chain, the AuthorizationReq is signed over its own EXI fragment in the Josev interop form. The only session in the corpus whose requests are not a pure function of the responses.",
   "signingKey": {
     "x": "bb18268b7ba3a4413da688df7bb153548699e589f7c31e13db44a2da01dce664",
-    "y": "02f710584f4edba46e7b3930e8a41c71117d7282b8adc31b551a1c43d7bbe521"
+    "y": "02f710584f4edba46e7b3930e8a41c71117d7282b8adc31b551a1c43d7bbe521",
+    "curve": "P-256"
   },
   "exchanges": [
     {

@@ -12,6 +12,7 @@ they must change when somebody means them to and never as a side effect of a tes
 |---|---|
 | `Session.*.trace.json`, `Session.ocpp-transactions.json` | `SessionTraceCorpusTests.RegenerateTheCorpus` |
 | `Session.pnc-material.json` | `SessionTraceCorpusTests.RegenerateThePncMaterial` |
+| `Session.oem-material.json` | `SessionTraceCorpusTests.RegenerateTheOemMaterial` |
 | `Certificate.chain.vectors.json` | `CertificateChainCorpusTests` |
 | `Meter.signing.vectors.json` | `MeterVectorTests` |
 | `Tariff.signature.vectors.json` | `TariffSignatureCorpusTests.RegenerateTheCorpus` |
@@ -69,3 +70,17 @@ The corpus is small enough to look simple and coupled enough not to be. Recordin
    once.
 4. **Name the scenario in each port that has a state machine** — Swift and Kotlin both, and they
    are separate lists. A recording no test names is invisible; that has happened here twice.
+
+Two of those steps have a subtlety worth knowing before you meet it.
+
+**Restoring is per *frame*, not per field.** A signature is inside the frame as well as in its own
+JSON field, so putting the old `signature` back while keeping the new `frame` leaves a file that
+contradicts itself. Take the whole `request` or `response` object from the checked-in recording.
+`Session.ocpp-transactions.json` is the exception: its outer JSON is assembled by hand rather than by
+a serialiser, so edit its `signedMeterData` values as text and leave the new sessions' entries alone.
+
+**Not every response can be reproduced.** A contract-provisioning response mints a certificate, a key
+pair and an ephemeral ECDH pair every time it is sent — a station that answered twice with the same
+bytes would be handing two cars the same private key. Those responses are listed in the scenario's
+`FreshlyIssuedResponses` and skipped by the re-recording comparison; everything else, requests
+included, is still compared exactly.

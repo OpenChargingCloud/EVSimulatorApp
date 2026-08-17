@@ -101,6 +101,24 @@ open class Evcc20Base {
     /// authorizes with a signed AuthorizationReq instead of EIM.
     public var pnc: PncEvccOptions?
 
+    /// OEM-provisioning credentials. When set — and the station announces
+    /// `CertificateInstallationService` — the EVCC runs the contract-provisioning exchange before
+    /// authorization. Nil (the default) skips it.
+    public var certInstallRequest: CertInstallEvccOptions?
+
+    /// The contract certificate (DER) installed via CertificateInstallation, once recovered.
+    public private(set) var installedContractCertificate: [UInt8]?
+
+    /// The unwrapped contract private key (P-521). GCM's tag check already refused a wrong one, so
+    /// unlike -2 there is no certificate comparison standing behind this.
+    public private(set) var installedContractKey: P521.Signing.PrivateKey?
+
+    /// The full verdict over the CertificateInstallationRes, once one has arrived.
+    public private(set) var installedContractVerdict: Iso20ContractVerdict?
+
+    /// Whether that response's CPS signature held — both halves of ``installedContractVerdict``.
+    public private(set) var installedContractSignatureOk = false
+
     /// How this session authorized: `"eim"`, or `"pnc-signed"`.
     public private(set) var authorizationMode = "eim"
 
@@ -185,6 +203,14 @@ open class Evcc20Base {
 
         let authSetup: AuthorizationSetupRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(AuthorizationSetupReq(header: sessionCtx.toCommonHeader())))
+
+        // A car that needs a contract asks for one here — before it authorizes, and before service
+        // discovery. That position is the whole difference from -2, where provisioning is a
+        // value-added service to be discovered and selected first, and it is the one thing about this
+        // exchange that only a recorded session can state.
+        if let oem = certInstallRequest, authSetup.certificateInstallationService {
+            try runCertificateInstallation(oem)
+        }
 
         // Plug & Charge only if we have credentials AND the station offers it with a challenge;
         // anything else falls back to EIM. Built once — the challenge does not change across polls,
@@ -313,6 +339,49 @@ open class Evcc20Base {
                 header: sessionCtx.toCommonHeader(),
                 selectedEnergyTransferService: SelectedServiceType(serviceID: serviceId,
                                                                    parameterSetID: parameterSetId))))
+    }
+
+    /// Runs the -20 contract-provisioning exchange: sends the signed OEM provisioning chain (Id
+    /// "id1", Josev-interop signature form over the chain's EXI fragment), then judges the response's
+    /// CPS signature over `SignedInstallationData` and ECDH-unwraps the issued contract private key.
+    ///
+    /// One reference where -2 has four, and no certificate check behind the unwrap: -20 signs the
+    /// whole `SignedInstallationData` as a unit, and its AES-GCM tag refuses a wrong key outright.
+    /// See ``Iso20ContractCheck`` and ``ContractProvisioning20``.
+    private func runCertificateInstallation(_ oem: CertInstallEvccOptions) throws {
+
+        let chain = SignedCertificateChainType(
+            id: "id1", certificate: oem.oemCertificate,
+            subCertificates: oem.oemSubCertificates.isEmpty
+                ? nil : SubCertificatesType(certificate: oem.oemSubCertificates))
+
+        let signature = try XmlDsigInterop.sign20(
+            "id1", CommonMessagesCodec.encodeFragment_OEMProvisioningCertificateChain(chain),
+            oem.oemSignKey)
+
+        var header = sessionCtx.toCommonHeader()
+        header.signature = signature
+
+        let res: CertificateInstallationRes = try exchange(.iso20CommonMessages,
+            CommonMessagesCodec.encode(CertificateInstallationReq(
+                header: header,
+                oEMProvisioningCertificateChain: chain,
+                listOfRootCertificateIDs: ListOfRootCertificateIDsType(rootCertificateID: [
+                    X509IssuerSerialType(x509IssuerName: "CN=V2GRootCA (dev)", x509SerialNumber: 1)
+                ]),
+                maximumContractCertificateChains: 1)))
+
+        let verdict = Iso20ContractCheck.evaluate(res, headerSignature: res.header.signature)
+        installedContractVerdict     = verdict
+        installedContractSignatureOk = verdict.digestOk && verdict.signatureOk
+
+        if let wrapped = res.signedInstallationData.sECP521_EncryptedPrivateKey {
+            installedContractKey = try ContractProvisioning20.recoverContractKey(
+                oemKey: oem.oemKeyAgreement,
+                dhPublicKey: res.signedInstallationData.dHPublicKey,
+                encryptedPrivateKey: wrapped)
+            installedContractCertificate = res.signedInstallationData.contractCertificateChain.certificate
+        }
     }
 
     private func makeAuthorizationReqBuilder(_ authSetup: AuthorizationSetupRes) throws -> () -> [UInt8] {

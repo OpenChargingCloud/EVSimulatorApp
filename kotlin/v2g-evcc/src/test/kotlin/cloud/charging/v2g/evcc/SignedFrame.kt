@@ -18,6 +18,7 @@ import cloud.charging.v2g.iso2.SignatureValueType as I2SignatureValueType
 import cloud.charging.v2g.iso2.V2G_Message
 
 import cloud.charging.v2g.iso20.common.AuthorizationReq
+import cloud.charging.v2g.iso20.common.CertificateInstallationReq
 import cloud.charging.v2g.iso20.common.CommonMessagesCodec
 import cloud.charging.v2g.iso20.common.SignatureValueType as CSignatureValueType
 
@@ -61,14 +62,28 @@ internal object SignedFrame {
                                       it.signatureValue.value, publicKey)
             } ?: false
 
+            // The other signed request a -20 EV sends, and the only one it sends *before*
+            // authorizing. JCA names the hash rather than deriving it from the curve, so the P-521
+            // OEM key needs no separate arm here — only its public key has to be built on the right
+            // curve, which is what `publicKey`'s parameter is for.
+            is CertificateInstallationReq -> message.header.signature?.let {
+                XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(it.signedInfo),
+                                      it.signatureValue.value, publicKey)
+            } ?: false
+
             else -> false
         }
     }
 
-    /** A P-256 public key from the two field elements the trace records. */
-    fun publicKey(xHex: String, yHex: String): PublicKey {
+    /**
+     * A public key from the two field elements the trace records, on the curve it names.
+     *
+     * `P-256` is the default because it is what every trace recorded before contract provisioning
+     * used, and what a contract key still uses; a -20 OEM provisioning key is `P-521`.
+     */
+    fun publicKey(xHex: String, yHex: String, curve: String = "P-256"): PublicKey {
         val parameters = AlgorithmParameters.getInstance("EC").apply {
-            init(ECGenParameterSpec("secp256r1"))
+            init(ECGenParameterSpec(if (curve == "P-521") "secp521r1" else "secp256r1"))
         }.getParameterSpec(ECParameterSpec::class.java)
 
         val point = ECPoint(BigInteger(1, hex(xHex)), BigInteger(1, hex(yHex)))
@@ -101,14 +116,27 @@ internal object SignedFrame {
                 message.pnC_AReqAuthorizationMode)
         }
 
+        is CertificateInstallationReq -> {
+            val signature = message.header.signature
+                ?: error("substituting a signature into an unsigned CertificateInstallationReq")
+            CertificateInstallationReq(
+                message.header.copy(signature = signature.copy(
+                    signatureValue = CSignatureValueType(null, signatureValue))),
+                message.oEMProvisioningCertificateChain,
+                message.listOfRootCertificateIDs,
+                message.maximumContractCertificateChains,
+                message.prioritizedEMAIDs)
+        }
+
         else -> throw UnsupportedOperationException(
             "the trace corpus does not model a signature on ${message::class.simpleName}. " +
             "Add it here rather than letting the comparison skip it.")
     }
 
     private fun encode(message: Any): ByteArray = when (message) {
-        is V2G_Message      -> Iso15118_2Codec.encode(message)
-        is AuthorizationReq -> CommonMessagesCodec.encode(message)
+        is V2G_Message                -> Iso15118_2Codec.encode(message)
+        is AuthorizationReq           -> CommonMessagesCodec.encode(message)
+        is CertificateInstallationReq -> CommonMessagesCodec.encode(message)
         else -> throw UnsupportedOperationException("cannot re-encode a ${message::class.simpleName}.")
     }
 

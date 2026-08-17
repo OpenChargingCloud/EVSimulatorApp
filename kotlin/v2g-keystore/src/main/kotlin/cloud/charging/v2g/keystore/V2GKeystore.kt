@@ -100,8 +100,20 @@ interface V2GSigner {
     val protection: V2GKeyProtection
     val publicKeyDer: ByteArray
 
-    /** Raw `r‖s`, never DER — the wire field is sized to the curve, so the usual mistake fails
-     *  loudly rather than silently. */
+    /**
+     * Signs `octets` **with ECDSA over their SHA-256 digest**, returning raw `r‖s` — never DER, since
+     * the wire field is sized to the curve and the usual mistake then fails loudly rather than
+     * silently.
+     *
+     * The hash is named here rather than left to the curve. This interface serves one caller: the
+     * Josev interop signature form, which hard-codes `ecdsa-sha256` in the `SignedInfo` it produces —
+     * on both protocols and whatever the key. A P-521 signer that used SHA-512, the curve's natural
+     * pairing, would produce a signature contradicting its own declaration: self-consistent, and
+     * verifiable by nobody else.
+     *
+     * The nominal -20 suite (P-521/SHA-512 over the combined grammar) does not come through here at
+     * all — `V2GSignature.sign` takes the key directly.
+     */
     fun signature(octets: ByteArray): ByteArray
 }
 
@@ -120,6 +132,40 @@ class InMemoryP256Signer(
     }
 
     override val curve get() = V2GKeyCurve.P256
+
+    override fun signature(octets: ByteArray): ByteArray =
+        Signature.getInstance("SHA256withECDSAinP1363Format").apply {
+            initSign(key)
+            update(octets)
+        }.sign()
+}
+
+
+/**
+ * A software P-521 signer — the other of ISO 15118-20's mandatory ECDSA suites.
+ *
+ * No hardware variant exists or can: [V2GKeyCurve.canBeHardwareBacked] is false for P-521 on both
+ * platforms, so unlike [InMemoryP256Signer] this class is not a fallback to something better. It is
+ * the only shape a P-521 credential can take here.
+ *
+ * It arrived with contract provisioning: a -20 OEM provisioning key must be P-521 to take part in the
+ * secp521r1 key agreement at all, and until then every credential this stack signed with was a
+ * contract key, which is P-256 because -2's signature field is 64 bytes wide.
+ *
+ * **SHA-256, like its P-256 sibling** — see [V2GSigner.signature]. The Josev interop form declares
+ * `ecdsa-sha256` whatever key signs it, so the digest belongs to the form and not to the curve.
+ */
+class InMemoryP521Signer(
+    private val key: PrivateKey,
+    override val publicKeyDer: ByteArray,
+    override val protection: V2GKeyProtection = V2GKeyProtection.SoftwareInMemory,
+) : V2GSigner {
+
+    init {
+        if (protection.isHardwareBacked) throw V2GKeyException.SoftwareSignerCannotClaimHardware()
+    }
+
+    override val curve get() = V2GKeyCurve.P521
 
     override fun signature(octets: ByteArray): ByteArray =
         Signature.getInstance("SHA256withECDSAinP1363Format").apply {

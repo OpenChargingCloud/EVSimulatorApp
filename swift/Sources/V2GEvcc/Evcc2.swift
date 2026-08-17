@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import V2GMetering
 import ExiIso2
+import V2GCertificates
 import V2GDispatch
 
 /// The EV's smart-charging verdict over the SASchedule offer: how many tuples were offered, whether
@@ -68,6 +69,34 @@ public final class Evcc2 {
     /// Contract credentials. When set and the station offers Contract, the session runs Plug & Charge
     /// instead of external payment.
     public var pnc: PncEvccOptions?
+
+    /// Provisioning credentials. When set — and the station advertises the certificate service — the
+    /// EVCC selects that service and asks for a contract before authorizing. Nil (the default) skips
+    /// the whole exchange, which is what a car that already holds a contract does.
+    public var certInstallRequest: Iso2CertInstallOptions?
+
+    /// The parameter-set id this car names when it selects the certificate service, overriding the
+    /// conformant pairing (Installation is set 1, Update is set 2). Nil keeps the pairing, which is
+    /// what a real car does and what every recorded run used. Present because a station in the field
+    /// advertises set 1 alone — see C#'s `Evcc2.CertificateParameterSetId` for the whole story.
+    public var certificateParameterSetId: Int16?
+
+    /// The contract certificate (DER) the provisioning exchange installed, once one has arrived.
+    public private(set) var installedContractCertificate: [UInt8]?
+
+    /// The unwrapped contract private key, checked against the certificate it arrived with.
+    public private(set) var installedContractKey: P256.Signing.PrivateKey?
+
+    /// The eMAID the operator issued the contract under.
+    public private(set) var installedEmaid: String?
+
+    /// The full §7.9.2.4.2 verdict over the provisioning response, once one has arrived.
+    public private(set) var installedContractVerdict: Iso2ContractVerdict?
+
+    /// Whether that response's four-reference signature held — both halves of
+    /// ``installedContractVerdict``, since a response whose digests do not hold is not signed for what
+    /// it carries.
+    public private(set) var installedContractSignatureOk = false
 
     /// How this session authorized: `"eim"`, or `"pnc-signed"` after a signed AuthorizationReq.
     public private(set) var authorizationMode = "eim"
@@ -148,11 +177,27 @@ public final class Evcc2 {
         let contract = credentials != nil
             && discovery.paymentOptionList.paymentOption.contains(.Contract)
 
+        // Contract provisioning is a value-added service in -2: it has to be *found* in the station's
+        // ServiceList and then selected by id, where -20 needs only a flag in AuthorizationSetupRes.
+        let certificateService = certInstallRequest == nil
+            ? nil
+            : discovery.serviceList?.service.first { $0.serviceCategory == .ContractCertificate }
+
+        var selected = [SelectedServiceType(serviceID: chargeServiceId)]
+        if let certificateService, let request = certInstallRequest {
+            selected.append(SelectedServiceType(
+                serviceID: certificateService.serviceID,
+                parameterSetID: certificateParameterSetId
+                    ?? (request.action == .update ? 2 : 1)))
+        }
+
         let _: PaymentServiceSelectionResType = try send(PaymentServiceSelectionReqType(
             selectedPaymentOption: contract ? .Contract : .ExternalPayment,
-            selectedServiceList: SelectedServiceListType(selectedService: [
-                SelectedServiceType(serviceID: chargeServiceId)
-            ])))
+            selectedServiceList: SelectedServiceListType(selectedService: selected)))
+
+        if certificateService != nil, let request = certInstallRequest {
+            try runCertificateProvisioning(request)
+        }
 
         // ── AUTH (poll until authorised) ───────────────────────────────────
         // Contract: PaymentDetails first (chain in, GenChallenge out), then a signed AuthorizationReq
@@ -352,6 +397,88 @@ public final class Evcc2 {
         }
         let sum = entries.reduce(0.0) { $0 + Double($1.ePriceLevel ?? UInt8.max) }
         return sum / Double(entries.count)
+    }
+
+    /// Runs the -2 contract-provisioning exchange (§7.9.2.4): sends the signed request — the OEM
+    /// provisioning certificate for an installation, the expiring contract for an update, signed over
+    /// its own message fragment in the Josev interop form — then judges the four-reference response
+    /// signature and ECDH-unwraps the issued contract private key.
+    ///
+    /// The verdict this reaches is checked by `Contract.provisioning.vectors.json` and not by the
+    /// recorded session, for the reason ``Iso2ContractCheck`` gives: it never travels. What the
+    /// recording pins is *where in the session this sits* — after service selection, before
+    /// PaymentDetails — which no corpus of frames can state.
+    private func runCertificateProvisioning(_ options: Iso2CertInstallOptions) throws {
+
+        // -2 has the EV name the roots it trusts, so the operator can pick a chain the car can build.
+        // Ours names the one dev root this stack uses; a real car lists what it was built with.
+        let roots = ListOfRootCertificateIDsType(rootCertificateID: [
+            X509IssuerSerialType(x509IssuerName: "CN=V2GRootCA (dev)", x509SerialNumber: 1)
+        ])
+
+        let request: BodyBaseType
+        let signature: SignatureType
+
+        switch options.action {
+
+        case .update:
+            guard let emaid = options.emaid else {
+                throw SessionAborted("CertificateUpdateReq: the eMAID of the expiring contract is required.")
+            }
+            let update = CertificateUpdateReqType(
+                id: "id1",
+                contractSignatureCertChain: CertificateChainType(
+                    certificate: options.certificate,
+                    subCertificates: options.subCertificates.isEmpty
+                        ? nil : SubCertificatesType(certificate: options.subCertificates)),
+                eMAID: emaid,
+                listOfRootCertificateIDs: roots)
+            signature = try XmlDsigInterop.sign2(
+                "id1", Iso15118_2Codec.encodeFragment_CertificateUpdateReq(update), options.signKey)
+            request = update
+
+        case .install:
+            let install = CertificateInstallationReqType(
+                id: "id1", oEMProvisioningCert: options.certificate, listOfRootCertificateIDs: roots)
+            signature = try XmlDsigInterop.sign2(
+                "id1", Iso15118_2Codec.encodeFragment_CertificateInstallationReq(install), options.signKey)
+            request = install
+        }
+
+        // The two responses carry the same fields in the same order, bar the update's trailing
+        // RetryCounter, so everything after this point is common.
+        let response: BodyBaseType = options.action == .update
+            ? (try send(request, signature) as CertificateUpdateResType)
+            : (try send(request, signature) as CertificateInstallationResType)
+
+        guard let payload = Iso2ContractCheck.unpack(response) else {
+            throw SessionAborted("contract provisioning: unexpected response \(type(of: response)).")
+        }
+
+        let verdict = Iso2ContractCheck.evaluate(response, headerSignature: lastHeader?.signature)
+        installedContractVerdict     = verdict
+        installedContractSignatureOk = verdict.digestOk && verdict.signatureOk
+
+        installedContractCertificate = payload.contractChain.certificate
+        installedEmaid               = payload.emaid.value
+
+        let recovered = try ContractProvisioning2.recoverContractKey(
+            receiver: options.keyAgreement,
+            dhPublicKey: payload.dhPublicKey.value,
+            encryptedPrivateKey: payload.encryptedKey.value)
+
+        // CBC authenticates nothing, so an unwrap always "succeeds". The check that it succeeded with
+        // the right key is that the key belongs to the certificate it arrived with — without this a
+        // car would carry on and only find out at its next AuthorizationReq, one session later.
+        guard let issued = try? V2GCertificate(der: payload.contractChain.certificate),
+              let issuedKey = issued.p256VerificationKey,
+              ContractProvisioning2.matches(recovered, issuedKey)
+        else {
+            throw SessionAborted(
+                "contract provisioning: the unwrapped key does not belong to the issued certificate.")
+        }
+
+        installedContractKey = recovered
     }
 
     /// Signs and sends one MeteringReceiptReq for the station's MeterInfo.

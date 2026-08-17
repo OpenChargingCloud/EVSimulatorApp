@@ -7,7 +7,8 @@
   "note": "-20 DC, Plug \u0026 Charge: the AuthorizationReq echoes the station\u0027s GenChallenge and carries the contract chain, signed over the PnC_AReqAuthorizationMode fragment.",
   "signingKey": {
     "x": "bb18268b7ba3a4413da688df7bb153548699e589f7c31e13db44a2da01dce664",
-    "y": "02f710584f4edba46e7b3930e8a41c71117d7282b8adc31b551a1c43d7bbe521"
+    "y": "02f710584f4edba46e7b3930e8a41c71117d7282b8adc31b551a1c43d7bbe521",
+    "curve": "P-256"
   },
   "exchanges": [
     {

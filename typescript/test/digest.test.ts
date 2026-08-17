@@ -8,6 +8,10 @@ import { Iso15118_2Codec } from "../src/iso2/Iso15118_2Codec.ts";
 import { V2G_Message } from "../src/iso2/V2G_Message.ts";
 import { AuthorizationReqType } from "../src/iso2/AuthorizationReqType.ts";
 import { MeteringReceiptReqType } from "../src/iso2/MeteringReceiptReqType.ts";
+import { CertificateInstallationReqType } from "../src/iso2/CertificateInstallationReqType.ts";
+import { CertificateUpdateReqType } from "../src/iso2/CertificateUpdateReqType.ts";
+import { CertificateInstallationResType } from "../src/iso2/CertificateInstallationResType.ts";
+import { CertificateUpdateResType } from "../src/iso2/CertificateUpdateResType.ts";
 import { ChargeParameterDiscoveryResType } from "../src/iso2/ChargeParameterDiscoveryResType.ts";
 import { SAScheduleListType } from "../src/iso2/SAScheduleListType.ts";
 import { SalesTariffType } from "../src/iso2/SalesTariffType.ts";
@@ -89,6 +93,33 @@ function signedElementsOf(element: unknown): { uri: string, fragment: Uint8Array
         return [{ uri: "#" + element.id,
                   fragment: Iso15118_2Codec.encodeFragment_MeteringReceiptReq(element) }];
 
+    // A car asking for its first contract signs the whole request, as a PnC request does — and the
+    // renewal signs its own message type, which is the same shape and a different class. Both arrived
+    // with the provisioning recordings; before them this back end had never seen either on the wire.
+    if (element instanceof CertificateInstallationReqType)
+        return [{ uri: "#" + element.id,
+                  fragment: Iso15118_2Codec.encodeFragment_CertificateInstallationReq(element) }];
+
+    if (element instanceof CertificateUpdateReqType)
+        return [{ uri: "#" + element.id,
+                  fragment: Iso15118_2Codec.encodeFragment_CertificateUpdateReq(element) }];
+
+    // And the answers, which sign **four** elements under one header signature (§7.9.2.4.2) — the
+    // contract chain, the encrypted private key, the DH public point and the eMAID, each digested
+    // over its own fragment. A verifier that checked only the chain would take an encrypted key
+    // nobody signed for. Both response types carry the same five fields in the same order.
+    if (element instanceof CertificateInstallationResType || element instanceof CertificateUpdateResType)
+        return [{ uri: "#" + element.contractSignatureCertChain.id,
+                  fragment: Iso15118_2Codec.encodeFragment_ContractSignatureCertChain(
+                                element.contractSignatureCertChain) },
+                { uri: "#" + element.contractSignatureEncryptedPrivateKey.id,
+                  fragment: Iso15118_2Codec.encodeFragment_ContractSignatureEncryptedPrivateKey(
+                                element.contractSignatureEncryptedPrivateKey) },
+                { uri: "#" + element.dHpublickey.id,
+                  fragment: Iso15118_2Codec.encodeFragment_DHpublickey(element.dHpublickey) },
+                { uri: "#" + element.eMAID.id,
+                  fragment: Iso15118_2Codec.encodeFragment_eMAID(element.eMAID) }];
+
     if (element instanceof ChargeParameterDiscoveryResType) {
         const offer = element.sASchedules;
         if (!(offer instanceof SAScheduleListType)) return null;
@@ -107,7 +138,9 @@ test("the digest of every signed -2 message re-derives from its own frame", asyn
 
     /** @see the assertion at the end for why this list is spelled out rather than counted. */
     const expected = ["AuthorizationReqType", "MeteringReceiptReqType",
-                      "ChargeParameterDiscoveryResType"];
+                      "ChargeParameterDiscoveryResType",
+                      "CertificateInstallationReqType", "CertificateUpdateReqType",
+                      "CertificateInstallationResType", "CertificateUpdateResType"];
 
     /** @type {string[]} */
     const checkedNames: string[] = [];

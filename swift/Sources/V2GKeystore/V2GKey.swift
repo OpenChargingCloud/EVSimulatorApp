@@ -90,9 +90,26 @@ public protocol V2GSigner: Sendable {
     /// The public key, DER-encoded as SubjectPublicKeyInfo.
     var publicKeyDer: [UInt8] { get }
 
-    /// Signs `octets`, returning the raw `r‖s` pair ISO 15118 puts on the wire — never DER. The
-    /// field is sized to the curve, so a DER signature does not fit and the usual mistake fails
-    /// loudly rather than silently.
+    /// Signs `octets` **with ECDSA over their SHA-256 digest**, returning the raw `r‖s` pair
+    /// ISO 15118 puts on the wire — never DER. The field is sized to the curve, so a DER signature
+    /// does not fit and the usual mistake fails loudly rather than silently.
+    ///
+    /// ## Why the hash is named here rather than left to the curve
+    ///
+    /// This protocol serves one caller: the Josev interop signature form, which hard-codes
+    /// `ecdsa-sha256` in the `SignedInfo` it produces — on both protocols and whatever the key. C#
+    /// passes `HashAlgorithmName.SHA256` explicitly and Kotlin asks for `SHA256withECDSA`, so both
+    /// have always meant this; Swift did not have to say it while every credential was P-256, because
+    /// CryptoKit's default for a P-256 key *is* SHA-256.
+    ///
+    /// It stopped being invisible with the -20 OEM provisioning key, which is P-521: CryptoKit's
+    /// default there is SHA-512, so a signer that simply forwarded the octets produced a signature
+    /// declaring SHA-256 and computed over SHA-512. It verified against itself perfectly and against
+    /// nothing else — caught by the recorded provisioning session, which is the only check in this
+    /// package that verifies a signature *another implementation* made.
+    ///
+    /// The nominal -20 suite (P-521/SHA-512 over the combined grammar) does not come through here at
+    /// all: `V2GSignature.sign(_:with:)` takes a `P521.Signing.PrivateKey` directly.
     func signature(over octets: [UInt8]) throws -> [UInt8]
 }
 
@@ -156,5 +173,40 @@ public struct InMemoryP256Signer: V2GSigner {
 
     public func signature(over octets: [UInt8]) throws -> [UInt8] {
         Array(try key.signature(for: Data(octets)).rawRepresentation)
+    }
+}
+
+
+/// A software P-521 signer held in memory — the other of ISO 15118-20's mandatory ECDSA suites.
+///
+/// No hardware variant exists or can: ``V2GKeyCurve/canBeHardwareBacked`` is false for P-521 on both
+/// platforms, so unlike ``InMemoryP256Signer`` this type is not a fallback to something better. It is
+/// the only shape a P-521 credential can take here.
+///
+/// It arrived with contract provisioning: a -20 OEM provisioning key must be P-521 to take part in
+/// the secp521r1 key agreement at all, and until then every credential this stack signed with was a
+/// contract key, which is P-256 because -2's signature field is 64 bytes wide.
+public struct InMemoryP521Signer: V2GSigner {
+
+    private let key: P521.Signing.PrivateKey
+
+    public let protection: V2GKeyProtection
+    public var curve: V2GKeyCurve { .p521 }
+    public var publicKeyDer: [UInt8] { Array(key.publicKey.derRepresentation) }
+
+    public init(_ key: P521.Signing.PrivateKey,
+                protection: V2GKeyProtection = .softwareInMemory) throws {
+        if protection.isHardwareBacked {
+            throw V2GKeyError.softwareSignerCannotClaimHardware
+        }
+        self.key = key
+        self.protection = protection
+    }
+
+    /// SHA-256, explicitly — see ``V2GSigner/signature(over:)``. Handing the octets to CryptoKit
+    /// would hash them with SHA-512, because that is P-521's natural pairing, and produce a signature
+    /// that contradicts the `ecdsa-sha256` its own `SignedInfo` declares.
+    public func signature(over octets: [UInt8]) throws -> [UInt8] {
+        Array(try key.signature(for: SHA256.hash(data: Data(octets))).rawRepresentation)
     }
 }

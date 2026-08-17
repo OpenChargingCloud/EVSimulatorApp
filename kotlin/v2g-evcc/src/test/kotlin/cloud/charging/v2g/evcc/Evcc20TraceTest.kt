@@ -3,6 +3,7 @@ package cloud.charging.v2g.evcc
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -262,6 +263,56 @@ class Evcc20TraceTest {
         assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
         assertEquals("pnc-signed", evcc.authorizationMode,
             "the session completed but authorized via EIM — then nothing signed was compared")
+    }
+
+    // ── contract provisioning ─────────────────────────────────────────────
+
+    /**
+     * -20 installation: no service to discover, one signed element instead of four, a P-521 key —
+     * and the request placed before the first AuthorizationReq.
+     *
+     * The position is the whole difference from -2, where provisioning is a value-added service that
+     * has to be discovered and selected first. Only a recorded session can state that.
+     */
+    @Test
+    fun `the -20 certificate installation session matches the recording`() {
+
+        val trace  = SessionTrace.load("iso20-dc-eim-certinstall")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_20, PowerMode.Dc)
+        val evcc = Evcc20Dc(stream, recordedAt, pollDelay = { })
+            .apply { certInstallRequest = OemMaterial.iso20Install }
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+        assertNotNull(evcc.installedContractKey,
+            "no key came out — on -20 that means AES-GCM refused the tag, not that a check was skipped")
+        assertEquals(1, evcc.installedContractVerdict?.references,
+            "-20 signs the whole SignedInstallationData as one element")
+        assertTrue(evcc.installedContractSignatureOk)
+
+        // The exchange runs before authorization, so the session still authorizes by EIM afterwards:
+        // installing a contract is not using one.
+        assertEquals("eim", evcc.authorizationMode)
+    }
+
+    /** The order, named rather than left implicit in the byte comparison. */
+    @Test
+    fun `-20 asks for a contract before it authorizes and before it discovers anything`() {
+
+        val messages = SessionTrace.load("iso20-dc-eim-certinstall").exchanges.map { it.request.message }
+        val provisioning  = messages.indexOf("CertificateInstallationReq")
+        val authorization = messages.indexOf("AuthorizationReq")
+        val discovery     = messages.indexOf("ServiceDiscoveryReq")
+
+        assertTrue(provisioning > 0, "the trace records no provisioning request")
+        assertTrue(provisioning < authorization,
+            "-20 asks for a contract before it authorizes — that is what the flag in " +
+            "AuthorizationSetupRes is for")
+        assertTrue(provisioning < discovery,
+            "…and before it has discovered a single service, which is the whole difference from -2")
     }
 
     /** Which energy-transfer service the negotiation settled on: DC=2, AC=1 (Table 204). The wire
