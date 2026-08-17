@@ -25,11 +25,13 @@ final class EvccTraceTests: XCTestCase {
 
     // ── ISO 15118-2 ───────────────────────────────────────────────────────
 
-    private func replay2(_ name: String, _ mode: PowerMode) throws -> (TraceReplay, Evcc2) {
+    private func replay2(_ name: String, _ mode: PowerMode,
+                         configure: (Evcc2) -> Void = { _ in }) throws -> (TraceReplay, Evcc2) {
         let replay = TraceReplay(try SessionTrace.load(name))
         let stream = V2GTPStream(replay)
         try SapHandshake.runEvccSide(stream, .iso15118_2, mode)
         let evcc = Evcc2(stream, mode)
+        configure(evcc)
         try evcc.run()
         return (replay, evcc)
     }
@@ -46,6 +48,54 @@ final class EvccTraceTests: XCTestCase {
         XCTAssertTrue(replay.complete,
             "the session stopped after \(replay.replayed) recorded exchanges — it ended early, " +
             "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /// Recorded 2026-08-16; this target replayed neither new recording until 2026-08-17, so both of
+    /// the divergences below had gone unmeasured here while Kotlin was already held to them.
+    ///
+    /// Every other recording charges for a fixed count of cycles; this one charges until the battery
+    /// reaches its target state of charge, which is what the C# car has done since 2026-08-08. The
+    /// pack settings have to match the recording exactly, because they are what the bytes are:
+    /// 60 kWh from 20 % to a 22 % target is two cycles at 800 Wh each, and every `EVRESSSOC` on the
+    /// way is this arithmetic rounded to a percent.
+    func testDcIso2SessionWithABatteryMatchesTheRecordingByteForByte() throws {
+        let (replay, _) = try replay2("iso2-dc-eim-battery", .dc) { evcc in
+            let pack = EvBattery(capacityKWh: 60.0, startSoCPercent: 20.0)
+            pack.targetSoC     = 22.0
+            pack.maxIterations = 100
+            evcc.battery = pack
+        }
+        XCTAssertTrue(replay.complete,
+            "the session stopped after \(replay.replayed) recorded exchanges — the recorded car " +
+            "charges to a target state of charge, this one to a cycle count")
+    }
+
+    /// Recorded 2026-08-16. Renegotiation ([V2G2-841]) was ported, but on DC it returns through
+    /// CableCheck and PreCharge rather than straight back to the charge loop, and nothing had ever
+    /// held this target to that return path.
+    func testDcIso2RenegotiationMatchesTheRecordingByteForByte() throws {
+        let (replay, _) = try replay2("iso2-dc-eim-renegotiate", .dc) { $0.renegotiate = true }
+        XCTAssertTrue(replay.complete,
+            "the session stopped after \(replay.replayed) recorded exchanges — the DC return path " +
+            "through CableCheck and PreCharge is where to look")
+    }
+
+    /// The battery's own arithmetic, read back from the pack rather than from the wire.
+    ///
+    /// The bytes above already pin it, but only implicitly: a reader looking at the trace sees
+    /// `EVRESSSOC` go 20, 21, 23 and has to reconstruct why. This states the why, and it is the
+    /// assertion that would survive if the recording were ever re-taken.
+    func testTheBatteryStopsBecauseItReachedItsTarget() {
+        let pack = EvBattery(capacityKWh: 60.0, startSoCPercent: 20.0)
+        pack.targetSoC     = 22.0
+        pack.maxIterations = 100
+
+        XCTAssertEqual(pack.energyNeededWh, 1200.0, "22 % of 60 kWh less the 20 % it starts with")
+        pack.add(800.0)                                 // one minute at 48 kW, the DC loop's rate
+        XCTAssertEqual(pack.stop, .running, "21.3 % has not reached 22 % yet")
+        pack.add(800.0)
+        XCTAssertEqual(pack.stop, .targetSoC, "22.7 % has")
+        XCTAssertEqual(pack.iterations, 2)
     }
 
     /// The smart-charging outcome, read back from the state machine rather than off the wire. The

@@ -220,13 +220,36 @@ not a setback:
 
 | Recording | Diverges | Why |
 |---|---|---|
-| `iso2-dc-eim-battery` | exchange 5, `ChargeParameterDiscoveryReq` | the recorded car asks for the energy it still needs; the port asks for a fixed amount. There is no battery in the ports. |
-| `iso2-dc-eim-renegotiate` | ~~exchange 12~~ **closed 2026-08-16** | the DC isolation sequence was inline at its one call site, so the return path could not reach it |
+| `iso2-dc-eim-battery` | ~~exchange 5, `ChargeParameterDiscoveryReq`~~ **closed 2026-08-17** | the recorded car asks for the energy it still needs; the port asked for a fixed amount. There was no battery in the ports. |
+| `iso2-dc-eim-renegotiate` | ~~exchange 12~~ **closed 2026-08-16** (Kotlin) / **2026-08-17** (Swift) | the DC isolation sequence was inline at its one call site, so the return path could not reach it |
 
 **The trap this walked into first:** the ports' trace tests name each scenario by hand, so a new
 recording is invisible until somebody adds a test for it. This project has been bitten by exactly
 that before — `DECODABLE` named three sessions while the corpus held twelve — and the same shape was
 still here. Recording a session is half the work; the other half is that something reads it.
+
+**And it was worse than that — three ways, all found on 2026-08-17.**
+
+1. **Swift named neither recording.** Both replays above went into *Kotlin only*, so Swift's
+   renegotiation still took the shortcut a conformant station refuses — the same defect Kotlin had
+   fixed on the 16th, sitting undetected in a second port for a day because the gate that would have
+   caught it had never been written.
+2. **`Bridge.events.json` is derived from the corpus and was not regenerated.** `BridgeEventStreamTest`
+   does the opposite of naming scenarios by hand: it walks *every* trace in the directory and demands
+   a C#-recorded event list for each. So the two new recordings turned it red immediately — a good
+   test, failing correctly, in a gate nobody had run since.
+3. **`Session.ocpp-transactions.json` was regenerated when the traces were not.** The recording commit
+   restored the four signed and metered *traces* after regeneration (ECDSA picks a fresh nonce per
+   run, so they differ in every signature byte and nothing else) — but the OCPP corpus beside them
+   kept the *new* signatures. Six `signedMeterData` values, and the two corpora then disagreed about
+   the same session: the station's signed reading was no longer the one the car saw. That is exactly
+   what the app's `the signed readings the backend got are the ones this car saw` exists to catch, and
+   it caught it.
+
+So: adding a recording is not one edit. It is one edit **per back end that has a state machine**, plus
+every derived corpus, plus — where a signature is involved — checking that what was restored and what
+was regenerated still describe one session. Restoring *some* files after a regeneration is the
+dangerous half-measure; it is what produced (3).
 
 Still to record, from the twenty state-machine commits: `EVReady = false` through the DC isolation
 sequence, and a `-20` session carrying a `SupportedServiceIDs` filter. Closing the two failures above
@@ -249,7 +272,12 @@ carrying a `SupportedServiceIDs` filter.
 
 The port work proper. Two piles, and the first is bigger than it looks.
 
-- **Whatever stage 2 turned red.**
+- ~~**Whatever stage 2 turned red.**~~ **Done 2026-08-17.** Both recordings replay byte-for-byte in
+  Kotlin and Swift. `EvBattery` is ported to both — the pack, its five stop conditions, the taper, and
+  the six places a -2 session reads it: the charge-loop end condition, the per-cycle feed from the
+  meter, `EVEnergyCapacity`/`EVEnergyRequest` on DC, `EAmount` on AC, and `EVRESSSOC`, which is the
+  one field in -2 that moves while charging. TypeScript has no state machine at all — codec and
+  bridge only — so there was no third port to carry.
 - **The gaps the ports already name in their own class comments** — deliberately named there rather
   than silently absent:
   - `-2` **tariff-signature verification** (§7.9.2.5). The tuple *choice* is ported;
