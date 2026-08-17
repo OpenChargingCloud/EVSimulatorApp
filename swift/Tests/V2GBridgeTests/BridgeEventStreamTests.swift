@@ -35,7 +35,7 @@ final class BridgeEventStreamTests: XCTestCase {
     private func traces() throws -> [JsonObject] {
 
         let directory = repositoryRoot.appendingPathComponent(
-            "../../ISO15118ConformanceTests.Simulation/Vectors")
+            "vectors")
 
         return try FileManager.default.contentsOfDirectory(atPath: directory.path)
             .filter { $0.hasPrefix("Session.") && $0.hasSuffix(".trace.json") }

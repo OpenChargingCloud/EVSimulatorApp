@@ -30,17 +30,11 @@ const repositoryRoot = (() => {
     }
 })();
 
-// The session trace corpus is the ISO15118ConformanceTests repo's — it lives with the C# session
-// tests that record it, in the parent that carries this app as a submodule. These replay checks
-// therefore run under conformance and skip when the app is checked out on its own.
+// The session corpus is recorded by the C# session tests in the conformance repository and written
+// down into `vectors/` here, so these replay checks always run.
 const trace = (name: string): SessionTrace => JSON.parse(readFileSync(join(repositoryRoot,
-    `../../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`),
+    `vectors/Session.${name}.trace.json`),
     "utf8"));
-
-const skipNoTraces = (() => {
-    try { trace("iso2-ac-eim"); return false; }
-    catch { return "session trace corpus absent — it lives in the ISO15118ConformanceTests repo"; }
-})();
 
 const corpus: Record<string, unknown[]> = JSON.parse(readFileSync(join(repositoryRoot,
     "bridge/EVSimulatorApp.Bridge.Tests/Vectors/Bridge.events.json"), "utf8")).sessions;
@@ -67,7 +61,7 @@ function web(recorded = "iso2-ac-eim") {
 const settle = () => new Promise(resume => setTimeout(resume, 50));
 
 
-test("a bundled session arrives as the events the corpus pins", { skip: skipNoTraces }, async () => {
+test("a bundled session arrives as the events the corpus pins", async () => {
 
     const { plugin, received } = web();
 
@@ -106,7 +100,7 @@ test("a bundled session arrives as the events the corpus pins", { skip: skipNoTr
  * were not generated for TypeScript. They are wired through now, so the refusal is gone and the
  * assertion is its opposite: the session arrives, as messages rather than as errors.
  */
-test("an ISO 15118-20 session is delivered as messages, not refused", { skip: skipNoTraces }, async () => {
+test("an ISO 15118-20 session is delivered as messages, not refused", async () => {
 
     const { plugin, received } = web("iso20-ac-eim");
 
@@ -140,7 +134,7 @@ test("a session nobody bundled a recording for is refused, and says so", async (
 });
 
 
-test("stopping ends the stream rather than leaving it hanging", { skip: skipNoTraces }, async () => {
+test("stopping ends the stream rather than leaving it hanging", async () => {
 
     const { plugin, received } = web();
     plugin.pace = 5;
@@ -187,7 +181,7 @@ test("stopping ends the stream rather than leaving it hanging", { skip: skipNoTr
  * screen simply stayed empty — no exception, no failing test, nothing to notice but an inspector
  * showing nothing.
  */
-test("every event the web implementation emits is one the adapter accepts", { skip: skipNoTraces }, async () => {
+test("every event the web implementation emits is one the adapter accepts", async () => {
 
     const web = new EvSimulatorWeb();
     web.traces = () => trace("iso2-ac-eim");
@@ -213,7 +207,7 @@ test("every event the web implementation emits is one the adapter accepts", { sk
 });
 
 
-test("stopping twice, or stopping something that never ran, is not an error", { skip: skipNoTraces }, async () => {
+test("stopping twice, or stopping something that never ran, is not an error", async () => {
 
     const { plugin } = web();
     const { sessionId } = await plugin.start({ config: CONFIG });

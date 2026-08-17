@@ -50,8 +50,7 @@ class MeterSignatureTest {
         while (!File(dir, "EVSimulatorApp.slnx").isFile) {
             dir = dir.parentFile ?: error("repository root not found")
         }
-        val f = File(dir, "../../ISO15118ConformanceTests.Simulation/" +
-                          "Vectors/Meter.signing.vectors.json")
+        val f = File(dir, "vectors/Meter.signing.vectors.json")
         assertTrue(f.isFile, "meter corpus not found at $f")
         JsonParser.parseString(f.readText()).asJsonObject
     }

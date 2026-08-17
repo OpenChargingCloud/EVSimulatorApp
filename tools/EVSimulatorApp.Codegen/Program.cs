@@ -89,7 +89,28 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Codegen
             // switches are wire-format forks, and a regeneration log that does not say which one it
             // took cannot be read afterwards — the whole reason this tool needed them at all is that
             // the answer used to be invisible.
-            Console.Error.WriteLine($"grammar: document elements {opts.DocOrder}, particles {opts.Particles}");
+            //
+            // The two switches are not symmetric, and the log used to imply they were. `--doc-order`
+            // is decided in the shared front end (GrammarBuilder), so every back end gets it.
+            // `--particles` is acted on in the emitters, and only two of them act on it — the only
+            // construct that reads it is an optional run whose list is not its last particle, which
+            // in practice means WPT's LF_SystemSetupData, and neither the Swift nor the TypeScript
+            // back end emits WPT at all. Printing `particles SchemaConformant` beside a Swift run
+            // therefore claimed a decision nothing had taken. Nothing was mis-encoded by it: Swift
+            // refuses that construct by name rather than guessing (see SwiftCodecEmitter on
+            // WPT_LF_TransmitterDataType), so the flag is inert rather than ignored. But a
+            // regeneration log that overstates what it decided is the same class of problem the
+            // flags were added to fix, one level up.
+            //
+            // Re-check this list with `grep -rn ParticleGrammar Emit/` here and in the source
+            // generator: a back end that grows the mid-run-list shape has to be added to it.
+            var readsParticles = emitter.Language is "csharp" or "kotlin";
+
+            Console.Error.WriteLine(
+                $"grammar: document elements {opts.DocOrder}, particles {opts.Particles}" +
+                (readsParticles
+                     ? ""
+                     : $" (inert here — the {emitter.Language} back end emits no set that reads it)"));
 
             // --out is the directory the files go in. Every back end emits one file per type, so a
             // path that looks like a file is a leftover from the single-file era; quietly treating

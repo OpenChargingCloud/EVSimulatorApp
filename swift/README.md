@@ -458,11 +458,6 @@ matters: one seed, the same logical `SignedInfo`, three sets, three *different* 
 verifying only in its own set. Collapsing the five helpers into one fails there rather than in the
 field.
 
-One thing this back end should fix when Ed448 lands: `verify` currently decides on the **signature
-length** (114 → unsupported), where the SignedInfo carries the declared algorithm URI. Reading the
-declaration and failing loudly on an unrecognised one is the fail-loud shape the rest of the
-project uses; a length is a guess at something we were told.
-
 ## How these codecs are checked
 
 `kotlin/README.md` describes three independent gates. Swift has all three — the first back end in

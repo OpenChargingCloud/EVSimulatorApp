@@ -15,11 +15,14 @@
 #      So an exit code is the default verdict, and where one has been caught lying, the suite's own
 #      output is read as well. See `swift_gate` below.
 #
-#   2. Five Kotlin modules and five Swift test targets read their corpus from
-#      `../../ISO15118ConformanceTests.Simulation/Vectors/` — the CONFORMANCE repository, the parent
-#      that carries this one as a submodule. A checkout of EVSimulatorApp on its own cannot pass
-#      them: `SessionTrace.load` ends at `session trace not found at …`, once per test. So the
-#      corpus is checked once, up front, and its absence is named rather than discovered fifty times.
+#   2. The corpus lives in `vectors/`, in THIS repository, and every gate reads it from there.
+#      It used to live in `../../ISO15118ConformanceTests.Simulation/Vectors/` — the CONFORMANCE
+#      repository, the parent that carries this one as a submodule — so a checkout of EVSimulatorApp
+#      on its own could not pass its own suite: `SessionTrace.load` ended at `session trace not
+#      found at …`, once per test, fifty-odd times. A submodule reading its superproject is a
+#      dependency pointing the wrong way; the corpus is now vendored here and the conformance
+#      repository's `RegenerateTheCorpus` writes into this directory. That removed the up-front
+#      corpus check this script used to need, and the two-checkout layout CI used to need with it.
 #
 # What none of them needs is the ISO schemas: every codec here is generated and checked in, and the
 # vectors are checked in too. `download-schemas.sh` is for the C# build, not for these.
@@ -34,7 +37,7 @@ ALL='kotlin swift typescript capacitor app'
 WANTED=$*
 [ -z "$WANTED" ] && WANTED=$ALL
 
-CORPUS='../../ISO15118ConformanceTests.Simulation/Vectors/Session.iso2-ac-eim.trace.json'
+CORPUS='vectors/Session.iso2-ac-eim.trace.json'
 
 # Bookkeeping without an associative array, deliberately. macOS ships bash **3.2** and GitHub's macOS
 # runners use it for a step's shell, so `declare -A RESULT` there is not an associative array at all:
@@ -88,12 +91,11 @@ swift_gate() {
 }
 
 if [ -f "$CORPUS" ]; then
-    echo "corpus: found — the conformance repository is above this one"
+    echo "corpus: found in vectors/ — this repository carries its own"
 else
     echo "corpus: MISSING at $CORPUS"
-    echo "        The session traces live in the parent repository. Check this repository out as"
-    echo "        ISO15118ConformanceTests/libs/EVSimulatorApp, or the Kotlin and Swift gates will"
-    echo "        fail on every trace test rather than on anything real."
+    echo "        vectors/ is committed, so this is not a checkout that forgot the parent — it is a"
+    echo "        deleted or truncated working tree. 'git checkout -- vectors' restores it."
 fi
 
 for gate in $WANTED; do

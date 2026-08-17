@@ -123,7 +123,7 @@ enum PncMaterial {
                 atPath: dir.appendingPathComponent("EVSimulatorApp.slnx").path) { break }
         }
         let file = dir.appendingPathComponent(
-            "../../ISO15118ConformanceTests.Simulation/Vectors/Session.pnc-material.json")
+            "vectors/Session.pnc-material.json")
         return try! JSONDecoder().decode(Material.self, from: try! Data(contentsOf: file))
     }
 

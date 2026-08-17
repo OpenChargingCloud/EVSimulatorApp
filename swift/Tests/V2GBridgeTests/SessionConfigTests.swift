@@ -147,7 +147,7 @@ final class SessionConfigTests: XCTestCase {
     func testATraceRunnerReplaysTheRecordedSession() throws {
 
         let traceDirectory = repositoryRoot
-            .appendingPathComponent("../../ISO15118ConformanceTests.Simulation/Vectors")
+            .appendingPathComponent("vectors")
 
         let traceFile = try FileManager.default
             .contentsOfDirectory(atPath: traceDirectory.path)

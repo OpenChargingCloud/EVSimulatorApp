@@ -31,16 +31,10 @@ const read = (path: string) => JSON.parse(readFileSync(join(repositoryRoot, path
 const sessions: Record<string, unknown[]> =
     read("bridge/EVSimulatorApp.Bridge.Tests/Vectors/Bridge.events.json").sessions;
 
-// The session trace corpus is the ISO15118ConformanceTests repo's — it lives with the C# session
-// tests that record it, in the parent that carries this app as a submodule. These C#-vs-port replay
-// checks therefore run under conformance and skip when the app is checked out on its own.
+// The session corpus is recorded by the C# session tests in the conformance repository and written
+// down into `vectors/` here, so these C#-vs-port replay checks always run.
 const trace = (name: string): SessionTrace =>
-    read(`../../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`);
-
-const skipNoTraces = (() => {
-    try { trace("iso2-ac-eim"); return false; }
-    catch { return "session trace corpus absent — it lives in the ISO15118ConformanceTests repo"; }
-})();
+    read(`vectors/Session.${name}.trace.json`);
 
 
 /**
@@ -53,7 +47,7 @@ const skipNoTraces = (() => {
 const DECODABLE = Object.keys(sessions);
 
 
-test("every recorded session produces exactly the events C# produces", { skip: skipNoTraces }, () => {
+test("every recorded session produces exactly the events C# produces", () => {
 
     let checked = 0;
 
@@ -90,7 +84,7 @@ test("every recorded session produces exactly the events C# produces", { skip: s
  * silently half-read.** All three sets appear (CommonMessages carries the session's spine, AC or DC
  * the energy-transfer half), nothing falls back to an error, and the session ends `completed`.
  */
-test("an ISO 15118-20 session decodes on all three sets, each under its own payload type", { skip: skipNoTraces }, () => {
+test("an ISO 15118-20 session decodes on all three sets, each under its own payload type", () => {
 
     for (const [name, energySet] of [["iso20-ac-eim", "0x8003"], ["iso20-dc-eim", "0x8004"]] as const) {
 
@@ -128,7 +122,7 @@ test("an ISO 15118-20 session decodes on all three sets, each under its own payl
  * would arrive here. Synthetic, because no recorded session contains such a frame: that is exactly
  * why the path needs a test of its own rather than a corpus entry.
  */
-test("a frame from a set this build does not carry becomes a named error carrying the frame", { skip: skipNoTraces }, () => {
+test("a frame from a set this build does not carry becomes a named error carrying the frame", () => {
 
     const wpt = trace("iso20-ac-eim") as SessionTrace;
     const anyFrame = wpt.exchanges.find(e => e.request)!.request!;
@@ -164,7 +158,7 @@ test("a frame from a set this build does not carry becomes a named error carryin
  * Absent from this port until 2026-08-05, and invisible because `DECODABLE` was a hand-kept list of
  * three sessions that did not include either meter recording. The other three back ends had it.
  */
-test("a session with a signing meter carries the meter key, and one without carries none", { skip: skipNoTraces }, () => {
+test("a session with a signing meter carries the meter key, and one without carries none", () => {
 
     const withMeter = replay(trace("iso2-ac-eim-meter"), steppingClock())[0] as
         { meterKey?: { x: string; y: string } };
@@ -180,7 +174,7 @@ test("a session with a signing meter carries the meter key, and one without carr
 });
 
 
-test("the clock is read once before the first event and once per event", { skip: skipNoTraces }, () => {
+test("the clock is read once before the first event and once per event", () => {
 
     let reads = 0;
     const counting = () => { reads++; return 0; };

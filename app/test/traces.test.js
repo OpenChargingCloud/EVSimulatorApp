@@ -24,11 +24,15 @@ import { fileURLToPath } from "node:url";
 /**
  * The bundled demo traces are copies, and copies drift.
  *
- * `app/src/vendor/traces/` exists because a build cannot skip: `entry.ts` imports three recordings
- * at bundle time, and the canonical corpus lives with the C# session tests that record it — in the
- * ISO15118ConformanceTests repository, the parent that carries this app as a submodule. Standalone
- * there is nothing to compare against and this file skips; under the conformance checkout it is the
- * check that the demo is not shipping a stale recording.
+ * `app/src/vendor/traces/` exists because a build cannot skip: `entry.ts` imports the recordings at
+ * bundle time, from inside `app/src/` where the bundler can reach them. The canonical corpus is
+ * `vectors/` at the repository root — so this is a copy of a sibling, and the check below is what
+ * keeps the demo from shipping a stale recording.
+ *
+ * It used to be a copy of something in *another repository*: the corpus lived with the C# session
+ * tests that record it, in the ISO15118ConformanceTests parent, and this test skipped whenever the
+ * app was checked out on its own. It no longer skips, because there is no longer a checkout in
+ * which the corpus is absent.
  */
 
 const repositoryRoot = (() => {
@@ -47,25 +51,19 @@ const BUNDLED = ["iso2-ac-eim-meter", "iso2-ac-pnc", "iso2-dc-eim",
                  "iso20-ac-eim", "iso20-dc-eim", "iso20-dc-pnc"];
 
 const canonical = name => readFileSync(join(repositoryRoot,
-    `../../ISO15118ConformanceTests.Simulation/Vectors/Session.${name}.trace.json`), "utf8");
-
-const skipNoCorpus = (() => {
-    try { canonical(BUNDLED[0]); return false; }
-    catch { return "session trace corpus absent — it lives in the ISO15118ConformanceTests repo"; }
-})();
-
+    `vectors/Session.${name}.trace.json`), "utf8");
 
 const bundled = name => JSON.parse(readFileSync(
     join(repositoryRoot, `app/src/vendor/traces/Session.${name}.trace.json`), "utf8"));
 
 
-test("every bundled demo trace is byte-identical to the canonical corpus", { skip: skipNoCorpus }, () => {
+test("every bundled demo trace is byte-identical to the canonical corpus", () => {
 
     for (const name of BUNDLED)
         assert.equal(
             readFileSync(join(repositoryRoot, `app/src/vendor/traces/Session.${name}.trace.json`), "utf8"),
             canonical(name),
-            `${name}: app/src/vendor/traces/ is stale — re-copy it from the conformance corpus`);
+            `${name}: app/src/vendor/traces/ is stale — re-copy it from vectors/`);
 });
 
 
@@ -78,8 +76,7 @@ test("every bundled demo trace is byte-identical to the canonical corpus", { ski
  * has both. Swapping the plain recording back in would take nothing away that is visible on screen
  * and would silently remove the only verdict in the app that can come out wrong.
  *
- * Reads the bundled copies, so it holds standalone too — where the corpus is absent and the
- * byte-identity check above skips.
+ * Reads the bundled copies rather than the corpus, so it checks what the demo actually ships.
  */
 test("a bundled recording brings both halves of a meter check: a key and a signed reading", () => {
 
