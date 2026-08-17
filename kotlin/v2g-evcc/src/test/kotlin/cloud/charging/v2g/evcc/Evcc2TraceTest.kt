@@ -56,20 +56,41 @@ class Evcc2TraceTest {
     }
 
     /**
-     * Recorded 2026-08-16, and this port is expected to fail it until the battery is ported.
+     * Recorded 2026-08-16; red until [EvBattery] was ported on 2026-08-17.
      *
      * Every other recording here charges for a fixed count of cycles; this one charges until the
      * battery reaches its target state of charge, which is what the C# car has done since
-     * 2026-08-08. A port without a battery model ends the loop somewhere else, and that difference
-     * is the point of the recording — it is the drift stated as a failure rather than as prose.
-     * See `../../docs/mobile-workplan.md`, stage 2b.
+     * 2026-08-08. The pack settings have to match the recording exactly, because they are what the
+     * bytes are: 60 kWh from 20 % to a 22 % target is two cycles at 800 Wh each, and every
+     * `EVRESSSOC` on the way is this arithmetic rounded to a percent.
      */
     @Test
     fun theDcSessionWithABatteryMatchesTheRecordingByteForByte() {
-        val replay = replay("iso2-dc-eim-battery", PowerMode.Dc)
+        val replay = replay("iso2-dc-eim-battery", PowerMode.Dc) {
+            it.battery = EvBattery(60.0, 20.0).apply { targetSoC = 22.0; maxIterations = 100 }
+        }
         assertTrue(replay.complete,
             "the session stopped after ${replay.replayed} recorded exchanges — the recorded car " +
             "charges to a target state of charge, this one to a cycle count")
+    }
+
+    /**
+     * The battery's own arithmetic, read back from the pack rather than from the wire.
+     *
+     * The bytes above already pin it, but only implicitly: a reader looking at the trace sees
+     * `EVRESSSOC` go 20, 21, 23 and has to reconstruct why. This states the why, and it is the
+     * assertion that would survive if the recording were ever re-taken.
+     */
+    @Test
+    fun theBatteryStopsBecauseItReachedItsTarget() {
+        val pack = EvBattery(60.0, 20.0).apply { targetSoC = 22.0; maxIterations = 100 }
+
+        assertEquals(1200.0, pack.energyNeededWh, "22 % of 60 kWh less the 20 % it starts with")
+        pack.add(800.0)                                   // one minute at 48 kW, the DC loop's rate
+        assertEquals(ChargeStop.Running, pack.stop, "21.3 % has not reached 22 % yet")
+        pack.add(800.0)
+        assertEquals(ChargeStop.TargetSoC, pack.stop, "22.7 % has")
+        assertEquals(2, pack.iterations)
     }
 
     /**

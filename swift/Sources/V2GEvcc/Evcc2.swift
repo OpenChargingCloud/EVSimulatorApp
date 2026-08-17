@@ -54,6 +54,11 @@ public final class Evcc2 {
     /// How many renegotiation cycles this session ran (own + station-requested).
     public private(set) var renegotiations = 0
 
+    /// Skips the DC isolation sequence on the way back from a renegotiation. Off by default, because
+    /// the standard has no such exception — it exists for stations that refuse the conformant path,
+    /// and mirrors C#'s `RenegotiationSkipsIsolationSequence`.
+    public var renegotiationSkipsIsolationSequence = false
+
     /// How the session ends: `.Terminate` (default) or `.Pause`.
     public var stopMode: ChargingSession = .Terminate
 
@@ -78,6 +83,14 @@ public final class Evcc2 {
     /// The vehicle's own energy counter — what this EV thinks it took, kept independently of what
     /// the station reports (`docs/CONCEPT.md` §4.2/§4.3).
     public let meter = EvMeter()
+
+    /// A battery that fills up, and the goal that ends the charge loop. Nil — the default — keeps the
+    /// fixed three iterations every recorded interop run was taken with, which is why it is opt-in
+    /// here exactly as it is in C#.
+    public var battery: EvBattery?
+
+    /// Why the charge loop ended; nil while it has not finished.
+    public private(set) var batteryStop: ChargeStop?
 
     private var chargingProfile: ChargingProfileType?
     private var energyTransferMode: EnergyTransferMode?   // chosen from what the station offered
@@ -160,29 +173,26 @@ public final class Evcc2 {
         try runChargeParameterDiscovery()
 
         if mode == .dc {
-            let cableGuard = OngoingGuard("CableCheck", limitMillis: ongoingTimeoutMillis)
-            while true {
-                let res: CableCheckResType = try send(CableCheckReqType(dC_EVStatus: Self.evStatus()))
-                if res.eVSEProcessing == .Finished { break }
-                try cableGuard.tick()
-                pollDelay(Self.pollIntervalMs)
-            }
-            let _: PreChargeResType = try send(PreChargeReqType(
-                dC_EVStatus: Self.evStatus(),
-                eVTargetVoltage: Self.volt(400), eVTargetCurrent: Self.amp(2)))
+            try runDcIsolationSequence()
         }
 
         // ── CHARGE ─────────────────────────────────────────────────────────
         let _: PowerDeliveryResType = try send(powerDelivery(.Start))
 
         var renegotiated = false
-        for _ in 0 ..< Self.chargeCycles {
+        // Three iterations stand in for a session when there is no battery; with one, the loop ends
+        // when the car is done. Same rule as C#, and the same reason it is opt-in: every recorded run
+        // was taken at three.
+        var cycle = 0
+        while (battery == nil ? cycle < Self.chargeCycles : batteryStop == nil) {
+
+            let energyBefore = meter.energy
 
             // A Contract station may demand a receipt in its status response — answer with a signed
             // MeteringReceiptReq echoing its MeterInfo, as a real EV does.
             let notification: EVSENotification
             if mode == .dc {
-                let demand = Self.currentDemand()
+                let demand = currentDemand()
                 let res: CurrentDemandResType = try send(demand)
 
                 // The EV's own view, from the EV's own request: ISO 15118-2 gives a DC vehicle no
@@ -216,19 +226,53 @@ public final class Evcc2 {
                 renegotiations += 1
                 let _: PowerDeliveryResType = try send(powerDelivery(.Renegotiate))
                 try runChargeParameterDiscovery()
+
+                // DC returns through the isolation sequence, exactly as it did on the way in: the
+                // station's state table admits CableCheckReq after ChargeParameterDiscoveryReq and
+                // nothing else ([V2G2-565], [V2G2-582]), with no renegotiation exception. The C# car
+                // learned this on 2026-08-15, against a station that refused the shortcut; this port
+                // went straight to PowerDelivery(Start) until the recording said otherwise.
+                if mode == .dc && !renegotiationSkipsIsolationSequence {
+                    try runDcIsolationSequence()
+                }
+
                 let _: PowerDeliveryResType = try send(powerDelivery(.Start))
             }
+
+            if let pack = battery {
+                pack.add(meter.energy - energyBefore)
+                let stop = pack.stop
+                if stop != .running { batteryStop = stop }
+            }
+
             pollDelay(Self.pollIntervalMs)
+            cycle += 1
         }
 
         let _: PowerDeliveryResType = try send(powerDelivery(.Stop))
 
         // ── STOP ───────────────────────────────────────────────────────────
         if mode == .dc {
-            let _: WeldingDetectionResType = try send(WeldingDetectionReqType(dC_EVStatus: Self.evStatus()))
+            let _: WeldingDetectionResType = try send(WeldingDetectionReqType(dC_EVStatus: evStatus()))
         }
 
         let _: SessionStopResType = try send(SessionStopReqType(chargingSession: stopMode))
+    }
+
+    /// CableCheck until Finished, then PreCharge — the DC isolation sequence, which a session runs
+    /// twice: once on the way in, and once more on the way back from a renegotiation. One definition
+    /// because the second caller is exactly why the first had to stop being inline.
+    private func runDcIsolationSequence() throws {
+        let cableGuard = OngoingGuard("CableCheck", limitMillis: ongoingTimeoutMillis)
+        while true {
+            let res: CableCheckResType = try send(CableCheckReqType(dC_EVStatus: evStatus()))
+            if res.eVSEProcessing == .Finished { break }
+            try cableGuard.tick()
+            pollDelay(Self.pollIntervalMs)
+        }
+        let _: PreChargeResType = try send(PreChargeReqType(
+            dC_EVStatus: evStatus(),
+            eVTargetVoltage: Self.volt(400), eVTargetCurrent: Self.amp(2)))
     }
 
     /// Polls ChargeParameterDiscovery until Finished, then evaluates the offer. Runs again after a
@@ -409,17 +453,51 @@ public final class Evcc2 {
             ? ChargeParameterDiscoveryReqType(
                 requestedEnergyTransferMode: transferMode,
                 eVChargeParameter: DC_EVChargeParameterType(
-                    dC_EVStatus: Self.evStatus(),
+                    dC_EVStatus: evStatus(),
                     eVMaximumCurrentLimit: Self.amp(200),
                     eVMaximumVoltageLimit: Self.volt(500),
+                    // Both optional and both absent until there is a pack to describe. -2 DC is the
+                    // one place a car states its capacity outright, which is what a station needs to
+                    // turn "40 kWh wanted" into a schedule rather than a number.
+                    eVEnergyCapacity: battery.map { Self.wattHours($0.capacityWh) },
+                    eVEnergyRequest:  battery.map { Self.wattHours($0.energyNeededWh) },
                     fullSOC: 100, bulkSOC: 80))
             : ChargeParameterDiscoveryReqType(
                 requestedEnergyTransferMode: transferMode,
                 eVChargeParameter: AC_EVChargeParameterType(
-                    eAmount: PhysicalValueType(multiplier: 0, unit: .Wh, value: 22_000),
+                    // EAmount is -2 AC's only energy field, and it is the request: how much this
+                    // session wants, not what the pack holds. 22 kWh when nothing asked. (C# also
+                    // subtracts what a paused predecessor charged, [V2G2-743]; pause/resume is not
+                    // ported, so there is nothing here to subtract.)
+                    eAmount: battery.map { Self.wattHours($0.energyNeededWh) }
+                        ?? PhysicalValueType(multiplier: 0, unit: .Wh, value: 22_000),
                     eVMaxVoltage: Self.volt(400),
                     eVMaxCurrent: Self.amp(32),
                     eVMinCurrent: Self.amp(6)))
+    }
+
+    /// Watt-hours as a -2 physical value, rounded to the whole watt-hour the wire and the meter both
+    /// count in, and scaled to whatever multiplier makes it fit the `xs:short` the field is — a 60 kWh
+    /// pack does not fit one otherwise.
+    ///
+    /// A local port of C#'s `PhysicalValue.Of`, which is the only caller's worth of it these ports
+    /// need: everything else on this side of the wire is a constant small enough to write out. C#'s
+    /// *negative* multipliers are not here either, and cannot be reached — the rounding below clears
+    /// the fractional part they exist for.
+    private static func wattHours(_ wattHours: Double) -> PhysicalValueType {
+        // Half-to-even, matching C#'s bare Math.Round — the meter's own rule is away-from-zero, and
+        // the two part company on exactly the .5 case.
+        let amount = wattHours.rounded(.toNearestOrEven)
+        var multiplier = 0
+        var scaled = amount
+        while multiplier < 3 && (scaled > Double(Int16.max) || scaled < Double(Int16.min)) {
+            multiplier += 1
+            scaled = amount / pow(10, Double(multiplier))
+        }
+        precondition(scaled <= Double(Int16.max) && scaled >= Double(Int16.min),
+            "PhysicalValue \(amount) does not fit a multiplier in [-3, 3] (|value| would exceed \(Int16.max)).")
+        return PhysicalValueType(multiplier: Int8(multiplier), unit: .Wh,
+                                 value: Int16(scaled.rounded(.toNearestOrEven)))
     }
 
     /// The power this EV committed to in its ChargingProfile — its own view of an AC session, since
@@ -438,15 +516,24 @@ public final class Evcc2 {
         Double(v.value) * pow(10, Double(v.multiplier))
     }
 
-    private static func currentDemand() -> CurrentDemandReqType {
+    private func currentDemand() -> CurrentDemandReqType {
         CurrentDemandReqType(dC_EVStatus: evStatus(),
-                             eVTargetCurrent: amp(120),
+                             eVTargetCurrent: Self.amp(120),
                              chargingComplete: false,
-                             eVTargetVoltage: volt(400))
+                             eVTargetVoltage: Self.volt(400))
     }
 
-    private static func evStatus() -> DC_EVStatusType {
-        DC_EVStatusType(eVReady: true, eVErrorCode: .NO_ERROR, eVRESSSOC: 50)
+    /// The DC status this car repeats in every request of the DC sequence — and, with a pack, the one
+    /// field in -2 that *moves* during a session: `EVRESSSOC` is the present state of charge, so a
+    /// station watching it sees the battery fill.
+    ///
+    /// A flat 50 % without one, which is what a car with no pack still sends. Worth naming because it
+    /// is the only per-iteration reading -2 asks the vehicle for: -2 gives a DC car no field for a
+    /// measured power, so this percentage is the whole of what the station learns about the vehicle's
+    /// own state while charging.
+    private func evStatus() -> DC_EVStatusType {
+        DC_EVStatusType(eVReady: true, eVErrorCode: .NO_ERROR,
+                        eVRESSSOC: battery.map { Int8(min(max($0.soC.rounded(.toNearestOrEven), 0), 100)) } ?? 50)
     }
     private static func volt(_ v: Int16) -> PhysicalValueType { PhysicalValueType(multiplier: 0, unit: .V, value: v) }
     private static func amp(_ a: Int16) -> PhysicalValueType  { PhysicalValueType(multiplier: 0, unit: .A, value: a) }

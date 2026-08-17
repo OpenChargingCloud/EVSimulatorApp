@@ -95,6 +95,17 @@ class Evcc2(
      */
     val meter: EvMeter = EvMeter()
 
+    /**
+     * A battery that fills up, and the goal that ends the charge loop. Null — the default — keeps the
+     * fixed three iterations every recorded interop run was taken with, which is why it is opt-in
+     * here exactly as it is in C#.
+     */
+    var battery: EvBattery? = null
+
+    /** Why the charge loop ended; null while it has not finished. */
+    var batteryStop: ChargeStop? = null
+        private set
+
     var meteringReceiptsSent: Int = 0
         private set
 
@@ -179,7 +190,13 @@ class Evcc2(
         send<PowerDeliveryResType>(powerDelivery(ChargeProgress.Start))
 
         var renegotiated = false
-        repeat(CHARGE_CYCLES) {
+        // Three iterations stand in for a session when there is no battery; with one, the loop ends
+        // when the car is done. Same rule as C#, and the same reason it is opt-in: every recorded run
+        // was taken at three.
+        var cycle = 0
+        while (if (battery == null) cycle < CHARGE_CYCLES else batteryStop == null) {
+
+            val energyBefore = meter.energy
 
             // A Contract station may demand a receipt in its status response — answer with a signed
             // MeteringReceiptReq echoing its MeterInfo, as a real EV does.
@@ -228,7 +245,15 @@ class Evcc2(
 
                 send<PowerDeliveryResType>(powerDelivery(ChargeProgress.Start))
             }
+
+            battery?.let { pack ->
+                pack.add(meter.energy - energyBefore)
+                val stop = pack.stop
+                if (stop != ChargeStop.Running) batteryStop = stop
+            }
+
             pollDelay(POLL_INTERVAL_MS)
+            cycle++
         }
 
         send<PowerDeliveryResType>(powerDelivery(ChargeProgress.Stop))
@@ -469,14 +494,50 @@ class Evcc2(
                 DC_EVChargeParameterType(
                     departureTime = null, dC_EVStatus = evStatus(),
                     eVMaximumCurrentLimit = amp(200), eVMaximumPowerLimit = null,
-                    eVMaximumVoltageLimit = volt(500), eVEnergyCapacity = null,
-                    eVEnergyRequest = null, fullSOC = 100, bulkSOC = 80))
+                    eVMaximumVoltageLimit = volt(500),
+                    // Both optional and both absent until there is a pack to describe. -2 DC is the
+                    // one place a car states its capacity outright, which is what a station needs to
+                    // turn "40 kWh wanted" into a schedule rather than a number.
+                    eVEnergyCapacity = battery?.let { wattHours(it.capacityWh) },
+                    eVEnergyRequest  = battery?.let { wattHours(it.energyNeededWh) },
+                    fullSOC = 100, bulkSOC = 80))
         else
             ChargeParameterDiscoveryReqType(null, transferMode,
                 AC_EVChargeParameterType(
                     departureTime = null,
-                    eAmount = PhysicalValueType(0, UnitSymbol.Wh, 22_000),
+                    // EAmount is -2 AC's only energy field, and it is the request: how much this
+                    // session wants, not what the pack holds. 22 kWh when nothing asked. (C# also
+                    // subtracts what a paused predecessor charged, [V2G2-743]; pause/resume is not
+                    // ported, so there is nothing here to subtract.)
+                    eAmount = battery?.let { wattHours(it.energyNeededWh) }
+                        ?: PhysicalValueType(0, UnitSymbol.Wh, 22_000),
                     eVMaxVoltage = volt(400), eVMaxCurrent = amp(32), eVMinCurrent = amp(6)))
+    }
+
+    /**
+     * Watt-hours as a -2 physical value, rounded to the whole watt-hour the wire and the meter both
+     * count in, and scaled to whatever multiplier makes it fit the `xs:short` the field is — a 60 kWh
+     * pack does not fit one otherwise.
+     *
+     * A local port of C#'s `PhysicalValue.Of`, which is the only caller's worth of it these ports
+     * need: everything else on this side of the wire is a constant small enough to write out. C#'s
+     * *negative* multipliers are not here either, and cannot be reached — the rounding above clears
+     * the fractional part they exist for.
+     */
+    private fun wattHours(wattHours: Double): PhysicalValueType {
+        // Half-to-even, matching C#'s bare Math.Round — the meter's own rule is away-from-zero, and
+        // the two part company on exactly the .5 case.
+        val amount = Math.rint(wattHours)
+        var multiplier = 0
+        var scaled = amount
+        while (multiplier < 3 && (scaled > Short.MAX_VALUE || scaled < Short.MIN_VALUE)) {
+            multiplier++
+            scaled = amount / Math.pow(10.0, multiplier.toDouble())
+        }
+        require(scaled <= Short.MAX_VALUE && scaled >= Short.MIN_VALUE) {
+            "PhysicalValue $amount does not fit a multiplier in [-3, 3] (|value| would exceed ${Short.MAX_VALUE})."
+        }
+        return PhysicalValueType(multiplier.toByte(), UnitSymbol.Wh, Math.rint(scaled).toInt().toShort())
     }
 
     private fun currentDemand() =
@@ -504,7 +565,20 @@ class Evcc2(
     private fun watts(volts: PhysicalValueType, amperes: PhysicalValueType): Double =
         amount(volts) * amount(amperes)
 
-    private fun evStatus() = DC_EVStatusType(eVReady = true, eVErrorCode = DC_EVErrorCode.NO_ERROR, eVRESSSOC = 50)
+    /**
+     * The DC status this car repeats in every request of the DC sequence — and, with a pack, the one
+     * field in -2 that *moves* during a session: `EVRESSSOC` is the present state of charge, so a
+     * station watching it sees the battery fill.
+     *
+     * A flat 50 % without one, which is what a car with no pack still sends. Worth naming because it
+     * is the only per-iteration reading -2 asks the vehicle for: -2 gives a DC car no field for a
+     * measured power, so this percentage is the whole of what the station learns about the vehicle's
+     * own state while charging.
+     */
+    private fun evStatus() = DC_EVStatusType(
+        eVReady     = true,
+        eVErrorCode = DC_EVErrorCode.NO_ERROR,
+        eVRESSSOC   = battery?.let { Math.rint(it.soC).coerceIn(0.0, 100.0).toInt().toByte() } ?: 50)
     private fun volt(v: Short) = PhysicalValueType(0, UnitSymbol.V, v)
     private fun amp(a: Short)  = PhysicalValueType(0, UnitSymbol.A, a)
 }
