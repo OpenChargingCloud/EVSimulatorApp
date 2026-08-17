@@ -182,6 +182,20 @@ enum XmlDsigInterop {
         return publicKey.isValidSignature(signature, for: Data(octets))
     }
 
+    /// The P-521 half, which arrived with contract provisioning. Every interop signature until then
+    /// was made by a contract key, and a contract key is P-256 because the -2 field is 64 bytes wide.
+    ///
+    /// **SHA-256, explicitly.** This form declares `ecdsa-sha256` in its `SignedInfo` whatever key
+    /// signs it, so the digest is the form's and not the curve's. Handing the octets to CryptoKit
+    /// would hash them with SHA-512 — P-521's natural pairing — and reject every signature C# and
+    /// Kotlin produce. See ``V2GSigner/signature(over:)`` for the same point on the signing side.
+    static func verify(_ octets: [UInt8], _ signatureValue: [UInt8],
+                       _ publicKey: P521.Signing.PublicKey) -> Bool {
+        guard let signature = try? P521.Signing.ECDSASignature(rawRepresentation: Data(signatureValue))
+        else { return false }
+        return publicKey.isValidSignature(signature, for: SHA256.hash(data: Data(octets)))
+    }
+
     private static func sha256(_ bytes: [UInt8]) -> [UInt8] {
         Array(SHA256.hash(data: Data(bytes)))
     }

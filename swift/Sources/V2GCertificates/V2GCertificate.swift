@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import SwiftASN1
 import X509
@@ -151,5 +152,29 @@ public struct V2GCertificate: Sendable {
     /// key, which is what separates a CA renewing itself from a different CA taking its name.
     public var publicKeyDer: [UInt8] {
         Array(certificate.publicKey.subjectPublicKeyInfoBytes)
+    }
+
+    /// The subject public key as a P-256 verifier, or `nil` if the certificate carries some other
+    /// kind of key.
+    ///
+    /// ## Why a certificate hands out a raw verifier at all
+    ///
+    /// Every other signature in this package is checked against a key the caller already holds — a
+    /// tariff key from a corpus, a meter key from a configuration. Contract provisioning is the
+    /// exception on both protocols: **the station sends the verify key inside the message it is
+    /// signing for**. A -2 response carries its SA provisioning chain, a -20 response carries its CPS
+    /// chain, and the leaf of that chain is what signed. So the verdict cannot be reached without
+    /// reading a key out of a certificate, and this is where that happens.
+    ///
+    /// It says nothing about whether the certificate deserves trust — see the type comment. A key
+    /// read from an untrusted chain verifies an untrusted signature, which is exactly as much as the
+    /// signature was ever worth on its own.
+    public var p256VerificationKey: P256.Signing.PublicKey? {
+        P256.Signing.PublicKey(certificate.publicKey)
+    }
+
+    /// The P-521 counterpart, for -20 — which signs with SHA-512 over secp521r1 throughout.
+    public var p521VerificationKey: P521.Signing.PublicKey? {
+        P521.Signing.PublicKey(certificate.publicKey)
     }
 }

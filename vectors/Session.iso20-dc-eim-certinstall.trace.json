@@ -1,0 +1,263 @@
+{
+  "schemaVersion": 3,
+  "generator": "ISO15118ConformanceTests.Simulation.Traces.SessionTraceCorpusTests.RegenerateTheCorpus",
+  "name": "iso20-dc-eim-certinstall",
+  "protocol": "iso15118-20",
+  "mode": "dc",
+  "note": "-20 DC, and the same errand by an entirely different route: no value-added service to discover and select, just a flag in AuthorizationSetupRes, and the request goes out BEFORE the first AuthorizationReq rather than after service selection. One signed element instead of four, on a P-521 key with SHA-512 \u2014 the first recorded session whose signing identity is not P-256.",
+  "signingKey": {
+    "x": "00be387b8f41745416416aea31e2650eab8c629906fd4236026f475328970c4b5a5d4a1289fc6a90b0345d57ca8d17fcea125434e6d17a52710ba8bae5c4ee5da13d",
+    "y": "00f2f5e39fedd4ee0a39afe87d48dc9a87e18abe3f85a4ddf6338160cfb02565254133ff903645c93dee1f73131206ec16c289dc31298f0f0fe819328baa725caeac",
+    "curve": "P-521"
+  },
+  "exchanges": [
+    {
+      "index": 0,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "SupportedAppProtocolReq",
+        "frame": "01fe8001000000258000f3ab9371d34b9b79d39ba321d34b9b79d189a98989c1d1699181d22218010000040040"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "SupportedAppProtocolRes",
+        "frame": "01fe80010000000480400040"
+      }
+    },
+    {
+      "index": 1,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "SessionSetupReq",
+        "frame": "01fe800200000019808c040000000000000000080f2d6ca0620422ab21a1981880"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "SessionSetupRes",
+        "frame": "01fe80020000001d8090040505860687078808880f2d6ca0620402d1114a905090ca914c40"
+      }
+    },
+    {
+      "index": 2,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "AuthorizationSetupReq",
+        "frame": "01fe8002000000118008040505860687078808880f2d6ca062"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "AuthorizationSetupRes",
+        "frame": "01fe800200000026800c040505860687078808880f2d6ca062002012081010911192129313941495159616971790"
+      }
+    },
+    {
+      "index": 3,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "CertificateInstallationReq",
+        "frame": "01fe80020000035d801c040505860687078808880f2d6ca060a25687474703a2f2f7777772e77332e6f72672f54522f63616e6f6e6963616c2d6578692f435687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c647369672d6d6f72652365636473612d736861323536440c46d2c86204ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d90805cd809c0a684059703f7c4427c88c1c777b477767788ba635e6c3800ba733f3c4c20080e635fdb83245a92d0fa78226c917b14a29e82792cf79389699afbba3d195e7b9d6ce62baa5044515ddbb45017efa01e154f76b849bef7739d542abbd635741f09b80b528ba27406a0f8e43ff396012e2019eb7f20c73d025921b5987aaba25c8ec1ea564af80c5372a14cbf279dcd9a57f31b29edb44988777eb292435dfa12071eea6a00ad2c8626c01984100ea1841009ad00181008101042a51740df291aa9098050304154324671e820182180d988c980b8301aa820189882ba6a4ab24a7181818181818181a9918980f0b86991a981898189818181818182d0b86999b181898189818181818182d180d988c980b8301aa820189882ba6a4ab24a7181818181818181a99189840cd98080303954324671e8100830295c082001181c0c30002005f1c3dc7a0ba2a0b20b57518f1328755c6314c837ea11b0137a3a9944b8625ad2ea50944fe3548581a2eabe5468bfe75092a1a7368bd293885d45d72e2772ed09e80797af1cff6ea77051cd7f43ea46e4d43f0c55f1fc2d26efb19c0b067d812b292a099ffc81b22e49ef70fb9898903760b6144ee1894c78787f40c9945d5392e57565190180f18060301aa8e898080ff8201180018070301aa8e878080ff8202018101c418050304154324671e82018201c0c6001840c4012100d258f73c1e3605c189c55ff3617a4d5228c7a4ce674b4f834bb4bec89c0c21a9a1419765bd05216a46561a80eb2471e5e662046816963fdd182d5e8f8d7dbb6b128121009fa306bdbce8e54a12a59a7846a9f07fc01c790903c533674e626a48d5ee72dc6adbb04cd259176c7870d221a056d9fe00bdf76e2dd987c2ff602720f2dbe8fc371014434e3d563247526f6f744341202864657629001100480",
+        "signature": "01cc6bfb70648b525a1f4f044d922f629453d04f259ef2712d335f7747a32bcf73ad9cc5754a088a2bbb768a02fdf403c2a9eed70937deee73aa85577ac6ae83e137016a51744e80d41f1c87fe72c025c4033d6fe418e7a04b2436b30f55744b91d83d4ac95f018a6e542997e4f3b9b34afe63653db689310eefd652486bbf4240e3dd4d"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "CertificateInstallationRes",
+        "frame": "01fe8002000007e08020040505860687078808880f2d6ca060a25687474703a2f2f7777772e77332e6f72672f54522f63616e6f6e6963616c2d6578692f435687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c647369672d6d6f72652365636473612d736861353132440e46e6d2c86204ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184d4c4c9102f27f4be9b3055a6a6566e1740ef6ee4498ad8a4a1b7532606d1190f362c223844bb8ec116cad2d00d92adbc9db65b78f267b2f3fdd267e7ae02cf3330ae00a184c20080b82851802139160772410491f04896e04e0d5262e90ba751648a733f3c2f47a7567a990e97f6bdb7660b335332a05b065cb604025245acdbf6c3169e8dc141563a80520a475c2720e250cd0c6920e8e2401e6614b3518f3d3f4dc91e1fcbc4cd6424448fadcfba310f44784166ca8acf717896112597ef00ab53417baf3c887cb3f7fd200002f00cc20806e0c2080466800c08040808214f4e3e16e8946d88c0281820aa192338f4100c10c078c470c068180d54100c4c4d5985b985a195a5b5c8810d414c80a19195d8a4c0785c34c8d4c4c8ccc4c8ccd4d4c0c1685c34c8e0c0c4c0c4c0c0c0c0c0c168c078c470c068180d54100c4c4d5985b985a195a5b5c8810d414c80a19195d8a4c2066cc040181caa192338f408041814ae0410008c0e0618001002cf47fd46810256971440397a94c0d6a4c04a82e22af65f6f902f1d8453757f88b271f8eb0c852409c515359f274f77cce8483dd074c4e48f40930db01c4c8bfbdc03109c7de1f8e47d93e1da1eb50691cb9fc5276377a6d66b0da974d5b1441bce1d79eb77d2dccf173423b6064a2777e18223aff7f4c2c2fa6ffcf99c5836d1eec200c0281820aa192338f4100c100e063000c206200908050398c2d2dc762eb517d329eadf918dee35b6fd3dc89bbc945f95fd4ca56765120b37331267fa56f6eb7c4add2373b9b4ec5c2f8120008d5b8473fe0d40b95f3474090807a6abc88c1f1aa33142d8ebb22c3c09483dda010770bf2b572cfc6c0d140ce2ea901dbbacaad6e429f51928f33b622226dcd0cf4c86b7cd572b4d41b2c10690afc880ce6d2c8623a00cc2080790c2080516800c0804080820a4b051afd9630428c0281820aa192338f4100c10c0d0c460c058180d5410284c3d5985b985a195a5b5c880a19195d8a4c460c058180d54100c303d1114a9590538a90ca8c0c0c0c0c0c4c0785c34c8d4c4c8ccc4c8ccd4d4c0c1685c34c8e0c0c4c0c4c0c0c0c0c0c168c0d0c460c058180d5410284c3d5985b985a195a5b5c880a19195d8a4c460c058180d54100c303d1114a9590538a90ca8c0c0c0c0c0c4c2066cc040181caa192338f408041814ae0410008c0e0618001007a2a6d60bc0d6abc5c24f30193358f877382f1da7b47107b764451328616a8aa9f6818884a99b493b2d554d85c6da9c66634ae7c2adb180cc39945d6a028aec2df80799e379db1f17fe5a57b3ec75cb1fefd33dedf20b6fe8791601d02e6fabd932c6a827b4ecc0c978f9c588ac6525f6bc4e6ea7255d6d2791c7ff01d390333ca0ba0cc0281820aa192338f4100c100e063000c20620090803aaeaa309eef5d6faa9d464605a934ecaf7d3046c721aeea1d847ce39d5f279f1cef175cc281747305bb4f12c64904fcfc35b3243e8a86bcf4e8ba15061bb95b70c0908027fa058bc96df1ced554a2d410e979a490be5f497249bd76e5362a4e06f954086b1c3ba2d2d66d984cd4aa4fae3b1362b94eaf36b78024b91bdc082b664d3afc4d42f00cc20806e0c2080466800c08040808214f4e3e16e8946d88c0281820aa192338f4100c10c078c470c068180d54100c4c4d5985b985a195a5b5c8810d414c80a19195d8a4c0785c34c8d4c4c8ccc4c8ccd4d4c0c1685c34c8e0c0c4c0c4c0c0c0c0c0c168c078c470c068180d54100c4c4d5985b985a195a5b5c8810d414c80a19195d8a4c2066cc040181caa192338f408041814ae0410008c0e0618001002cf47fd46810256971440397a94c0d6a4c04a82e22af65f6f902f1d8453757f88b271f8eb0c852409c515359f274f77cce8483dd074c4e48f40930db01c4c8bfbdc03109c7de1f8e47d93e1da1eb50691cb9fc5276377a6d66b0da974d5b1441bce1d79eb77d2dccf173423b6064a2777e18223aff7f4c2c2fa6ffcf99c5836d1eec200c0281820aa192338f4100c100e063000c206200908050398c2d2dc762eb517d329eadf918dee35b6fd3dc89bbc945f95fd4ca56765120b37331267fa56f6eb7c4add2373b9b4ec5c2f8120008d5b8473fe0d40b95f3474090807a6abc88c1f1aa33142d8ebb22c3c09483dda010770bf2b572cfc6c0d140ce2ea901dbbacaad6e429f51928f33b622226dcd0cf4c86b7cd572b4d41b2c10690afc88085010400672c9da525e08db7388f291248cd17dcf8fec49822bd9ad6daa8c643938ccbfa15445838a7fdcb1962b4606d079eb77851b908fd6dbbf7df357c2fe75e0dd22a9601e0243570d6419229064c2e8414967d14a70312bd6e8413534285609be1dd4c30af3dc70e58837d15ef1f0c64cc4762610cbba891c3326be4dcf7cb8830037114a005ebcd927fdac735d9b228040247b71864675e0721d05ba1ce2290a952ec63b2c912b67d40a12bdb3a9ce62e7e6a10035941c55790c67e7ca9d923ae95a00639ac242f7401ac4685c07c412faab36f81896a647f380bc0af681369144b9257d00000"
+      }
+    },
+    {
+      "index": 4,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "AuthorizationReq",
+        "frame": "01fe8002000000128000040505860687078808880f2d6ca06200"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "AuthorizationRes",
+        "frame": "01fe8002000000138004040505860687078808880f2d6ca0620000"
+      }
+    },
+    {
+      "index": 5,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "ServiceDiscoveryReq",
+        "frame": "01fe800200000012807c040505860687078808880f2d6ca06280"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "ServiceDiscoveryRes",
+        "frame": "01fe8002000000188080040505860687078808880f2d6ca06200200210018450"
+      }
+    },
+    {
+      "index": 6,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "ServiceDetailReq",
+        "frame": "01fe8002000000138074040505860687078808880f2d6ca0620100"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "ServiceDetailRes",
+        "frame": "01fe80020000008a8078040505860687078808880f2d6ca0620000800202d0dbdb9b9958dd1bdc980200d436f6e74726f6c4d6f6465600804d35bd89a5b1a5d1e539959591cd35bd919580200950726963696e67600080100b436f6e6e6563746f7260080350dbdb9d1c9bdb135bd91958040134d6f62696c6974794e656564734d6f6465600802541c9a58da5b99d800280"
+      }
+    },
+    {
+      "index": 7,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "ServiceSelectionReq",
+        "frame": "01fe8002000000158084040505860687078808880f2d6ca06200800880"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "ServiceSelectionRes",
+        "frame": "01fe8002000000138088040505860687078808880f2d6ca0620000"
+      }
+    },
+    {
+      "index": 8,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeParameterDiscoveryReq",
+        "frame": "01fe800400000029803c040505860687078808880f2d6ca062881088270400000200320041000000800f40304001902800"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeParameterDiscoveryRes",
+        "frame": "01fe8004000000298040040505860687078808880f2d6ca062004408441382000001001900208000004007a0182000c840"
+      }
+    },
+    {
+      "index": 9,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "ScheduleExchangeReq",
+        "frame": "01fe800200000014806c040505860687078808880f2d6ca062000680"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "ScheduleExchangeRes",
+        "frame": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a"
+      }
+    },
+    {
+      "index": 10,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_CableCheckReq",
+        "frame": "01fe800400000011802c040505860687078808880f2d6ca062"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_CableCheckRes",
+        "frame": "01fe8004000000138030040505860687078808880f2d6ca0620000"
+      }
+    },
+    {
+      "index": 11,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_PreChargeReq",
+        "frame": "01fe8004000000198044040505860687078808880f2d6ca0620100000080090030"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_PreChargeRes",
+        "frame": "01fe8004000000178048040505860687078808880f2d6ca0620010010c0600"
+      }
+    },
+    {
+      "index": 12,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "PowerDeliveryReq",
+        "frame": "01fe80020000001d8054040505860687078808880f2d6ca06200000100420480e041805124"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "PowerDeliveryRes",
+        "frame": "01fe8002000000138058040505860687078808880f2d6ca0620040"
+      }
+    },
+    {
+      "index": 13,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopReq",
+        "frame": "01fe80040000001e8034040505860687078808880f2d6ca062810012006464003c02002400ca"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopRes",
+        "frame": "01fe80040000001c8038040505860687078808880f2d6ca0620064003c02002400c00090"
+      }
+    },
+    {
+      "index": 14,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopReq",
+        "frame": "01fe80040000001e8034040505860687078808880f2d6ca062810012006464003c02002400ca"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopRes",
+        "frame": "01fe80040000001c8038040505860687078808880f2d6ca0620064003c02002400c00090"
+      }
+    },
+    {
+      "index": 15,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopReq",
+        "frame": "01fe80040000001e8034040505860687078808880f2d6ca062810012006464003c02002400ca"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopRes",
+        "frame": "01fe80040000001c8038040505860687078808880f2d6ca0620064003c02002400c00090"
+      }
+    },
+    {
+      "index": 16,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "PowerDeliveryReq",
+        "frame": "01fe8002000000138054040505860687078808880f2d6ca0620140"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "PowerDeliveryRes",
+        "frame": "01fe8002000000138058040505860687078808880f2d6ca0620040"
+      }
+    },
+    {
+      "index": 17,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_WeldingDetectionReq",
+        "frame": "01fe800400000012804c040505860687078808880f2d6ca06200"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_WeldingDetectionRes",
+        "frame": "01fe8004000000168050040505860687078808880f2d6ca0620010000a00"
+      }
+    },
+    {
+      "index": 18,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "SessionStopReq",
+        "frame": "01fe8002000000128094040505860687078808880f2d6ca06228"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "SessionStopRes",
+        "frame": "01fe8002000000138098040505860687078808880f2d6ca0620000"
+      }
+    }
+  ]
+}

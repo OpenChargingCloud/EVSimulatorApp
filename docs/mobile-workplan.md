@@ -306,15 +306,28 @@ The port work proper. Two piles, and the first is bigger than it looks.
   meter, `EVEnergyCapacity`/`EVEnergyRequest` on DC, `EAmount` on AC, and `EVRESSSOC`, which is the
   one field in -2 that moves while charging. TypeScript has no state machine at all — codec and
   bridge only — so there was no third port to carry.
-- **The gaps the ports already name in their own class comments** — deliberately named there rather
-  than silently absent:
-  - `-2` **tariff-signature verification** (§7.9.2.5). The tuple *choice* is ported;
-    `Iso2TariffResult` carries three fields where C#'s carries seven, and nothing takes a verify key.
-  - `-20` **price-schedule signature verification** (`AbsolutePriceSchedule`).
-  - **Contract provisioning** — `-2` Install/Update and `-20` `CertificateInstallation`.
+- **The gaps the ports named in their own class comments** — deliberately named there rather than
+  silently absent. Four of the five are closed; each needed an oracle before it needed code, and the
+  kind of oracle differed:
+  - ~~`-2` **tariff-signature verification** (§7.9.2.5).~~ **Done 2026-08-17**, against
+    `Tariff.signature.vectors.json` — a *verdict* corpus, because the verdict never reaches the wire.
+  - ~~`-20` **price-schedule signature verification** (`AbsolutePriceSchedule`).~~ **Done
+    2026-08-17**, likewise, plus `signed-dynamic`: the same schedule in the other control mode, which
+    a verifier searching only the schedule tuples reports as unsigned.
+  - ~~`-20` **`ServiceRenegotiation`** (`[V2G20-1477]`).~~ **Done 2026-08-17.** Not a porting gap at
+    all, as it turned out: `Evcc20Base` had no reference to `EVSEStatus` in any language, so the C#
+    EVCC could not hear the request either. Implemented, then recorded — a *sequence* is on the wire,
+    so it wanted a trace rather than a corpus, and the trace's request counts state the part that
+    matters: authorization runs **once** while service selection runs twice.
+  - ~~**Contract provisioning** — `-2` Install/Update and `-20` `CertificateInstallation`.~~ **Done
+    2026-08-17**, and it needed *both* kinds of oracle. `Contract.provisioning.vectors.json` carries
+    the verdicts and, more importantly, `recoveredKeyD`: the private scalar a car must derive from an
+    ECDH, a KDF and a cipher, which is never transmitted, echoed or acknowledged and therefore cannot
+    be checked any other way. Three recordings carry the half a corpus cannot — *where in the session
+    the exchange sits*, which is not the same place on the two protocols.
   - **Resume.** *Pause* is ported on both protocols as a stop mode; rejoining a paused session
     (`[V2G2-740]`) is not, and it needs a trace that pauses and rejoins — so it depends on stage 2.
-  - `-20` **`ServiceRenegotiation`** (`[V2G20-1477]`). `-2` renegotiation is ported already.
+    The last one left.
 
 **Done when:** the ports drive the same scenarios as the C# EVCC, against the same recordings.
 

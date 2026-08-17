@@ -7,7 +7,8 @@
   "note": "AC, EIM, with a signing meter fitted: every ChargingStatusRes carries a MeterInfo whose SigMeterReading is a real P-256 signature over the station\u0027s own reading, bound to this session. The first recorded session a vehicle could verify a station\u0027s meter from.",
   "meterKey": {
     "x": "8df1dbff9ad6faf3951ee551fc3983c9b00c52e5ee37c1864698f1fbc8f48884",
-    "y": "41a9a14496be6e552fe391b91ae69bc0745f1a30a141be2fe1e830b38aa5cbea"
+    "y": "41a9a14496be6e552fe391b91ae69bc0745f1a30a141be2fe1e830b38aa5cbea",
+    "curve": "P-256"
   },
   "exchanges": [
     {

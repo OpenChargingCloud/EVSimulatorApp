@@ -3,6 +3,7 @@ package cloud.charging.v2g.evcc
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -33,6 +34,51 @@ class Evcc20TraceTest {
      * a quirk of the test: it is the reason `SessionContext` takes a clock instead of reading one.
      */
     private val recordedAt: () -> ULong = { 1_767_225_600uL }
+
+    // ── the -20 service renegotiation ─────────────────────────────────────
+
+    /**
+     * [V2G20-1477], and the first recorded -20 session in which the station changes its mind
+     * mid-charge. Byte-exactness is the whole test: a renegotiation is a *sequence*, and getting the
+     * order or the re-entry point wrong produces a session that still runs to completion.
+     */
+    @Test
+    fun `the service renegotiation session matches the recording byte for byte`() {
+        val replay = replay("iso20-dc-eim-renegotiate", PowerMode.Dc)
+        assertTrue(replay.complete,
+            "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /**
+     * The half of [V2G20-1477] that is easiest to get wrong in the direction that still works.
+     *
+     * A renegotiation re-enters at **ServiceDiscovery**, not at the top of the session: the service is
+     * selected again, charge parameters and the schedule are negotiated again — and authorization is
+     * **not** repeated. An implementation that restarted the whole session would also charge
+     * successfully, and would be telling the station it might be a different car. That claim is about
+     * bytes which are *absent*, so only a recorded session can hold it.
+     */
+    @Test
+    fun `a renegotiation re-selects the service but does not re-authorize`() {
+
+        val counts = SessionTrace.load("iso20-dc-eim-renegotiate")
+            .exchanges.groupingBy { it.request.message }.eachCount()
+
+        assertEquals(1, counts["AuthorizationSetupReq"], "authorization must happen exactly once")
+        assertEquals(1, counts["AuthorizationReq"])
+
+        assertEquals(2, counts["ServiceDiscoveryReq"], "the service is selected again")
+        assertEquals(2, counts["ServiceSelectionReq"])
+        assertEquals(2, counts["DC_ChargeParameterDiscoveryReq"])
+        assertEquals(2, counts["ScheduleExchangeReq"])
+
+        // Two SessionStopReq: the renegotiation's, which does not stop the session, and the real one.
+        assertEquals(2, counts["SessionStopReq"])
+
+        // …and welding detection only at the real end, not at the renegotiation.
+        assertEquals(1, counts["DC_WeldingDetectionReq"])
+    }
 
     private fun replay(name: String, mode: PowerMode, preferDynamic: Boolean = false): TraceReplay {
 
@@ -217,6 +263,56 @@ class Evcc20TraceTest {
         assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
         assertEquals("pnc-signed", evcc.authorizationMode,
             "the session completed but authorized via EIM — then nothing signed was compared")
+    }
+
+    // ── contract provisioning ─────────────────────────────────────────────
+
+    /**
+     * -20 installation: no service to discover, one signed element instead of four, a P-521 key —
+     * and the request placed before the first AuthorizationReq.
+     *
+     * The position is the whole difference from -2, where provisioning is a value-added service that
+     * has to be discovered and selected first. Only a recorded session can state that.
+     */
+    @Test
+    fun `the -20 certificate installation session matches the recording`() {
+
+        val trace  = SessionTrace.load("iso20-dc-eim-certinstall")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_20, PowerMode.Dc)
+        val evcc = Evcc20Dc(stream, recordedAt, pollDelay = { })
+            .apply { certInstallRequest = OemMaterial.iso20Install }
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+        assertNotNull(evcc.installedContractKey,
+            "no key came out — on -20 that means AES-GCM refused the tag, not that a check was skipped")
+        assertEquals(1, evcc.installedContractVerdict?.references,
+            "-20 signs the whole SignedInstallationData as one element")
+        assertTrue(evcc.installedContractSignatureOk)
+
+        // The exchange runs before authorization, so the session still authorizes by EIM afterwards:
+        // installing a contract is not using one.
+        assertEquals("eim", evcc.authorizationMode)
+    }
+
+    /** The order, named rather than left implicit in the byte comparison. */
+    @Test
+    fun `-20 asks for a contract before it authorizes and before it discovers anything`() {
+
+        val messages = SessionTrace.load("iso20-dc-eim-certinstall").exchanges.map { it.request.message }
+        val provisioning  = messages.indexOf("CertificateInstallationReq")
+        val authorization = messages.indexOf("AuthorizationReq")
+        val discovery     = messages.indexOf("ServiceDiscoveryReq")
+
+        assertTrue(provisioning > 0, "the trace records no provisioning request")
+        assertTrue(provisioning < authorization,
+            "-20 asks for a contract before it authorizes — that is what the flag in " +
+            "AuthorizationSetupRes is for")
+        assertTrue(provisioning < discovery,
+            "…and before it has discovered a single service, which is the whole difference from -2")
     }
 
     /** Which energy-transfer service the negotiation settled on: DC=2, AC=1 (Table 204). The wire

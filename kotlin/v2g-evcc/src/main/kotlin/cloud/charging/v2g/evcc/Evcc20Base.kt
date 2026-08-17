@@ -1,5 +1,7 @@
 package cloud.charging.v2g.evcc
 
+import java.security.PrivateKey
+
 import cloud.charging.v2g.metering.EvMeter
 import cloud.charging.v2g.iso20.common.*
 import cloud.charging.v2g.tp.MessageSet
@@ -79,6 +81,19 @@ abstract class Evcc20Base(
     var stopMode: ChargingSession = ChargingSession.Terminate
 
     /** The station's SessionSetup verdict. */
+    /**
+     * The §7.9.2.5 verdict over a signed `AbsolutePriceSchedule`; null when the offer carried none —
+     * which is not a failure, see [Iso20PriceScheduleCheck].
+     */
+    var tariff: Iso20TariffResult? = null
+        private set
+
+    /**
+     * The eMSP's public key, when the app has one. Without it the digest half is still checked and
+     * reported; the ECDSA half is not attempted.
+     */
+    var tariffVerifyKey: java.security.PublicKey? = null
+
     var sessionSetupCode: ResponseCode? = null
         private set
 
@@ -88,6 +103,28 @@ abstract class Evcc20Base(
     /** Contract credentials. When set and the station offers PnC with a challenge, the session
      *  authorizes with a signed AuthorizationReq instead of EIM. */
     var pnc: PncEvccOptions? = null
+
+    /** OEM-provisioning credentials. When set — and the station announces
+     *  `CertificateInstallationService` — the EVCC runs the contract-provisioning exchange before
+     *  authorization. Null (the default) skips it. */
+    var certInstallRequest: CertInstallEvccOptions? = null
+
+    /** The contract certificate (DER) installed via CertificateInstallation, once recovered. */
+    var installedContractCertificate: ByteArray? = null
+        private set
+
+    /** The unwrapped contract private key (P-521). GCM's tag check already refused a wrong one, so
+     *  unlike -2 there is no certificate comparison standing behind this. */
+    var installedContractKey: PrivateKey? = null
+        private set
+
+    /** The full verdict over the CertificateInstallationRes, once one has arrived. */
+    var installedContractVerdict: Iso20ContractVerdict? = null
+        private set
+
+    /** Whether that response's CPS signature held — both halves of [installedContractVerdict]. */
+    var installedContractSignatureOk: Boolean = false
+        private set
 
     /** How this session authorized: `"eim"`, or `"pnc-signed"`. */
     /**
@@ -132,6 +169,44 @@ abstract class Evcc20Base(
      * challenge that has not changed. The C# original makes the same split, and getting it backwards
      * is invisible until something checks the bytes.
      */
+    /**
+     * Runs the -20 contract-provisioning exchange: sends the signed OEM provisioning chain (Id "id1",
+     * Josev-interop signature form over the chain's EXI fragment), then judges the response's CPS
+     * signature over `SignedInstallationData` and ECDH-unwraps the issued contract private key.
+     *
+     * One reference where -2 has four, and no certificate check behind the unwrap: -20 signs the whole
+     * `SignedInstallationData` as a unit, and its AES-GCM tag refuses a wrong key outright. See
+     * [Iso20ContractCheck] and [ContractProvisioning20].
+     */
+    private fun runCertificateInstallation(oem: CertInstallEvccOptions) {
+
+        val chain = SignedCertificateChainType(
+            "id1", oem.oemCertificate,
+            if (oem.oemSubCertificates.isEmpty()) null else SubCertificatesType(oem.oemSubCertificates))
+
+        val signature = XmlDsigInterop.sign20(
+            "id1", CommonMessagesCodec.encodeFragment_OEMProvisioningCertificateChain(chain),
+            oem.oemSignKey)
+
+        val res = exchange<CertificateInstallationRes>(MessageSet.Iso20CommonMessages,
+            CommonMessagesCodec.encode(CertificateInstallationReq(
+                sessionCtx.toCommonHeader().copy(signature = signature),
+                chain,
+                ListOfRootCertificateIDsType(listOf(X509IssuerSerialType("CN=V2GRootCA (dev)", 1L))),
+                maximumContractCertificateChains = 1u,
+                prioritizedEMAIDs = null)))
+
+        val verdict = Iso20ContractCheck.evaluate(res, res.header.signature)
+        installedContractVerdict     = verdict
+        installedContractSignatureOk = verdict.digestOk && verdict.signatureOk
+
+        res.signedInstallationData.sECP521_EncryptedPrivateKey?.let { wrapped ->
+            installedContractKey = ContractProvisioning20.recoverContractKey(
+                oem.oemKeyAgreement, res.signedInstallationData.dHPublicKey, wrapped)
+            installedContractCertificate = res.signedInstallationData.contractCertificateChain.certificate
+        }
+    }
+
     private fun buildAuthorizationReq(authSetup: AuthorizationSetupRes): () -> ByteArray {
 
         val credentials = pnc
@@ -179,6 +254,53 @@ abstract class Evcc20Base(
 
     /** Charge-parameter discovery. Runs once, not polled: -20's CPD response carries no
      *  EVSEProcessing field to poll on. */
+    /**
+     * ServiceDiscovery -> ServiceDetail -> ServiceSelection.
+     *
+     * Its own method because a **service renegotiation** re-enters the session exactly here
+     * ([V2G20-1477]) — the station puts the phase back to ServiceDiscovery, not to the top.
+     * Authorization has already happened and is emphatically not repeated: a car that re-authorized
+     * mid-session would be telling the station it might be a different car.
+     *
+     * Service negotiation is dynamic: select the service and parameter set the station actually
+     * advertises rather than assuming fixed ids. A live Josev run caught the old hardcoded
+     * ServiceID=1/ParameterSetID=1 — its DC catalogue offers neither, and our loopback SECC happened
+     * to advertise exactly those, which masked it.
+     */
+    private fun runServiceSelection() {
+
+        val discovery = exchange<ServiceDiscoveryRes>(MessageSet.Iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceDiscoveryReq(sessionCtx.toCommonHeader(), null)))
+        val serviceId = selectEnergyTransferService(discovery)
+        selectedEnergyServiceId = serviceId
+
+        val detail = exchange<ServiceDetailRes>(MessageSet.Iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceDetailReq(sessionCtx.toCommonHeader(), serviceId)))
+        val parameterSetId = selectParameterSet(detail)
+
+        exchange<ServiceSelectionRes>(MessageSet.Iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceSelectionReq(sessionCtx.toCommonHeader(),
+                SelectedServiceType(serviceId, parameterSetId), null)))
+    }
+
+    /** How many service renegotiations this session ran ([V2G20-1477]). */
+    var renegotiations: Int = 0
+        private set
+
+    private var renegotiationRequested = false
+
+    /**
+     * Record that a charge-loop response asked for a **service renegotiation** — the station puts
+     * `EvseNotification.ServiceRenegotiation` in its EVSEStatus ([V2G20-1477]).
+     *
+     * Called by the AC and DC loops: the EVSEStatus is a different generated type in each message set,
+     * and this class imports neither. Acted on where the charging phase ends rather than here — a
+     * renegotiation has to finish the iteration and open the contactor before it can go anywhere.
+     */
+    protected fun noteRenegotiationRequest(requested: Boolean) {
+        if (requested) renegotiationRequested = true
+    }
+
     protected abstract fun runChargeParameterDiscovery()
 
     /** DC: CableCheck + PreCharge. AC: nothing. */
@@ -220,6 +342,14 @@ abstract class Evcc20Base(
         val authSetup = exchange<AuthorizationSetupRes>(MessageSet.Iso20CommonMessages,
             CommonMessagesCodec.encode(AuthorizationSetupReq(sessionCtx.toCommonHeader())))
 
+        // A car that needs a contract asks for one here — before it authorizes, and before service
+        // discovery. That position is the whole difference from -2, where provisioning is a
+        // value-added service to be discovered and selected first, and it is the one thing about this
+        // exchange that only a recorded session can state.
+        certInstallRequest?.let { oem ->
+            if (authSetup.certificateInstallationService) runCertificateInstallation(oem)
+        }
+
         // Plug & Charge only if we have credentials AND the station offers it with a challenge;
         // anything else falls back to EIM. Built once — the challenge does not change across polls,
         // so re-signing per poll would only burn entropy.
@@ -233,22 +363,19 @@ abstract class Evcc20Base(
             pollDelay(POLL_INTERVAL_MS)
         }
 
-        // Service negotiation is dynamic: select the service and parameter set the station actually
-        // advertises rather than assuming fixed ids. A live Josev run caught the old hardcoded
-        // ServiceID=1/ParameterSetID=1 — its DC catalogue offers neither, and our loopback SECC
-        // happened to advertise exactly those, which masked it.
-        val discovery = exchange<ServiceDiscoveryRes>(MessageSet.Iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceDiscoveryReq(sessionCtx.toCommonHeader(), null)))
-        val serviceId = selectEnergyTransferService(discovery)
-        selectedEnergyServiceId = serviceId
+        runServiceSelection()
 
-        val detail = exchange<ServiceDetailRes>(MessageSet.Iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceDetailReq(sessionCtx.toCommonHeader(), serviceId)))
-        val parameterSetId = selectParameterSet(detail)
-
-        exchange<ServiceSelectionRes>(MessageSet.Iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceSelectionReq(sessionCtx.toCommonHeader(),
-                SelectedServiceType(serviceId, parameterSetId), null)))
+        // ── the charging phase, which a service renegotiation sends round again ────────────────
+        //
+        // [V2G20-1477]: the station asks by putting EvseNotification.ServiceRenegotiation in a
+        // charge-loop response's EVSEStatus. The EV stops power delivery, sends
+        // SessionStopReq(ServiceRenegotiation) — which does NOT end the session — and both sides
+        // return to ServiceDiscovery. Everything from service selection down runs again, with charge
+        // parameters and the schedule offer negotiated afresh; authorization does not, and must not.
+        //
+        // A loop rather than a single re-entry: our station signals once, but nothing in the standard
+        // says a station may only ask once.
+        while (true) {
 
         runChargeParameterDiscovery()
 
@@ -269,6 +396,13 @@ abstract class Evcc20Base(
             pollDelay(POLL_INTERVAL_MS)
         }
 
+        // §7.9.2.5's -20 half. Stays null when the offer carries no AbsolutePriceSchedule at all,
+        // which is the ordinary case — most stations send the compact PriceLevelSchedule instead, and
+        // reporting an unsigned verdict for them would accuse them of failing a check nobody asked
+        // them to pass.
+        tariff = Iso20PriceScheduleCheck.evaluate(
+            scheduleRes, scheduleRes.header.signature, tariffVerifyKey)
+
         runPreChargeSequence()
 
         // PowerDelivery(Start) must carry an EVPowerProfile referencing a schedule tuple the station
@@ -283,9 +417,26 @@ abstract class Evcc20Base(
             pollDelay(POLL_INTERVAL_MS)
         }
 
+        // Power off either way: a renegotiation stops delivery too, and the contactor must be open
+        // before the session goes back to talking about services.
         exchange<PowerDeliveryRes>(MessageSet.Iso20CommonMessages,
             CommonMessagesCodec.encode(PowerDeliveryReq(sessionCtx.toCommonHeader(),
                 Processing.Finished, ChargeProgress.Stop, null, null)))
+
+        if (!renegotiationRequested) break
+
+        renegotiationRequested = false
+        renegotiations++
+
+        // The one SessionStopReq that does not stop the session. Sending stopMode here instead would
+        // end it for real, which is the single most consequential thing to get wrong here.
+        exchange<SessionStopRes>(MessageSet.Iso20CommonMessages,
+            CommonMessagesCodec.encode(SessionStopReq(
+                sessionCtx.toCommonHeader(), ChargingSession.ServiceRenegotiation, null, null)))
+
+        runServiceSelection()
+
+        }
 
         runPostChargeSequence()
 

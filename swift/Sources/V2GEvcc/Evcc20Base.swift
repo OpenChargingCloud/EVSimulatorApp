@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import V2GMetering
 import ExiIso20AC
@@ -25,10 +26,13 @@ internal func expect<T>(_ actualSet: MessageSet, _ message: Any, _ expectedSet: 
 ///
 /// ## What is not here
 ///
-/// **Contract provisioning (CertificateInstallation) and price-schedule signature verification.**
-/// Both are signature work with no recorded oracle yet; named here rather than silently absent,
-/// exactly as in ``Evcc2``. (Plug & Charge itself *is* here, held to the signed traces; Dynamic
-/// control mode is here too, held to the `iso20-*-eim-dynamic` traces.)
+/// **Contract provisioning (CertificateInstallation).** Signature work with no recorded oracle yet;
+/// named here rather than silently absent, exactly as in ``Evcc2``.
+///
+/// Price-schedule signature verification *is* here now — ``Iso20PriceScheduleCheck``, held to
+/// `PriceSchedule.signature.vectors.json` rather than to a trace, because that verdict never reaches
+/// the wire. Plug & Charge is here too, held to the signed traces, and Dynamic control mode to the
+/// `iso20-*-eim-dynamic` ones.
 open class Evcc20Base {
 
     internal static let pollIntervalMs: UInt64 = 50
@@ -67,12 +71,53 @@ open class Evcc20Base {
 
     public private(set) var sessionSetupCode: ExiIso20Common.ResponseCode?
 
+    /// The §7.9.2.5 verdict over a signed `AbsolutePriceSchedule`; nil when the offer carried none —
+    /// which is not a failure, see ``Iso20PriceScheduleCheck``.
+    public private(set) var tariff: Iso20TariffResult?
+
+    /// How many service renegotiations this session ran ([V2G20-1477]).
+    public private(set) var renegotiations = 0
+
+    fileprivate var renegotiationRequested = false
+
+    /// Record that a charge-loop response asked for a **service renegotiation** — the station puts
+    /// `EvseNotification.ServiceRenegotiation` in its EVSEStatus ([V2G20-1477]).
+    ///
+    /// Called by the AC and DC loops: the EVSEStatus is a different generated type in each message
+    /// set, and this class imports neither. Acted on where the charging phase ends rather than here —
+    /// a renegotiation has to finish the iteration and open the contactor before it can go anywhere.
+    public func noteRenegotiationRequest(_ requested: Bool) {
+        if requested { renegotiationRequested = true }
+    }
+
+    /// The eMSP's public key, when the app has one. Without it the digest half is still checked and
+    /// reported; the ECDSA half is not attempted.
+    public var tariffVerifyKey: P521.Signing.PublicKey?
+
     /// The session id in effect, station-assigned.
     public var sessionId: [UInt8] { sessionCtx.sessionId }
 
     /// Contract credentials. When set and the station offers PnC with a challenge, the session
     /// authorizes with a signed AuthorizationReq instead of EIM.
     public var pnc: PncEvccOptions?
+
+    /// OEM-provisioning credentials. When set — and the station announces
+    /// `CertificateInstallationService` — the EVCC runs the contract-provisioning exchange before
+    /// authorization. Nil (the default) skips it.
+    public var certInstallRequest: CertInstallEvccOptions?
+
+    /// The contract certificate (DER) installed via CertificateInstallation, once recovered.
+    public private(set) var installedContractCertificate: [UInt8]?
+
+    /// The unwrapped contract private key (P-521). GCM's tag check already refused a wrong one, so
+    /// unlike -2 there is no certificate comparison standing behind this.
+    public private(set) var installedContractKey: P521.Signing.PrivateKey?
+
+    /// The full verdict over the CertificateInstallationRes, once one has arrived.
+    public private(set) var installedContractVerdict: Iso20ContractVerdict?
+
+    /// Whether that response's CPS signature held — both halves of ``installedContractVerdict``.
+    public private(set) var installedContractSignatureOk = false
 
     /// How this session authorized: `"eim"`, or `"pnc-signed"`.
     public private(set) var authorizationMode = "eim"
@@ -159,6 +204,14 @@ open class Evcc20Base {
         let authSetup: AuthorizationSetupRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(AuthorizationSetupReq(header: sessionCtx.toCommonHeader())))
 
+        // A car that needs a contract asks for one here — before it authorizes, and before service
+        // discovery. That position is the whole difference from -2, where provisioning is a
+        // value-added service to be discovered and selected first, and it is the one thing about this
+        // exchange that only a recorded session can state.
+        if let oem = certInstallRequest, authSetup.certificateInstallationService {
+            try runCertificateInstallation(oem)
+        }
+
         // Plug & Charge only if we have credentials AND the station offers it with a challenge;
         // anything else falls back to EIM. Built once — the challenge does not change across polls,
         // so re-signing per poll would only burn entropy. The *header* is still rebuilt every time,
@@ -174,25 +227,19 @@ open class Evcc20Base {
             pollDelay(Self.pollIntervalMs)
         }
 
-        // Service negotiation is dynamic: select the service and parameter set the station actually
-        // advertises rather than assuming fixed ids. A live Josev run caught the old hardcoded
-        // ServiceID=1/ParameterSetID=1 — its DC catalogue offers neither, and our loopback SECC
-        // happened to advertise exactly those, which masked it.
-        let discovery: ServiceDiscoveryRes = try exchange(.iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceDiscoveryReq(header: sessionCtx.toCommonHeader())))
-        let serviceId = try selectEnergyTransferService(discovery)
-        selectedEnergyServiceId = serviceId
+        try runServiceSelection()
 
-        let detail: ServiceDetailRes = try exchange(.iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceDetailReq(header: sessionCtx.toCommonHeader(),
-                                                        serviceID: serviceId)))
-        let parameterSetId = try selectParameterSet(detail)
-
-        let _: ServiceSelectionRes = try exchange(.iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceSelectionReq(
-                header: sessionCtx.toCommonHeader(),
-                selectedEnergyTransferService: SelectedServiceType(serviceID: serviceId,
-                                                                   parameterSetID: parameterSetId))))
+        // ── the charging phase, which a service renegotiation sends round again ────────────────
+        //
+        // [V2G20-1477]: the station asks by putting `EvseNotification.ServiceRenegotiation` in a
+        // charge-loop response's EVSEStatus. The EV stops power delivery, sends
+        // `SessionStopReq(ServiceRenegotiation)` — which does NOT end the session — and both sides
+        // return to ServiceDiscovery. Everything from service selection down runs again, with charge
+        // parameters and the schedule offer negotiated afresh; authorization does not, and must not.
+        //
+        // A loop rather than a single re-entry: our station signals once, but nothing in the standard
+        // says a station may only ask once.
+        while true {
 
         try runChargeParameterDiscovery()
 
@@ -213,6 +260,14 @@ open class Evcc20Base {
             pollDelay(Self.pollIntervalMs)
         }
 
+        // §7.9.2.5's -20 half. Stays nil when the offer carries no AbsolutePriceSchedule at all,
+        // which is the ordinary case — most stations send the compact PriceLevelSchedule instead,
+        // and reporting an unsigned verdict for them would accuse them of failing a check nobody
+        // asked them to pass.
+        tariff = Iso20PriceScheduleCheck.evaluate(scheduleRes,
+                                                  headerSignature: scheduleRes.header.signature,
+                                                  verifyKey: tariffVerifyKey)
+
         try runPreChargeSequence()
 
         // PowerDelivery(Start) must carry an EVPowerProfile referencing a schedule tuple the station
@@ -227,16 +282,106 @@ open class Evcc20Base {
             pollDelay(Self.pollIntervalMs)
         }
 
+        // Power off either way: a renegotiation stops delivery too, and the contactor must be open
+        // before the session goes back to talking about services.
         let _: PowerDeliveryRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(PowerDeliveryReq(
                 header: sessionCtx.toCommonHeader(), eVProcessing: .Finished,
                 chargeProgress: .Stop)))
+
+        if !renegotiationRequested { break }
+
+        renegotiationRequested = false
+        renegotiations += 1
+
+        // The one SessionStopReq that does not stop the session. Sending `stopMode` here instead
+        // would end it for real, which is the single most consequential thing to get wrong here.
+        let _: SessionStopRes = try exchange(.iso20CommonMessages,
+            CommonMessagesCodec.encode(SessionStopReq(header: sessionCtx.toCommonHeader(),
+                                                      chargingSession: .ServiceRenegotiation)))
+
+        try runServiceSelection()
+
+        }
 
         try runPostChargeSequence()
 
         let _: SessionStopRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(SessionStopReq(header: sessionCtx.toCommonHeader(),
                                                       chargingSession: stopMode)))
+    }
+
+    /// ServiceDiscovery → ServiceDetail → ServiceSelection.
+    ///
+    /// Its own method because a **service renegotiation** re-enters the session exactly here
+    /// ([V2G20-1477]) — the station puts the phase back to ServiceDiscovery, not to the top.
+    /// Authorization has already happened and is emphatically not repeated: a car that re-authorized
+    /// mid-session would be telling the station it might be a different car.
+    ///
+    /// Service negotiation is dynamic: select the service and parameter set the station actually
+    /// advertises rather than assuming fixed ids. A live Josev run caught the old hardcoded
+    /// ServiceID=1/ParameterSetID=1 — its DC catalogue offers neither, and our loopback SECC happened
+    /// to advertise exactly those, which masked it.
+    private func runServiceSelection() throws {
+
+        let discovery: ServiceDiscoveryRes = try exchange(.iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceDiscoveryReq(header: sessionCtx.toCommonHeader())))
+        let serviceId = try selectEnergyTransferService(discovery)
+        selectedEnergyServiceId = serviceId
+
+        let detail: ServiceDetailRes = try exchange(.iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceDetailReq(header: sessionCtx.toCommonHeader(),
+                                                        serviceID: serviceId)))
+        let parameterSetId = try selectParameterSet(detail)
+
+        let _: ServiceSelectionRes = try exchange(.iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceSelectionReq(
+                header: sessionCtx.toCommonHeader(),
+                selectedEnergyTransferService: SelectedServiceType(serviceID: serviceId,
+                                                                   parameterSetID: parameterSetId))))
+    }
+
+    /// Runs the -20 contract-provisioning exchange: sends the signed OEM provisioning chain (Id
+    /// "id1", Josev-interop signature form over the chain's EXI fragment), then judges the response's
+    /// CPS signature over `SignedInstallationData` and ECDH-unwraps the issued contract private key.
+    ///
+    /// One reference where -2 has four, and no certificate check behind the unwrap: -20 signs the
+    /// whole `SignedInstallationData` as a unit, and its AES-GCM tag refuses a wrong key outright.
+    /// See ``Iso20ContractCheck`` and ``ContractProvisioning20``.
+    private func runCertificateInstallation(_ oem: CertInstallEvccOptions) throws {
+
+        let chain = SignedCertificateChainType(
+            id: "id1", certificate: oem.oemCertificate,
+            subCertificates: oem.oemSubCertificates.isEmpty
+                ? nil : SubCertificatesType(certificate: oem.oemSubCertificates))
+
+        let signature = try XmlDsigInterop.sign20(
+            "id1", CommonMessagesCodec.encodeFragment_OEMProvisioningCertificateChain(chain),
+            oem.oemSignKey)
+
+        var header = sessionCtx.toCommonHeader()
+        header.signature = signature
+
+        let res: CertificateInstallationRes = try exchange(.iso20CommonMessages,
+            CommonMessagesCodec.encode(CertificateInstallationReq(
+                header: header,
+                oEMProvisioningCertificateChain: chain,
+                listOfRootCertificateIDs: ListOfRootCertificateIDsType(rootCertificateID: [
+                    X509IssuerSerialType(x509IssuerName: "CN=V2GRootCA (dev)", x509SerialNumber: 1)
+                ]),
+                maximumContractCertificateChains: 1)))
+
+        let verdict = Iso20ContractCheck.evaluate(res, headerSignature: res.header.signature)
+        installedContractVerdict     = verdict
+        installedContractSignatureOk = verdict.digestOk && verdict.signatureOk
+
+        if let wrapped = res.signedInstallationData.sECP521_EncryptedPrivateKey {
+            installedContractKey = try ContractProvisioning20.recoverContractKey(
+                oemKey: oem.oemKeyAgreement,
+                dhPublicKey: res.signedInstallationData.dHPublicKey,
+                encryptedPrivateKey: wrapped)
+            installedContractCertificate = res.signedInstallationData.contractCertificateChain.certificate
+        }
     }
 
     private func makeAuthorizationReqBuilder(_ authSetup: AuthorizationSetupRes) throws -> () -> [UInt8] {

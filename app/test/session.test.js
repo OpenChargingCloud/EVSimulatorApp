@@ -319,13 +319,17 @@ test("the sessions that carry a signature show one, and the rest show none", () 
 
     let signed = 0;
 
-    // Two kinds of -2 signature reach this screen, and for a long time only one of them existed in
-    // the corpus — so this test asserted "signed implies PnC" and was right by accident. A signed
-    // SalesTariff offer (§7.9.2.5) is EIM, rides on a *response*, and covers elements inside the body
-    // rather than the body itself. Naming both is what keeps the assertion honest; a session that
-    // grows a signature for a third reason should fail here rather than slip through.
+    // Three kinds of -2 signature reach this screen now, and for a long time only one of them
+    // existed in the corpus — so this test asserted "signed implies PnC" and was right by accident.
+    // A signed SalesTariff offer (§7.9.2.5) is EIM, rides on a *response*, and covers elements inside
+    // the body rather than the body itself. Contract provisioning is the third, and it arrived after
+    // the comment below predicted it would: the request is signed by a key the car was *built* with
+    // rather than by a contract, and the answer carries four references where every other signed -2
+    // message has one. Naming each is what keeps the assertion honest; a fourth reason should fail
+    // here rather than slip through.
     const signedRequests  = (/** @type {string} */ name) => name.includes("pnc");
     const signedOffer     = (/** @type {string} */ name) => name.endsWith("-tariff");
+    const provisioning    = (/** @type {string} */ name) => name.includes("-cert");
 
     for (const [name, events] of Object.entries(sessions)) {
         for (const event of events) {
@@ -333,8 +337,9 @@ test("the sessions that carry a signature show one, and the rest show none", () 
             const view = signatureFor(event);
             if (!view.present) continue;
 
-            assert.ok(signedRequests(name) || signedOffer(name),
-                      `${name}: a signature in a session that is neither PnC nor a signed offer`);
+            assert.ok(signedRequests(name) || signedOffer(name) || provisioning(name),
+                      `${name}: a signature in a session that is neither PnC, a signed offer, `
+                    + "nor a contract-provisioning exchange");
 
             const labels = view.facts.map((/** @type {any} */ f) => f.label);
             for (const wanted of ["Signature method", "Covers", "Digest", "Signature"])

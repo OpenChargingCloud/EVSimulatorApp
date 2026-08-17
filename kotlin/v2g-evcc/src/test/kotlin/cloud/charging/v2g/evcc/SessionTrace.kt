@@ -33,7 +33,14 @@ class TraceFrame(val message: String, val bytes: ByteArray, val signature: Strin
 
 
 /** A P-256 public key, as the two field elements — enough to verify a raw `r‖s` signature. */
-class TraceSigningKey(val x: String, val y: String)
+/**
+ * A public key, as the two field elements — enough to verify a raw `r‖s` signature.
+ *
+ * [curve] is absent on every trace recorded before contract provisioning, and `P-256` is what those
+ * used; a -20 OEM provisioning key is `P-521`, and reading its 66-byte coordinates as 32-byte ones
+ * would report a perfectly good signature as invalid.
+ */
+class TraceSigningKey(val x: String, val y: String, val curve: String = "P-256")
 
 /** One recorded request/response pair. */
 class TraceExchange(val index: Int, val request: TraceFrame, val response: TraceFrame)
@@ -97,7 +104,10 @@ class SessionTrace(val name: String, val protocol: String, val mode: String,
         private fun key(node: com.google.gson.JsonObject, name: String): TraceSigningKey? {
             val value = node.get(name)
             return if (value == null || value.isJsonNull) null
-                   else value.asJsonObject.let { TraceSigningKey(it.get("x").asString, it.get("y").asString) }
+                   else value.asJsonObject.let {
+                       TraceSigningKey(it.get("x").asString, it.get("y").asString,
+                                       it.get("curve")?.takeIf { c -> !c.isJsonNull }?.asString ?: "P-256")
+                   }
         }
 
         private fun hex(s: String) = ByteArray(s.length / 2) {
@@ -138,7 +148,7 @@ class TraceReplay(private val trace: SessionTrace) {
             ?: throw TraceMismatch(
                 "trace '${trace.name}' carries a signed exchange but no signing key. The C# " +
                 "SessionTrace.Build refuses to produce that, so this file was hand-edited.")
-        SignedFrame.publicKey(key.x, key.y)
+        SignedFrame.publicKey(key.x, key.y, key.curve)
     }
 
     val output: OutputStream = object : OutputStream() {

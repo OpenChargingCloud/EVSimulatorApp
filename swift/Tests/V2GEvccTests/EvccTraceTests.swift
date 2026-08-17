@@ -264,6 +264,165 @@ final class EvccTraceTests: XCTestCase {
         XCTAssertEqual(evcc.authorizationMode, "pnc-signed")
     }
 
+    // ── contract provisioning ─────────────────────────────────────────────
+    //
+    // What these three add over `Contract.provisioning.vectors.json`, which already pins the verdict
+    // and the unwrapped key: **where in the session the exchange sits**. That is on the wire and
+    // nowhere else, and it is the half a corpus of frames cannot state. A port that ran provisioning
+    // in the wrong place would satisfy every corpus case and still produce a session no station
+    // follows.
+    //
+    // And the two protocols put it in genuinely different places. -2 discovers a value-added service,
+    // selects it by id alongside the charge service, and asks after PaymentServiceSelection. -20 asks
+    // straight after AuthorizationSetup — before it authorizes, before it has discovered any service
+    // at all.
+
+    /// -2 installation: the ServiceList is read, the certificate service selected by id with
+    /// parameter set 1, and the signed request goes out before PaymentDetails.
+    func testAcIso2CertificateInstallationMatchesTheRecording() throws {
+
+        let trace  = try SessionTrace.load("iso2-ac-eim-certinstall")
+        let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_2, .ac)
+        let evcc = Evcc2(stream, .ac)
+        evcc.certInstallRequest = try OemMaterial.iso2Install
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+
+        // The session ran to the end, so the unwrap and its certificate check both passed — an
+        // unwrap that produced the wrong key aborts rather than carries on. What is asserted here is
+        // that the exchange happened at all, which byte-exactness alone does not say out loud.
+        XCTAssertNotNil(evcc.installedContractKey, "the session completed without installing a key")
+        XCTAssertEqual(evcc.installedEmaid, "DE-VAN-C00000001-6")
+        XCTAssertEqual(evcc.installedContractVerdict?.references, 4,
+            "§7.9.2.4.2 signs four elements; a different count means a different message was judged")
+        XCTAssertTrue(evcc.installedContractSignatureOk,
+            "the recorded response is soundly signed, so a false here is this port's verdict failing")
+    }
+
+    /// -2 renewal: the same shape with the expiring contract in place of the OEM certificate, and
+    /// parameter set 2. A port that handled only the installation message stops at the response.
+    func testAcIso2CertificateUpdateMatchesTheRecording() throws {
+
+        let trace  = try SessionTrace.load("iso2-ac-eim-certupdate")
+        let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_2, .ac)
+        let evcc = Evcc2(stream, .ac)
+        evcc.certInstallRequest = try OemMaterial.iso2Update
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+        XCTAssertNotNil(evcc.installedContractKey)
+
+        // A renewal renews a contract; it does not issue a different one. The eMAID the car sent is
+        // the eMAID that came back.
+        XCTAssertEqual(evcc.installedEmaid, "DE-VAN-C00000009-7")
+        XCTAssertTrue(evcc.installedContractSignatureOk)
+    }
+
+    /// -20 installation: no service to discover, one signed element instead of four, a P-521 key —
+    /// and the request placed before the first AuthorizationReq.
+    func testDcIso20CertificateInstallationMatchesTheRecording() throws {
+
+        let trace  = try SessionTrace.load("iso20-dc-eim-certinstall")
+        let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_20, .dc)
+        let evcc = Evcc20Dc(stream, clock: recordedAt)
+        evcc.certInstallRequest = try OemMaterial.iso20Install
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+        XCTAssertNotNil(evcc.installedContractKey,
+            "no key came out — on -20 that means AES-GCM refused the tag, not that a check was skipped")
+        XCTAssertEqual(evcc.installedContractVerdict?.references, 1,
+            "-20 signs the whole SignedInstallationData as one element")
+        XCTAssertTrue(evcc.installedContractSignatureOk)
+
+        // The exchange runs before authorization, so the session still authorizes by EIM afterwards:
+        // installing a contract is not using one.
+        XCTAssertEqual(evcc.authorizationMode, "eim")
+    }
+
+    /// The sequence, stated as a count rather than left implicit in the byte comparison.
+    ///
+    /// -2 asks after service selection and -20 before authorization, and both orders are things a
+    /// replay checks only as a side effect of matching bytes. Naming them means a re-recording that
+    /// moved the exchange fails here with a sentence rather than with a hex diff.
+    func testProvisioningSitsWhereEachProtocolPutsIt() throws {
+
+        for name in ["iso2-ac-eim-certinstall", "iso2-ac-eim-certupdate"] {
+            let messages = try SessionTrace.load(name).exchanges.map { $0.request.message }
+            let provisioning = try XCTUnwrap(messages.firstIndex { $0.hasPrefix("Certificate") }, name)
+            let selection    = try XCTUnwrap(messages.firstIndex(of: "PaymentServiceSelectionReqType"), name)
+            let authorization = try XCTUnwrap(messages.firstIndex(of: "AuthorizationReqType"), name)
+
+            XCTAssertLessThan(selection, provisioning,
+                "\(name): -2 provisioning is a service that has to be selected before it is used")
+            XCTAssertLessThan(provisioning, authorization, name)
+        }
+
+        let messages = try SessionTrace.load("iso20-dc-eim-certinstall").exchanges.map { $0.request.message }
+        let provisioning  = try XCTUnwrap(messages.firstIndex(of: "CertificateInstallationReq"))
+        let authorization = try XCTUnwrap(messages.firstIndex(of: "AuthorizationReq"))
+        let discovery     = try XCTUnwrap(messages.firstIndex(of: "ServiceDiscoveryReq"))
+
+        XCTAssertLessThan(provisioning, authorization,
+            "-20 asks for a contract before it authorizes — that is what the flag in "
+          + "AuthorizationSetupRes is for")
+        XCTAssertLessThan(provisioning, discovery,
+            "…and before it has discovered a single service, which is the whole difference from -2")
+    }
+
+    // ── the -20 service renegotiation ─────────────────────────────────────
+
+    /// [V2G20-1477], and the first recorded -20 session in which the station changes its mind
+    /// mid-charge. Byte-exactness is the whole test: a renegotiation is a *sequence*, and getting the
+    /// order or the re-entry point wrong produces a session that still runs to completion.
+    func testTheServiceRenegotiationSessionMatchesTheRecordingByteForByte() throws {
+        let (replay, evcc) = try replay20("iso20-dc-eim-renegotiate", .dc)
+        XCTAssertTrue(replay.complete,
+            "the session stopped after \(replay.replayed) recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+        XCTAssertEqual(evcc.renegotiations, 1)
+    }
+
+    /// The half of [V2G20-1477] that is easiest to get wrong in the direction that still works.
+    ///
+    /// A renegotiation re-enters at **ServiceDiscovery**, not at the top of the session: the service
+    /// is selected again, charge parameters and the schedule are negotiated again — and authorization
+    /// is **not** repeated. An implementation that restarted the whole session would also charge
+    /// successfully, and would be telling the station it might be a different car. That claim is about
+    /// bytes which are *absent*, so only a recorded session can hold it.
+    func testARenegotiationReSelectsTheServiceButDoesNotReAuthorize() throws {
+
+        let trace = try SessionTrace.load("iso20-dc-eim-renegotiate")
+        var counts: [String: Int] = [:]
+        for exchange in trace.exchanges {
+            counts[exchange.request.message, default: 0] += 1
+        }
+
+        XCTAssertEqual(counts["AuthorizationSetupReq"], 1, "authorization must happen exactly once")
+        XCTAssertEqual(counts["AuthorizationReq"], 1)
+
+        XCTAssertEqual(counts["ServiceDiscoveryReq"], 2, "the service is selected again")
+        XCTAssertEqual(counts["ServiceSelectionReq"], 2)
+        XCTAssertEqual(counts["DC_ChargeParameterDiscoveryReq"], 2)
+        XCTAssertEqual(counts["ScheduleExchangeReq"], 2)
+
+        // Two SessionStopReq: the renegotiation's, which does not stop the session, and the real one.
+        XCTAssertEqual(counts["SessionStopReq"], 2)
+
+        // …and welding detection only at the real end, not at the renegotiation.
+        XCTAssertEqual(counts["DC_WeldingDetectionReq"], 1)
+    }
+
     // ── the signed tariff offer ───────────────────────────────────────────
 
     /// The Mobility Operator's public key, read out of `Tariff.signature.vectors.json`.
@@ -540,17 +699,26 @@ final class EvccTraceTests: XCTestCase {
     /// separate `ExiXmlDsig` target, checked rather than assumed.
     func testTheRecordedSignatureVerifiesUnderThisPortsOwnEncoder() throws {
 
-        for name in ["iso2-ac-pnc", "iso20-dc-pnc"] {
+        for name in ["iso2-ac-pnc", "iso20-dc-pnc",
+                     "iso2-ac-eim-certinstall", "iso2-ac-eim-certupdate", "iso20-dc-eim-certinstall"] {
 
-            let trace = try SessionTrace.load(name)
-            let key   = try SignedFrame.publicKey(x: XCTUnwrap(trace.signingKey).x,
-                                                  y: XCTUnwrap(trace.signingKey).y)
-            let signed = trace.exchanges.filter { $0.request.isSigned }
+            let trace   = try SessionTrace.load(name)
+            let signing = try XCTUnwrap(trace.signingKey)
+            let signed  = trace.exchanges.filter { $0.request.isSigned }
 
             XCTAssertFalse(signed.isEmpty, "\(name) records no signed request")
 
+            // The curve comes from the trace. A contract key is P-256; a -20 OEM provisioning key is
+            // P-521, and reading its 66-byte coordinates as 32-byte ones would report a perfectly
+            // good signature as invalid.
             for exchange in signed {
-                XCTAssertTrue(SignedFrame.verifies(exchange.request.bytes, with: key),
+                let verified = signing.curve == "P-521"
+                    ? SignedFrame.verifies(exchange.request.bytes,
+                                           with: try SignedFrame.publicKey521(x: signing.x, y: signing.y))
+                    : SignedFrame.verifies(exchange.request.bytes,
+                                           with: try SignedFrame.publicKey(x: signing.x, y: signing.y))
+
+                XCTAssertTrue(verified,
                     "\(name) exchange \(exchange.index) (\(exchange.request.message)): the signature " +
                     "C# recorded does not verify here. The two standalone-xmldsig encoders disagree, " +
                     "which no other check in this suite can see.")

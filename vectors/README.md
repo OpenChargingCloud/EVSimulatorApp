@@ -12,8 +12,33 @@ they must change when somebody means them to and never as a side effect of a tes
 |---|---|
 | `Session.*.trace.json`, `Session.ocpp-transactions.json` | `SessionTraceCorpusTests.RegenerateTheCorpus` |
 | `Session.pnc-material.json` | `SessionTraceCorpusTests.RegenerateThePncMaterial` |
+| `Session.oem-material.json` | `SessionTraceCorpusTests.RegenerateTheOemMaterial` |
 | `Certificate.chain.vectors.json` | `CertificateChainCorpusTests` |
 | `Meter.signing.vectors.json` | `MeterVectorTests` |
+| `Tariff.signature.vectors.json` | `TariffSignatureCorpusTests.RegenerateTheCorpus` |
+| `PriceSchedule.signature.vectors.json` | `PriceScheduleSignatureCorpusTests.RegenerateTheCorpus` |
+| `Contract.provisioning.vectors.json` | `ContractProvisioningCorpusTests.RegenerateTheCorpus` |
+
+## Two kinds of file, and they are not interchangeable
+
+`Session.*.trace.json` is a **recording**: what actually crossed the wire, replayed byte for byte.
+`*.vectors.json` is a **corpus of named cases**: bytes paired with the conclusion an implementation
+must reach about them.
+
+The split is not stylistic. A recording can only hold what a message carries, and three of the
+things a port must get right never appear in one:
+
+- **A verdict.** Whether a tariff, a price schedule or a provisioning response verified is something
+  the car decides and never tells the station. A replayed signed message proves a port can parse it;
+  only a corpus proves the port judges it.
+- **A negative.** No station sends a tampered digest or signs with the wrong key, so the cases where
+  a broken verifier still answers "fine" cannot be recorded — they have to be constructed.
+- **A key that was never transmitted.** `Contract.provisioning.vectors.json` carries
+  `recoveredKeyD`: the private scalar a car must derive from an ECDH, a KDF and a cipher. Nothing
+  echoes it, so two implementations can disagree about it forever without any message looking wrong.
+
+Conversely a *sequence* — which messages, in which order, how many times — is on the wire and
+nowhere else, so it wants a recording rather than a corpus.
 
 ## Why they live here and not with the generator
 
@@ -45,3 +70,17 @@ The corpus is small enough to look simple and coupled enough not to be. Recordin
    once.
 4. **Name the scenario in each port that has a state machine** — Swift and Kotlin both, and they
    are separate lists. A recording no test names is invisible; that has happened here twice.
+
+Two of those steps have a subtlety worth knowing before you meet it.
+
+**Restoring is per *frame*, not per field.** A signature is inside the frame as well as in its own
+JSON field, so putting the old `signature` back while keeping the new `frame` leaves a file that
+contradicts itself. Take the whole `request` or `response` object from the checked-in recording.
+`Session.ocpp-transactions.json` is the exception: its outer JSON is assembled by hand rather than by
+a serialiser, so edit its `signedMeterData` values as text and leave the new sessions' entries alone.
+
+**Not every response can be reproduced.** A contract-provisioning response mints a certificate, a key
+pair and an ephemeral ECDH pair every time it is sent — a station that answered twice with the same
+bytes would be handing two cars the same private key. Those responses are listed in the scenario's
+`FreshlyIssuedResponses` and skipped by the re-recording comparison; everything else, requests
+included, is still compared exactly.

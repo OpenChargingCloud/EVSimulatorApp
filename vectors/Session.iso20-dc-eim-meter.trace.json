@@ -7,7 +7,8 @@
   "note": "-20 DC, EIM, with the same meter fitted: the reading rides in MeterInfo.MeterSignature instead of SigMeterReading, over the same payload layout with the protocol byte set to 20 \u2014 so this trace and the -2 one differ in a byte that is never transmitted.",
   "meterKey": {
     "x": "8df1dbff9ad6faf3951ee551fc3983c9b00c52e5ee37c1864698f1fbc8f48884",
-    "y": "41a9a14496be6e552fe391b91ae69bc0745f1a30a141be2fe1e830b38aa5cbea"
+    "y": "41a9a14496be6e552fe391b91ae69bc0745f1a30a141be2fe1e830b38aa5cbea",
+    "curve": "P-256"
   },
   "exchanges": [
     {

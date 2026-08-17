@@ -35,10 +35,19 @@ struct TraceFrame: Decodable {
     }
 }
 
-/// A P-256 public key, as the two field elements — enough to verify a raw `r‖s` signature.
+/// A public key, as the two field elements — enough to verify a raw `r‖s` signature.
 struct TraceSigningKey: Decodable {
+
     let x: String
     let y: String
+
+    /// Which curve the elements are on. Absent means `P-256`, which is what every trace recorded
+    /// before contract provisioning used and what a contract key still uses; a -20 OEM provisioning
+    /// key is `P-521`, and reading its 66-byte coordinates as 32-byte ones would report a perfectly
+    /// good signature as invalid.
+    let curve: String?
+
+    var curveName: String { curve ?? "P-256" }
 }
 
 /// One recorded request/response pair.
@@ -126,18 +135,33 @@ final class TraceReplay: V2GByteStream {
 
     var complete: Bool { replayed == trace.exchanges.count }
 
-    private var cachedSigningKey: P256.Signing.PublicKey?
+    /// The corpus key, on whichever curve the trace names — see ``TraceSigningKey/curve``.
+    private enum CorpusKey {
+        case p256(P256.Signing.PublicKey)
+        case p521(P521.Signing.PublicKey)
+
+        func verifies(_ frame: [UInt8]) -> Bool {
+            switch self {
+            case .p256(let key): return SignedFrame.verifies(frame, with: key)
+            case .p521(let key): return SignedFrame.verifies(frame, with: key)
+            }
+        }
+    }
+
+    private var cachedSigningKey: CorpusKey?
 
     /// The corpus public key, built once. Verification needs a key from outside the frame — taking
     /// one from the message itself would accept anything a port cared to sign with.
-    private func signingKey() throws -> P256.Signing.PublicKey {
+    private func signingKey() throws -> CorpusKey {
         if let cachedSigningKey { return cachedSigningKey }
         guard let key = trace.signingKey else {
             throw TraceMismatch(description:
                 "trace '\(trace.name)' carries a signed exchange but no signing key. The C# " +
                 "SessionTrace.Build refuses to produce that, so this file was hand-edited.")
         }
-        let built = try SignedFrame.publicKey(x: key.x, y: key.y)
+        let built: CorpusKey = key.curveName == "P-521"
+            ? .p521(try SignedFrame.publicKey521(x: key.x, y: key.y))
+            : .p256(try SignedFrame.publicKey(x: key.x, y: key.y))
         cachedSigningKey = built
         return built
     }
@@ -202,7 +226,7 @@ final class TraceReplay: V2GByteStream {
             }
 
             if exchange.request.isSigned,
-               !SignedFrame.verifies(frame, with: try signingKey()) {
+               !(try signingKey().verifies(frame)) {
                 throw TraceMismatch(description:
                     "exchange \(replayed) (\(exchange.request.message)) matches the trace once its " +
                     "signature is substituted, but the signature it actually produced does not verify " +

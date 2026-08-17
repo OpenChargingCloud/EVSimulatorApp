@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 3,
+  "generator": "ISO15118ConformanceTests.Simulation.Traces.SessionTraceCorpusTests.RegenerateTheCorpus",
+  "name": "iso2-ac-eim-certinstall",
+  "protocol": "iso15118-2",
+  "mode": "ac",
+  "note": "AC, external payment, and a car carrying only the certificate its manufacturer built it with. It finds the contract-certificate service in the station\u0027s ServiceList, selects it by id alongside the charge service, and sends a signed CertificateInstallationReq before PaymentDetails. The answer carries four separately signed elements and a contract private key ECDH-wrapped for the OEM key (\u00A77.9.2.4).",
+  "signingKey": {
+    "x": "936c04c41e226dd4f91593763bb9dabca2a95a8ef7aa4165b9c2e06c4408a3ff",
+    "y": "a6c359993a9dabbe1c399238347e4f2ac10e2b49f41311778060f5210334fd01",
+    "curve": "P-256"
+  },
+  "exchanges": [
+    {
+      "index": 0,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "SupportedAppProtocolReq",
+        "frame": "01fe8001000000248000ebab9371d34b9b79d189a98989c1d191d191818999d26b9b3a232b30020000040040"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "SupportedAppProtocolRes",
+        "frame": "01fe80010000000480400040"
+      }
+    },
+    {
+      "index": 1,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "SessionSetupReqType",
+        "frame": "01fe800100000015809802000000000000000011d01aaf37bc04080c00"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "SessionSetupResType",
+        "frame": "01fe80010000001e8098020282c3034383c40451e0202d1114a905090ca914c4101e5ad940c0"
+      }
+    },
+    {
+      "index": 2,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "ServiceDiscoveryReqType",
+        "frame": "01fe80010000000d8098020282c3034383c40451b8"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "ServiceDiscoveryResType",
+        "frame": "01fe8001000000278098020282c3034383c40451c00008004011050c0502400200d436572746966696361746511440"
+      }
+    },
+    {
+      "index": 3,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "PaymentServiceSelectionReqType",
+        "frame": "01fe8001000000138098020282c3034383c4045132001200400110"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "PaymentServiceSelectionResType",
+        "frame": "01fe80010000000e8098020282c3034383c404514000"
+      }
+    },
+    {
+      "index": 4,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "CertificateInstallationReqType",
+        "frame": "01fe80010000028a8098020282c3034383c4044a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910311b4b218812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e63237368613235364202bcb226d06961e77ea2436a7f3ce43bf94dd3c75fbbc41153c84c438ac7573ec128010af5c30e64774e8421b559b4d3ae8b379ffc9f77a45c21a271c4d1256fc48fd1430cf98fccb7c295230cf030b2183d8f37fdc911fb4dfaac275ae3cc22760fc8140ad2c8626801184100a61840f9d001810081010480550791473662b53518050304154324671e820181180d988c980b8301aa820189882ba6a4ab24a718181818181818181a19180f0b86991a981898189818181818182d0b86999b181898189818181818182d180d988c980b8301aa820189882ba6a4ab24a718181818181818181a19182c98098303954324671e81008304154324671e81808381a1000249b602620f1136ea7c8ac9bb1ddced5e5154ad477bd520b2dce17036220451ffd361accc9d4ed5df0e1cc91c1a3f2795608715a4fa0988bbc0307a90819a7e80d190180f18060301aa8e898080ff8201180018070301aa8e878080ff8202018101c418050304154324671e82018101a400182281108040dcca3b380d4bb612347f6f7d0950772c1faec165a02ef03a641d84a244e2350110287bb34f16db0eb5b2bef9b77f85296021ca3f90878aebac5bfc646e58d8e6cc80510d38f558c91d49bdbdd10d0480a19195d8a4004400",
+        "signature": "0857ae187323ba74210daacda69d7459bcffe4fbbd22e10d138e26892b7e247e8a1867cc7e65be14a91867818590c1ec79bfee488fda6fd5613ad71e6113b07e"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "CertificateInstallationResType",
+        "frame": "01fe8001000005b18098020282c3034383c4044a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910311b4b218812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e632373686132353642017e30758634246479d22a553eff98efe8e4cb3312343549e4dc2b29590ee8fe0040c46d2c86404ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d90832bef2eb1c929748d6c93cc48bea7436bca56420ad05d8a195a381744aee4925410311b4b219812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e632373686132353642060c415fc2828bc6a1e9ca5b42f5beae95075c941a5cb36e4918bb2798a6397da040c46d2c86804ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d908277be24680e26d4bde73404052db2515f541c61257808f13f633c8100dbfceeec4a01e525c1cfaa1d3ecb8b09d7ad4992accb4bcba287ae89c785c2ff99e6e28aba574a8696535f5703377c0c593c9285602d57940a2bbfb9bbafe5b330b81440b66206002b2023082012e3081d4a003020102020834f18976159e395c300a06082a8648ce3d040302301d311b30190603550403131256616e616865696d72205341202864657629301e170d3235313233313233353530305a170d3238303130313030303030305a301d311b30190603550403131256616e616865696d722053412028646576293059301306072a8648ce3d020106082a8648ce3d03010703420004d65d9ea4e3d909bdbc172a976e9e3bccb6b2d7f5f96a84dd37c31b0cedef97e617ac052c2c42dde06a36628c51481b74700c941df541ec0f9c7bb7a6d914a5c2300a06082a8648ce3d0403020349003046022100b842f91938679db96b64d32bf36a8067d76e2aff2df747162751b73c835de4bc02210080608803006741f274c5539cd227d36292b17cdc85e75910cf8a31db133a73a72015a590c4e5023082016130820108a00302010202081fbcea7797586159300a06082a8648ce3d040302303731183016060355040a130f56616e616865696d72202864657629311b30190603550403131244452d56414e2d4330303030303030312d36301e170d3235313233313233353530305a170d3238303130313030303030305a303731183016060355040a130f56616e616865696d72202864657629311b30190603550403131244452d56414e2d4330303030303030312d363059301306072a8648ce3d020106082a8648ce3d0301070342000439acf3d89f12f01ed5b98d5ad68eb583bb6db143ac0b361773e7aaf1546a3ca810995f348056596eb3f4f7f05672251ff4e47cadfee2b23365899366f4255270300a06082a8648ce3d040302034700304402205e4adea7e1d70c4a511ddf65b55c534aa8c4f66df56c81ee36a4cd44d371b3d502202c495d259b51f3f4f96e709edc53bcd25c4ca5723e76c22bb3f02fc49b9037fa202b4b2190c1687f79548a89a898e6dd1f4edc8c17c45002d21367791b7e08eefa0583cb428f9c0745162b4fad3fc2b1f69e03a4a3c802b4b21990412372ccdc87ed5584bf89b1c854520581ed7b4345d66956fd931f398dedeee5e04c098ec74f6f4d53871f2b45bae7ec3120ec4bfacd08a03b4a1903cdec8a6928002b4b21a0511114b5590538b50cc0c0c0c0c0c0c0c4b4d80",
+        "signature": "3ca4b839f543a7d971613af5a932559969797450f5d138f0b85ff33cdc51574ae950d2ca6beae066ef818b279250ac05aaf2814577f73775fcb66617028816cc"
+      }
+    },
+    {
+      "index": 5,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "AuthorizationReqType",
+        "frame": "01fe80010000000d8098020282c3034383c4045008"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "AuthorizationResType",
+        "frame": "01fe80010000000f8098020282c3034383c40450100000"
+      }
+    },
+    {
+      "index": 6,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "ChargeParameterDiscoveryReqType",
+        "frame": "01fe80010000001f8098020282c3034383c4045094423183c2ac040c409003030c0800c3006000"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "ChargeParameterDiscoveryResType",
+        "frame": "01fe8001000000258098020282c3034383c40450a00000000000240700c50a0560a80000006207300818604000"
+      }
+    },
+    {
+      "index": 7,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "PowerDeliveryReqType",
+        "frame": "01fe8001000000168098020282c3034383c4045150000000018a140ac2c0"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "PowerDeliveryResType",
+        "frame": "01fe8001000000118098020282c3034383c404516000000000"
+      }
+    },
+    {
+      "index": 8,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusReqType",
+        "frame": "01fe80010000000d8098020282c3034383c40450b0"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusResType",
+        "frame": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40018000000"
+      }
+    },
+    {
+      "index": 9,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusReqType",
+        "frame": "01fe80010000000d8098020282c3034383c40450b0"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusResType",
+        "frame": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40018000000"
+      }
+    },
+    {
+      "index": 10,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusReqType",
+        "frame": "01fe80010000000d8098020282c3034383c40450b0"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "ChargingStatusResType",
+        "frame": "01fe80010000001d8098020282c3034383c40450c0002d1114a905090ca914c40018000000"
+      }
+    },
+    {
+      "index": 11,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "PowerDeliveryReqType",
+        "frame": "01fe8001000000108098020282c3034383c4045151000600"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "PowerDeliveryResType",
+        "frame": "01fe8001000000118098020282c3034383c404516000000000"
+      }
+    },
+    {
+      "index": 12,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "SessionStopReqType",
+        "frame": "01fe80010000000e8098020282c3034383c40451f000"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "SessionStopResType",
+        "frame": "01fe80010000000e8098020282c3034383c404520000"
+      }
+    }
+  ]
+}
