@@ -104,6 +104,26 @@ public enum V2GSignature {
         Array(SHA512.hash(data: fragment))
     }
 
+    /// Confirms a Reference's `DigestValue` equals the digest of the element fragment it names — the
+    /// half of verification that needs no key at all, and the half that catches an element edited
+    /// after signing. The signature covers the `SignedInfo`, never the elements it references, so a
+    /// verifier that checks only the signature accepts a tampered payload.
+    ///
+    /// Constant-time, matching C#'s `CryptographicOperations.FixedTimeEquals` and Kotlin's
+    /// `MessageDigest.isEqual`. A digest is not a secret, so this guards a habit rather than a value —
+    /// and a comparison that returns early is the one that gets copied somewhere it does matter.
+    public static func verifyReference(_ reference: ReferenceType, fragment: [UInt8]) -> Bool {
+        fixedTimeEquals(reference.digestValue, digest(ofFragment: fragment))
+    }
+
+    private static func fixedTimeEquals(_ a: [UInt8], _ b: [UInt8]) -> Bool {
+        guard a.count == b.count else { return false }
+        var difference: UInt8 = 0
+        for i in a.indices { difference |= a[i] ^ b[i] }
+        return difference == 0
+    }
+
+
     // ── ECDSA over secp521r1 ────────────────────────────────────────────────────────────────────
 
     /// Signs a `SignedInfo` over its own EXI fragment with ECDSA-P521, returning the raw `r‖s` pair.
