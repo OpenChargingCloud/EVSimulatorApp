@@ -149,12 +149,17 @@ public sealed class RecordedStation : IAsyncDisposable
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "EVSimulatorApp.slnx")))
             directory = directory.Parent;
 
+        // vectors/ is in this repository. It was read out of the conformance parent as
+        // `../../ISO15118ConformanceTests.Simulation/Vectors` until 2026-08-17, and that path outlived the
+        // move because the sweep covered every extension the ports use but not *.cs — kept alive by the
+        // Assert.Ignore that used to stand here, which turned a stale path into a quiet skip.
         var path = Path.Combine(directory?.FullName ?? throw new DirectoryNotFoundException("repository root"),
-                                "../../ISO15118ConformanceTests.Simulation/Vectors",
+                                "vectors",
                                 $"Session.{name}.trace.json");
 
-        if (!File.Exists(path))
-            Assert.Ignore("session trace corpus absent — it lives in the ISO15118ConformanceTests repo");
+        Assert.That(File.Exists(path), Is.True,
+                    $"the session trace is missing at {path}. vectors/ is committed; "
+                  + "`git checkout -- vectors` restores it.");
 
         return JsonNode.Parse(File.ReadAllText(path))!;
 

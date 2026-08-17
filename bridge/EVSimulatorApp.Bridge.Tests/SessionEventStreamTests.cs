@@ -62,12 +62,15 @@ public class SessionEventStreamTests
     }
 
     /// <summary>
-    /// The session trace corpus is the ISO15118ConformanceTests repo's — it lives with the C#
-    /// session tests that record it, in the parent that carries this app as a submodule. The tests
-    /// that replay it therefore run under conformance and skip when the app is checked out alone.
+    /// The session trace corpus, in <c>vectors/</c> here. It used to live in the conformance repository
+    /// above and be read as <c>../../ISO15118ConformanceTests.Simulation/Vectors</c>; that path outlived
+    /// the move on 2026-08-17 because the sweep searched every extension the ports use and not
+    /// <c>*.cs</c>. What made it survive unnoticed is the <c>Assert.Ignore</c> below: a missing corpus
+    /// reads as "nothing to do here" rather than as a failure, so this suite went on reporting success
+    /// over a directory that no longer existed.
     /// </summary>
     private static string TraceDirectory =>
-        Path.Combine(RepositoryRoot, "../../ISO15118ConformanceTests.Simulation/Vectors");
+        Path.Combine(RepositoryRoot, "vectors");
 
     private static string CorpusPath =>
         Path.Combine(RepositoryRoot, "bridge/EVSimulatorApp.Bridge.Tests/Vectors", CorpusFile);
@@ -77,8 +80,12 @@ public class SessionEventStreamTests
     private static JsonObject Produce()
     {
 
-        if (!Directory.Exists(TraceDirectory))
-            Assert.Ignore("session trace corpus absent — it lives in the ISO15118ConformanceTests repo");
+        // Not Assert.Ignore: vectors/ is committed beside this suite, so its absence is a broken working
+        // tree rather than a checkout that lacks its parent — and an ignore here once hid a stale path
+        // for as long as it took someone to run the regenerator by hand.
+        Assert.That(Directory.Exists(TraceDirectory), Is.True,
+                    $"the session trace corpus is missing at {TraceDirectory}. It is committed; "
+                  + "`git checkout -- vectors` restores it.");
 
         var sessions = new JsonObject();
 
