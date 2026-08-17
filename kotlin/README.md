@@ -64,12 +64,14 @@ the same 8.14.3 one `capacitor/android` and `shell/android` already carried, byt
 without having run anything. `--continue` matters for a different reason: without it Gradle stops at
 the first failing module, so one red module hides whatever the other nineteen would have said.
 
-**Five modules read their corpus from the conformance repository** — `v2g-evcc`, `v2g-session`,
-`v2g-certificates`, `v2g-metering` and `v2g-bridge` load `Session.*.trace.json`,
-`Certificate.chain.vectors.json` and `Bridge.events.json` from
-`../../ISO15118ConformanceTests.Simulation/Vectors/`. A checkout of EVSimulatorApp on its own cannot
-pass them: they end at `session trace not found at …`, once per test. Check this repository out as
-`ISO15118ConformanceTests/libs/EVSimulatorApp`, which is where it belongs anyway.
+**Five modules read the session corpus** — `v2g-evcc`, `v2g-session`, `v2g-certificates`,
+`v2g-metering` and `v2g-bridge` load `Session.*.trace.json` and `Certificate.chain.vectors.json`
+from [`../vectors/`](../vectors/), and `Bridge.events.json` from
+`../bridge/EVSimulatorApp.Bridge.Tests/Vectors/`. Both are in this repository, so a checkout of
+EVSimulatorApp on its own passes them. The session corpus used to sit in the conformance repository
+above and be read as `../../ISO15118ConformanceTests.Simulation/Vectors/`; that ended at
+`session trace not found at …` once per test in a standalone checkout, which is what a submodule
+reading its own superproject buys you.
 
 ## Regenerating the codecs
 

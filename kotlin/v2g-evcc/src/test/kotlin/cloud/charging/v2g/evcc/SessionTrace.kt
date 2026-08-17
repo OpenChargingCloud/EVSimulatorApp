@@ -65,8 +65,7 @@ class SessionTrace(val name: String, val protocol: String, val mode: String,
             while (!File(dir, "EVSimulatorApp.slnx").isFile)
                 dir = dir.parentFile ?: error("repository root not found")
 
-            val file = File(dir, "../../ISO15118ConformanceTests.Simulation/" +
-                                 "Vectors/Session.$name.trace.json")
+            val file = File(dir, "vectors/Session.$name.trace.json")
             require(file.isFile) { "session trace not found at $file" }
 
             val root = JsonParser.parseString(file.readText()).asJsonObject

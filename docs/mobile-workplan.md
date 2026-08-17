@@ -35,7 +35,7 @@ The **codec** drift is visible, since 2026-08-16: five Kotlin modules are red, b
 found within two minutes of the gate becoming runnable.
 
 The **session** drift is not, and cannot be. The state machines are held to recorded sessions in
-`ISO15118ConformanceTests.Simulation/Vectors/`, and all twelve traces are frozen at 2026-08-06/07 —
+[`vectors/`](../vectors/), and all twelve traces are frozen at 2026-08-06/07 —
 the oracle is a snapshot from *before* the drift, so those twenty commits are invisible **by
 construction**. A green session gate means "agrees with the C# EVCC of 2026-08-07", not "current".
 Only new recordings can change that, which is stage 2b.
@@ -102,6 +102,34 @@ machine this was written on:
   the same lie as an aborted `dotnet test` printing per-assembly "Bestanden!" lines, one layer
   further down, and it landed in a script written specifically to refuse it. `port-gates.sh` now
   reads the suite's own summary as well, and either signal fails the gate.
+
+### 1b · The corpus pointed the wrong way — **done 2026-08-17**
+
+The instrument was repaired around a constraint nobody had questioned: that the ports read their
+corpus from `../../ISO15118ConformanceTests.Simulation/Vectors/`. That is a **submodule reading its
+own superproject** — the conformance repository carries this one as `libs/EVSimulatorApp`, so the
+dependency pointed back up at its parent. Git submodules are one-way, and everything awkward about
+the gates was paying for that one inversion:
+
+- a standalone checkout of this repository **failed 57 of its own tests**, every one of them
+  `session trace not found at …`;
+- CI had to check out the parent and then this commit underneath it, in both jobs, purely to place a
+  directory of JSON above the tree under test;
+- `port-gates.sh` needed an up-front corpus probe so that fifty failures would not each announce the
+  same missing directory;
+- and four suites carried `skip` guards whose message named another repository — eighteen tests that
+  quietly did not run for anyone working outside the conformance checkout.
+
+The corpus is **196 KB**. Nothing about its size ever required this. It now lives in
+[`vectors/`](../vectors/) and the regenerators in `ISO15118ConformanceTests.Simulation` write down
+into it, so regenerating produces a commit here and a gitlink bump above — the ordinary shape of
+generated data crossing that boundary. All four bullets above are gone with it: one checkout per CI
+job, no probe, no skips, and `bash tools/port-gates.sh` is green in a clone of this repository
+alone — measured with the parent path made unreachable, not assumed.
+
+The repository already had the two correct patterns and only this one wrong: `bridge/` and
+`pairing/` keep their vectors in-repo, and the EXI codec vectors are read *down* into the
+`WWCP_ISO15118` submodule.
 
 **What the repaired instrument said, immediately:** the Kotlin gate is **red in five modules** — and
 that is stage 2's list, below, no longer a prediction.

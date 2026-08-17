@@ -55,10 +55,12 @@ Named gates run alone: `bash tools/port-gates.sh kotlin typescript`.
 **None of them needs the ISO schemas** — every codec is generated and checked in, and so are the
 vectors. `download-schemas.sh` is for the C# build above.
 
-**They do need the conformance repository.** Five Kotlin modules and five Swift test targets read
-their corpus from `../../ISO15118ConformanceTests.Simulation/Vectors/`, so this repository has to sit
-where its parent expects it — as `ISO15118ConformanceTests/libs/EVSimulatorApp`. The script checks
-for the corpus first and says so rather than letting fifty tests discover it one at a time.
+**And they need nothing above this repository either.** The session corpus lives in
+[`vectors/`](vectors/), here, so a checkout of EVSimulatorApp on its own passes its own suite. It
+used to live in the conformance repository that carries this one as `libs/EVSimulatorApp`, and the
+ports read it back up as `../../ISO15118ConformanceTests.Simulation/Vectors/` — a submodule
+depending on its own superproject, which cost fifty-odd failures in a standalone checkout and a
+two-checkout layout in CI. The regenerators there now write down into `vectors/` instead.
 
 Both repositories run these on push
 ([`.github/workflows/port-gates.yml`](.github/workflows/port-gates.yml)).

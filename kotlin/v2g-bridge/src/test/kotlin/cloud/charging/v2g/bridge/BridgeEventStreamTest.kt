@@ -30,7 +30,7 @@ class BridgeEventStreamTest {
     }
 
     private val traceDirectory: File
-        get() = File(repositoryRoot, "../../ISO15118ConformanceTests.Simulation/Vectors")
+        get() = File(repositoryRoot, "vectors")
 
     private val corpus: JsonObject by lazy {
         val file = File(repositoryRoot, "bridge/EVSimulatorApp.Bridge.Tests/Vectors/Bridge.events.json")

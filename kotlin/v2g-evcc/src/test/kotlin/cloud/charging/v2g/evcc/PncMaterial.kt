@@ -28,8 +28,7 @@ internal object PncMaterial {
         while (!File(dir, "EVSimulatorApp.slnx").isFile)
             dir = dir.parentFile ?: error("repository root not found")
 
-        val file = File(dir, "../../ISO15118ConformanceTests.Simulation/" +
-                             "Vectors/Session.pnc-material.json")
+        val file = File(dir, "vectors/Session.pnc-material.json")
         require(file.isFile) { "PnC material not found at $file" }
         JsonParser.parseString(file.readText()).asJsonObject
     }

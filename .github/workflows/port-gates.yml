@@ -1,10 +1,12 @@
 # The port gates: the suites that hold the Kotlin, Swift and TypeScript back ends to the C# side.
 #
-# Why two checkouts. Five Kotlin modules and five Swift test targets read their corpus from
-# `../../ISO15118ConformanceTests.Simulation/Vectors/` — the conformance repository, the parent that
-# carries this one as a submodule. A checkout of EVSimulatorApp on its own cannot pass them, so the
-# workflow lays out the tree the tests expect: the parent first, then this commit in the place the
-# parent's gitlink points at. Only the corpus is taken from the parent; nothing of its code is built.
+# One checkout, because this repository carries its own corpus. It did not always: the Kotlin and
+# Swift suites used to read `../../ISO15118ConformanceTests.Simulation/Vectors/` — the conformance
+# repository, the parent that carries this one as a submodule — so this workflow had to lay out the
+# parent first and then this commit in the place the parent's gitlink points at, purely to put a
+# directory of JSON above the tree under test. A submodule reading its superproject is a dependency
+# pointing the wrong way, and the two-checkout dance was its cost. The corpus now lives in
+# `vectors/` here and the conformance repository's `RegenerateTheCorpus` writes into it.
 #
 # What is deliberately absent: `dotnet test`. The C# build runs its source generators over the ISO
 # schemas, which are ISO's and are not redistributed — a fresh clone fetches them with
@@ -26,16 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Check out the conformance repository (it carries the session corpus)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          repository: OpenChargingCloud/ISO15118ConformanceTests
-          path: harness
-
-      - name: Check out this commit where the harness expects it
-        uses: actions/checkout@v4
-        with:
-          path: harness/libs/EVSimulatorApp
           submodules: recursive          # WWCP_ISO15118 holds the codec vectors
 
       - uses: actions/setup-java@v4
@@ -51,24 +45,14 @@ jobs:
           node-version: '24'
 
       - run: bash tools/port-gates.sh kotlin typescript capacitor app
-        working-directory: harness/libs/EVSimulatorApp
 
   swift:
     name: Swift
     runs-on: macos-latest
     steps:
 
-      - name: Check out the conformance repository (it carries the session corpus)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          repository: OpenChargingCloud/ISO15118ConformanceTests
-          path: harness
-
-      - name: Check out this commit where the harness expects it
-        uses: actions/checkout@v4
-        with:
-          path: harness/libs/EVSimulatorApp
           submodules: recursive
 
       - run: bash tools/port-gates.sh swift
-        working-directory: harness/libs/EVSimulatorApp

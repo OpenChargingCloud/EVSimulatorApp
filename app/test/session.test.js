@@ -744,21 +744,15 @@ test("the -20 station's signed reading is read and checked too, not quietly skip
 
 // ── what the station told its backend ─────────────────────────────────────────────────────────
 
-// The OCPP transaction corpus is the ISO15118ConformanceTests repo's — the C# session tests record
-// it. These backend-vs-car checks read it from the parent that carries this app, and skip standalone.
+// The OCPP transaction corpus is recorded by the C# session tests and vendored into `vectors/` with
+// the rest of the corpus, so these backend-vs-car checks always run.
 /** @type {Record<string, any>} */
-let transactions = {};
-let skipNoOcpp = false;
-try {
-    transactions = JSON.parse(readFileSync(
-        join(repositoryRoot, "../../ISO15118ConformanceTests.Simulation/Vectors/Session.ocpp-transactions.json"),
-        "utf8")).transactions;
-} catch {
-    skipNoOcpp = "OCPP transaction corpus absent — it lives in the ISO15118ConformanceTests repo";
-}
+const transactions = JSON.parse(readFileSync(
+    join(repositoryRoot, "vectors/Session.ocpp-transactions.json"),
+    "utf8")).transactions;
 
 
-test("the signed readings the backend got are the ones this car saw", { skip: skipNoOcpp }, async () => {
+test("the signed readings the backend got are the ones this car saw", async () => {
 
     for (const name of ["iso2-ac-eim-meter", "iso20-dc-eim-meter"]) {
 
@@ -775,7 +769,7 @@ test("the signed readings the backend got are the ones this car saw", { skip: sk
 });
 
 
-test("a station that reports one figure and shows another is caught, with no key at all", { skip: skipNoOcpp }, () => {
+test("a station that reports one figure and shows another is caught, with no key at all", () => {
 
     // The fraud the two records exist to make visible: the backend is given a signed reading the
     // driver was never shown. Every signature in both records is perfectly valid.
@@ -793,7 +787,7 @@ test("a station that reports one figure and shows another is caught, with no key
 });
 
 
-test("a backend record for another session is refused rather than compared", { skip: skipNoOcpp }, () => {
+test("a backend record for another session is refused rather than compared", () => {
 
     const record = structuredClone(transactions["iso2-ac-eim-meter"]);
     record.v2gSessionId = "1111111111111111";
@@ -815,7 +809,7 @@ test("no backend record is a plain absence, and says where one would come from",
 });
 
 
-test("an unsigned backend record reports its energy and claims nothing more", { skip: skipNoOcpp }, () => {
+test("an unsigned backend record reports its energy and claims nothing more", () => {
 
     // The ordinary station: it meters, it bills, it does not sign — and the car saw no reading at
     // all in this EIM session, which is exactly why the backend's account is worth looking at.

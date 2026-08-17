@@ -127,7 +127,7 @@ class RecordedStation(private val trace: JsonObject) : AutoCloseable {
                 dir = dir.parentFile ?: error("repository root not found")
 
             val file = File(dir,
-                "../../ISO15118ConformanceTests.Simulation/Vectors/Session.$name.trace.json")
+                "vectors/Session.$name.trace.json")
 
             require(file.isFile) { "no recorded session at $file" }
 
