@@ -220,8 +220,8 @@ not a setback:
 
 | Recording | Diverges | Why |
 |---|---|---|
-| `iso2-dc-eim-battery` | exchange 12 | the recorded car charges to a target state of charge; the port charges for a cycle count. There is no battery in the ports. |
-| `iso2-dc-eim-renegotiate` | exchange 5 | `[V2G2-841]` is ported, but on DC the return goes through CableCheck and PreCharge, and nothing had held the port to that path |
+| `iso2-dc-eim-battery` | exchange 5, `ChargeParameterDiscoveryReq` | the recorded car asks for the energy it still needs; the port asks for a fixed amount. There is no battery in the ports. |
+| `iso2-dc-eim-renegotiate` | ~~exchange 12~~ **closed 2026-08-16** | the DC isolation sequence was inline at its one call site, so the return path could not reach it |
 
 **The trap this walked into first:** the ports' trace tests name each scenario by hand, so a new
 recording is invisible until somebody adds a test for it. This project has been bitten by exactly

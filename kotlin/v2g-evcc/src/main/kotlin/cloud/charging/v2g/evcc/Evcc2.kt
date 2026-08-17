@@ -69,6 +69,11 @@ class Evcc2(
 
     /** How many renegotiation cycles this session ran (own + station-requested). */
     var renegotiations: Int = 0
+
+    /** Skips the DC isolation sequence on the way back from a renegotiation. Off by default, because
+     *  the standard has no such exception — it exists for stations that refuse the conformant path,
+     *  and mirrors C#'s `RenegotiationSkipsIsolationSequence`. */
+    var renegotiationSkipsIsolationSequence: Boolean = false
         private set
 
     /** How the session ends: Terminate (default) or Pause. */
@@ -167,15 +172,8 @@ class Evcc2(
         // ── CHARGE PARAMETERS (+ DC cable check / pre-charge) ──────────────
         runChargeParameterDiscovery()
 
-        if (mode == PowerMode.Dc) {
-            val cableGuard = OngoingGuard("CableCheck", ongoingTimeoutMillis)
-            while (send<CableCheckResType>(CableCheckReqType(evStatus())).eVSEProcessing != EVSEProcessing.Finished) {
-                cableGuard.tick()
-                pollDelay(POLL_INTERVAL_MS)
-            }
-            send<PreChargeResType>(PreChargeReqType(evStatus(),
-                eVTargetVoltage = volt(400), eVTargetCurrent = amp(2)))
-        }
+        if (mode == PowerMode.Dc)
+            runDcIsolationSequence()
 
         // ── CHARGE ─────────────────────────────────────────────────────────
         send<PowerDeliveryResType>(powerDelivery(ChargeProgress.Start))
@@ -219,6 +217,15 @@ class Evcc2(
                 renegotiations++
                 send<PowerDeliveryResType>(powerDelivery(ChargeProgress.Renegotiate))
                 runChargeParameterDiscovery()
+
+                // DC returns through the isolation sequence, exactly as it did on the way in: the
+                // station's state table admits CableCheckReq after ChargeParameterDiscoveryReq and
+                // nothing else ([V2G2-565], [V2G2-582]), with no renegotiation exception. The C# car
+                // learned this on 2026-08-15, against a station that refused the shortcut; this port
+                // went straight to PowerDelivery(Start) until the recording said otherwise.
+                if (mode == PowerMode.Dc && !renegotiationSkipsIsolationSequence)
+                    runDcIsolationSequence()
+
                 send<PowerDeliveryResType>(powerDelivery(ChargeProgress.Start))
             }
             pollDelay(POLL_INTERVAL_MS)
@@ -275,6 +282,23 @@ class Evcc2(
     /** Polls ChargeParameterDiscovery until Finished, then evaluates the offer. Runs again after a
      *  renegotiation, because the offer may have changed. Deadline-guarded like the other Ongoing
      *  poll loops — this one had quietly missed the ongoing-deadline port. */
+    /**
+     * The DC isolation sequence: CableCheck until the station says Finished, then one PreCharge.
+     *
+     * Extracted because it is reached from two places — once on the way in, and once on the way back
+     * from a renegotiation. It used to exist only at the first, which is how this port sent
+     * `PowerDelivery(Start)` where the recording sends `CableCheckReq`.
+     */
+    private fun runDcIsolationSequence() {
+        val cableGuard = OngoingGuard("CableCheck", ongoingTimeoutMillis)
+        while (send<CableCheckResType>(CableCheckReqType(evStatus())).eVSEProcessing != EVSEProcessing.Finished) {
+            cableGuard.tick()
+            pollDelay(POLL_INTERVAL_MS)
+        }
+        send<PreChargeResType>(PreChargeReqType(evStatus(),
+            eVTargetVoltage = volt(400), eVTargetCurrent = amp(2)))
+    }
+
     private fun runChargeParameterDiscovery() {
         var response: ChargeParameterDiscoveryResType
         val guard = OngoingGuard("ChargeParameterDiscovery", ongoingTimeoutMillis)
