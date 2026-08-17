@@ -260,3 +260,37 @@ enum OemMaterial {
             emaid: identity.emaid)
     }
 }
+
+
+/// The stand-in TLS leaves the recorded -20 pause and resume are bound to.
+///
+/// A -20 session binding hashes the peer's TLS leaf certificate, and a loopback recording has no TLS
+/// to take one from — so both state machines accept the leaf as a property and the corpus supplies
+/// it. Labelled ASCII rather than real certificates on purpose: a real X.509 leaf here would suggest
+/// the recording exercised TLS. See `ResumeMaterial.cs` for the whole argument, including why there
+/// are two of them.
+enum ResumeMaterial {
+
+    private struct Material: Decodable {
+        let vehicleLeafCertificate: String
+        let seccLeafCertificate: String
+    }
+
+    private static var material: Material {
+        var dir = URL(fileURLWithPath: #filePath)
+        while dir.pathComponents.count > 1 {
+            dir.deleteLastPathComponent()
+            if FileManager.default.fileExists(
+                atPath: dir.appendingPathComponent("EVSimulatorApp.slnx").path) { break }
+        }
+        let file = dir.appendingPathComponent("vectors/Session.resume-material.json")
+        return try! JSONDecoder().decode(Material.self, from: try! Data(contentsOf: file))
+    }
+
+    /// What the station sees of the car — the leaf the SECC binds the session to.
+    static var vehicleLeaf: [UInt8] { SignedFrame.hex(material.vehicleLeafCertificate) }
+
+    /// What the car sees of the station — the leaf the EVCC binds the session to, and therefore the
+    /// only one this port needs.
+    static var seccLeaf: [UInt8] { SignedFrame.hex(material.seccLeafCertificate) }
+}

@@ -36,9 +36,12 @@ data class Iso2TariffResult(
  * agree — there is no reference EVCC, and a state machine that merely runs to completion has proved
  * nothing about *what* it said.
  *
- * ## What is not here yet
+ * ## Pause and resume
  *
- * **Pause/resume** ([V2G2-740]) is unported: it needs a trace that pauses and rejoins.
+ * Both are here ([V2G2-740]), and a -2 resume is smaller than it sounds: [resumeSessionId] in the
+ * opening header and [alreadyChargedWh] off the energy request, and then the whole session runs again
+ * exactly as a first visit would. `Session.iso2-ac-eim-pause` and its successor are the pair that pins
+ * it — a resumed -20 session, by contrast, skips its entire opening block.
  */
 class Evcc2(
     private val stream: V2GTPStream,
@@ -79,6 +82,28 @@ class Evcc2(
 
     /** How the session ends: Terminate (default) or Pause. */
     var stopMode: ChargingSession = ChargingSession.Terminate
+
+    /**
+     * A paused predecessor's session id. When set, the opening `SessionSetupReq` carries it instead
+     * of the all-zero id, and the station rejoins the old session rather than assigning a new one
+     * ([V2G2-740]).
+     *
+     * That single field is the whole of a -2 resume on the wire. Everything else runs again — service
+     * discovery, payment selection, authorization — which is where -2 and -20 part company: a resumed
+     * -20 session repeats none of it. See [Evcc20Base.resumeSessionId].
+     */
+    var resumeSessionId: ByteArray? = null
+
+    /**
+     * What a paused predecessor already charged, so this session asks for the remainder: [V2G2-743]
+     * requires a resumed session's `EAmount` to be reduced by the energy already taken.
+     *
+     * **Read only when there is no [battery], and that is the whole contract.** A pack carried across
+     * the pause already holds the better answer — its state of charge moved, so `energyNeededWh` is
+     * the remainder by construction — and subtracting this on top would count the same energy twice.
+     * A real car cannot be in the second case: its pack does not forget when the cable comes out.
+     */
+    var alreadyChargedWh: Double = 0.0
 
     /** Contract credentials. When set and the station offers Contract, the session runs Plug & Charge
      *  instead of external payment. */
@@ -178,6 +203,8 @@ class Evcc2(
         pnc?.let { contractEmaid(it.contractCertificate) }
 
         // ── SETUP ──────────────────────────────────────────────────────────
+        resumeSessionId?.let { sessionId = it }   // rejoin: SessionSetupReq carries the paused id
+
         val setup = send<SessionSetupResType>(
             SessionSetupReqType(byteArrayOf(0xAB.toByte(), 0xCD.toByte(), 0xEF.toByte(), 0x01, 0x02, 0x03)))
         sessionSetupCode = setup.responseCode
@@ -655,11 +682,12 @@ class Evcc2(
                 AC_EVChargeParameterType(
                     departureTime = null,
                     // EAmount is -2 AC's only energy field, and it is the request: how much this
-                    // session wants, not what the pack holds. 22 kWh when nothing asked. (C# also
-                    // subtracts what a paused predecessor charged, [V2G2-743]; pause/resume is not
-                    // ported, so there is nothing here to subtract.)
+                    // session wants, not what the pack holds. 22 kWh when nothing asked — less what a
+                    // paused predecessor already charged, which is [V2G2-743] and is why the fallback
+                    // is not a constant. With a pack there is nothing to subtract: charging moved its
+                    // state of charge, so energyNeededWh is already the remainder.
                     eAmount = battery?.let { wattHours(it.energyNeededWh) }
-                        ?: PhysicalValueType(0, UnitSymbol.Wh, 22_000),
+                        ?: wattHours(maxOf(0.0, 22_000 - alreadyChargedWh)),
                     eVMaxVoltage = volt(400), eVMaxCurrent = amp(32), eVMinCurrent = amp(6)))
     }
 

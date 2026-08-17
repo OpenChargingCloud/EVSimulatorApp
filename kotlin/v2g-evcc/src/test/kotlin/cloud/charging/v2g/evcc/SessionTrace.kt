@@ -2,6 +2,8 @@ package cloud.charging.v2g.evcc
 
 import com.google.gson.JsonParser
 import cloud.charging.v2g.tp.V2GTP
+import cloud.charging.v2g.tp.V2GTPDecodeResult
+import cloud.charging.v2g.tp.V2GTPDispatcher
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
@@ -257,3 +259,20 @@ class TraceReplay(private val trace: SessionTrace) {
                "  actual ${actual.size} bytes, from there: ${window(actual)}"
     }
 }
+
+/**
+ * The SessionID in a recorded request's header, whichever protocol it belongs to.
+ *
+ * Shared by both trace suites because the property it serves — that a resumed session names the one it
+ * resumes — lives *between* two recordings, and each protocol has a pair.
+ */
+internal fun sessionIdOf(trace: SessionTrace, exchange: Int): ByteArray =
+    when (val result = V2GTPDispatcher.decode(trace.exchanges[exchange].request.bytes)) {
+        is V2GTPDecodeResult.Decoded -> when (val message = result.message) {
+            is cloud.charging.v2g.iso2.V2G_Message              -> message.header.sessionID
+            is cloud.charging.v2g.iso20.common.V2GRequestType   -> message.header.sessionID
+            else -> throw TraceMismatch(
+                "${trace.name} exchange $exchange: a ${message::class.simpleName} carries no SessionID.")
+        }
+        is V2GTPDecodeResult.Failed -> throw TraceMismatch("${trace.name}: ${result.error}")
+    }

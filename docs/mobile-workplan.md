@@ -325,11 +325,18 @@ The port work proper. Two piles, and the first is bigger than it looks.
     ECDH, a KDF and a cipher, which is never transmitted, echoed or acknowledged and therefore cannot
     be checked any other way. Three recordings carry the half a corpus cannot — *where in the session
     the exchange sits*, which is not the same place on the two protocols.
-  - **Resume.** *Pause* is ported on both protocols as a stop mode; rejoining a paused session
-    (`[V2G2-740]`) is not, and it needs a trace that pauses and rejoins — so it depends on stage 2.
-    The last one left.
+  - ~~**Resume** (`[V2G2-740]`).~~ **Done 2026-08-17**, and the last of the five. Five recordings,
+    because one name covers two different sessions: a resumed `-2` session repeats its whole opening
+    sequence and differs in exactly two fields (the id in the header, and `EAmount` reduced by what
+    the pause took, `[V2G2-743]`), while a resumed `-20` session repeats **none** of it and opens at
+    ChargeParameterDiscovery. The fifth is a `-20` resume the station refuses for want of a session
+    binding — which is what plain TCP always gives, and where the security property lives.
+    `SessionBinding20` is ported with it.
 
 **Done when:** the ports drive the same scenarios as the C# EVCC, against the same recordings.
+~~**Done 2026-08-17.**~~ All five gaps are closed; the corpus that grew to close them is 21 recorded
+sessions and four vector corpora, and the split between the two is the lasting part — a *sequence* is
+on the wire and wants a recording, a *verdict* or a derived key never travels and wants named cases.
 
 ## 4 · TLS — the real wall, and a measurement before any code
 

@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import XCTest
 import ExiIso2
+import ExiIso20Common
 import ExiIso20DC
 import V2GDispatch
 import V2GMetering
@@ -378,6 +379,155 @@ final class EvccTraceTests: XCTestCase {
           + "AuthorizationSetupRes is for")
         XCTAssertLessThan(provisioning, discovery,
             "…and before it has discovered a single service, which is the whole difference from -2")
+    }
+
+    // ── pause and resume ──────────────────────────────────────────────────
+    //
+    // Two protocols doing genuinely different things under one name, and the interesting half is
+    // what a resumed session does NOT send — which is why these are recordings and not corpus cases.
+    // An absence has no bytes to write down.
+
+    /// -2: the pause, whose only distinguishing frame is its last request.
+    func testTheIso2PauseSessionMatchesTheRecording() throws {
+
+        let trace  = try SessionTrace.load("iso2-ac-eim-pause")
+        let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_2, .ac)
+        let evcc = Evcc2(stream, .ac)
+        evcc.stopMode = .Pause
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+    }
+
+    /// -2: the connection after it. The session id in the opening header is the whole of [V2G2-740]
+    /// on the wire, and `EAmount` less what the pause took is the whole of [V2G2-743].
+    func testTheIso2ResumeSessionMatchesTheRecording() throws {
+
+        let paused  = try SessionTrace.load("iso2-ac-eim-pause")
+        let trace   = try SessionTrace.load("iso2-ac-eim-resume")
+        let replay  = TraceReplay(trace)
+        let stream  = V2GTPStream(replay)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_2, .ac)
+        let evcc = Evcc2(stream, .ac)
+        // Read out of the paused recording rather than written here: what the pair has to agree on is
+        // what actually went on the wire, and a constant would agree with itself.
+        evcc.resumeSessionId  = try Self.sessionId(of: paused, exchange: 2)
+        evcc.alreadyChargedWh = 552
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+        XCTAssertEqual(evcc.sessionSetupCode, .OK_OldSessionJoined,
+            "the station answered as though this were a first visit, so nothing was resumed")
+    }
+
+    /// -20: the pause. Its successor is the shortest complete -20 session in the corpus.
+    func testTheIso20PauseSessionMatchesTheRecording() throws {
+
+        let trace  = try SessionTrace.load("iso20-dc-eim-pause")
+        let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_20, .dc)
+        let evcc = Evcc20Dc(stream, clock: recordedAt)
+        evcc.stopMode           = .Pause
+        evcc.seccLeafCertificate = ResumeMaterial.seccLeaf
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+        XCTAssertNotNil(evcc.sessionBinding,
+            "the paused session carries no binding, so nothing could claim it afterwards")
+    }
+
+    /// -20: the resume, and the one that matters. A rejoined session negotiates nothing — it opens at
+    /// ChargeParameterDiscovery — so a port that replayed its opening sequence would charge perfectly
+    /// and diverge on the second frame.
+    func testTheIso20ResumeSessionMatchesTheRecording() throws {
+
+        let paused = try SessionTrace.load("iso20-dc-eim-pause")
+        let trace  = try SessionTrace.load("iso20-dc-eim-resume")
+        let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
+
+        let pausedId = try Self.sessionId(of: paused, exchange: 2)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_20, .dc)
+        let evcc = Evcc20Dc(stream, clock: recordedAt)
+        evcc.seccLeafCertificate = ResumeMaterial.seccLeaf
+        // DC = service 2 (Table 204): carried over rather than renegotiated, which is the point.
+        evcc.resume(from: ResumableSession(
+            sessionId: pausedId,
+            binding: SessionBinding20.compute(sessionId: pausedId,
+                                              peerLeafCertificate: ResumeMaterial.seccLeaf),
+            energyServiceId: 2))
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+        XCTAssertEqual(evcc.sessionSetupCode, .OK_OldSessionJoined)
+        XCTAssertFalse(evcc.resumeRefused)
+        XCTAssertEqual(evcc.resumedStationVerified, true,
+            "the binding was presentable on both sides, so this is the case that had to be checked")
+        XCTAssertEqual(evcc.selectedEnergyServiceId, 2,
+            "a resumed session does not renegotiate the service — it carries the one it had")
+    }
+
+    /// -20: the resume the station refuses, because it has no binding to check. The car drops
+    /// everything the pause carried and runs the full opening sequence — which is what makes this
+    /// recording eighteen exchanges where the accepted one is thirteen.
+    func testTheRefusedIso20ResumeStartsOverCompletely() throws {
+
+        let paused = try SessionTrace.load("iso20-dc-eim-pause")
+        let trace  = try SessionTrace.load("iso20-dc-eim-resume-refused")
+        let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_20, .dc)
+        let evcc = Evcc20Dc(stream, clock: recordedAt)
+        // Offered without a binding on either side — the shape of every plain-TCP resume.
+        evcc.resume(from: ResumableSession(
+            sessionId: try Self.sessionId(of: paused, exchange: 2), binding: nil, energyServiceId: 2))
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+        XCTAssertEqual(evcc.sessionSetupCode, .OK_NewSessionEstablished)
+        XCTAssertTrue(evcc.resumeRefused, "the car cannot tell it was refused, and that is the only record")
+        XCTAssertNil(evcc.resumedStationVerified)
+    }
+
+    /// What the pair means, stated once: a resumed session names the session it resumes, and a fresh
+    /// one does not. This lives *between* two recordings, so no single replay can express it.
+    func testAResumedSessionCarriesThePausedSessionsId() throws {
+
+        for family in ["iso2-ac-eim", "iso20-dc-eim"] {
+
+            let paused  = try SessionTrace.load("\(family)-pause")
+            let resumed = try SessionTrace.load("\(family)-resume")
+
+            // The id the paused session ran under: assigned in SessionSetupRes, and carried by every
+            // request after it.
+            let pausedId = try Self.sessionId(of: paused, exchange: 2)
+
+            XCTAssertEqual(try Self.sessionId(of: resumed, exchange: 1), pausedId,
+                "\(family): the resumed SessionSetupReq does not name the session it resumes")
+            XCTAssertNotEqual(try Self.sessionId(of: paused, exchange: 1), pausedId,
+                "\(family): the paused session opened with the id it was later given, so this corpus " +
+                "cannot tell a resume from a first visit")
+        }
+    }
+
+    /// The SessionID in a recorded request's header, whichever protocol it belongs to.
+    private static func sessionId(of trace: SessionTrace, exchange: Int) throws -> [UInt8] {
+        switch try V2GTPDispatcher.decode(trace.exchanges[exchange].request.bytes) {
+        case .decoded(_, let message):
+            if let m = message as? ExiIso2.V2G_Message      { return m.header.sessionID }
+            if let r = message as? ExiIso20Common.V2GRequestType { return r.header.sessionID }
+            throw TraceMismatch(description: "\(type(of: message)) carries no SessionID.")
+        case .failed(let error):
+            throw TraceMismatch(description: "\(error)")
+        }
     }
 
     // ── the -20 service renegotiation ─────────────────────────────────────
