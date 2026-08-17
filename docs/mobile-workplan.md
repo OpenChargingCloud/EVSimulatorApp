@@ -351,11 +351,24 @@ our own side that was not enough, and it is written down —
 `TlsPlatform.cs` says the same for `-20`: even Windows/Schannel cannot pin the suites, use
 secp521r1, or present a client chain rooted outside its trust store.
 
-- **Measure first, on a real device.** One `-2` TLS handshake from an Android phone against our own
-  SECC, and one from an iPhone: which suite does it land on, and does the station's `-2` profile
-  accept it? Half an hour, and it replaces a derivation with a fact. Everything below is written
-  *assuming* the platform stores no longer carry `TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256`; if the
-  measurement says otherwise, this stage shrinks.
+- ~~**Measure first, on a real device.**~~ **Measured 2026-08-17** —
+  [`experiments/tls-platform-suites.md`](experiments/tls-platform-suites.md), three stacks of four.
+  The assumption held and the stage does not shrink; it moved, in two directions at once.
+  - **iOS is out on `-2` entirely**, not merely on the mandatory suite. Apple's `tls_ciphersuite_t`
+    has 23 members and not one static `ECDH_` among them, and appending the *optional* `0xC023` is
+    silently discarded — the ClientHello comes back with the full default set of seventeen. Our own
+    `-2` station refuses it: `Cipher Suite negotiation failure`.
+  - **The JVM completes a `-2` handshake with our station** on `TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256`,
+    TLS 1.2. So the optional suite is alive on that side, and whether **Conscrypt** matches SunJSSE is
+    now the highest-value hour left here — it decides whether Android needs BouncyCastle for the whole
+    transport or only for the mandatory suite and `trusted_ca_keys`.
+  - **Both stacks accept a cipher-suite pin they do not honour and report no error.** JSSE returns the
+    unimplemented suite from `getEnabledCipherSuites` and never sends it; Network.framework discards
+    the append and *widens* the offer. A transport that pinned and checked for an error would report
+    success while negotiating something else. Whatever is built here has to verify the negotiated
+    suite after the handshake rather than trust the configuration before it.
+  - **Neither platform sends `trusted_ca_keys`** (`[V2G2-651]`) or offers a hook to add it — the same
+    wall `SslStream` hit, and an independent second reason `-2` cannot ride on a platform stack.
 - **Android is the easy half if it fails:** BouncyCastle's `bctls` is the same library the C# side
   already uses, so the port would be a second transport beside `TcpV2GTransport` — suites pinned,
   `trusted_ca_keys` available, secp521r1 and Ed448 reachable.
