@@ -79,6 +79,19 @@ abstract class Evcc20Base(
     var stopMode: ChargingSession = ChargingSession.Terminate
 
     /** The station's SessionSetup verdict. */
+    /**
+     * The §7.9.2.5 verdict over a signed `AbsolutePriceSchedule`; null when the offer carried none —
+     * which is not a failure, see [Iso20PriceScheduleCheck].
+     */
+    var tariff: Iso20TariffResult? = null
+        private set
+
+    /**
+     * The eMSP's public key, when the app has one. Without it the digest half is still checked and
+     * reported; the ECDSA half is not attempted.
+     */
+    var tariffVerifyKey: java.security.PublicKey? = null
+
     var sessionSetupCode: ResponseCode? = null
         private set
 
@@ -268,6 +281,13 @@ abstract class Evcc20Base(
             if (scheduleRes.eVSEProcessing == Processing.Finished) break
             pollDelay(POLL_INTERVAL_MS)
         }
+
+        // §7.9.2.5's -20 half. Stays null when the offer carries no AbsolutePriceSchedule at all,
+        // which is the ordinary case — most stations send the compact PriceLevelSchedule instead, and
+        // reporting an unsigned verdict for them would accuse them of failing a check nobody asked
+        // them to pass.
+        tariff = Iso20PriceScheduleCheck.evaluate(
+            scheduleRes, scheduleRes.header.signature, tariffVerifyKey)
 
         runPreChargeSequence()
 

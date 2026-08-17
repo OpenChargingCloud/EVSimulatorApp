@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "generator": "ISO15118ConformanceTests.Simulation.Traces.PriceScheduleSignatureCorpusTests.RegenerateTheCorpus",
+  "generatorNote": "Each case is a whole ScheduleExchangeRes frame (header Signature included), the verify key the EV is given, and the Iso20TariffResult an EVCC must arrive at \u2014 or null where there is nothing to verify. The digest half is a conformance statement: ISO 15118-20 fixes it as SHA-512 over the AbsolutePriceSchedule EXI fragment. The signature half is single-grammar here, unlike the -2 tariff check, because the counterparty that signs under Josev\u0027s standalone grammar emits no price schedule at all. Keys are fixed for reproducibility and are test material, never real eMSP keys.",
+  "tariffKeyD": "01d4f2a3c95b8e70612fa4c8d35b90e7418fa2c6d095b74e128fa03d76c5b192e8437ca605d29b4718fe30c6a95d472b8103fae62d59b0748125fac396d0b7e5c418",
+  "otherKeyD": "00b7e5c418fa2c6d095b74e128fa03d76c5b192e8437ca605d29b4718fe30c6a95d472b8103fae62d59b0748125fac396d0b7e5c41d4f2a3c95b8e70612fa4c8d35b",
+  "cases": [
+    {
+      "name": "signed-scheduled",
+      "what": "Scheduled mode: the signed AbsolutePriceSchedule hangs off a schedule tuple\u0027s ChargingSchedule. The ordinary case, and what our own station offers with a tariff key set.",
+      "frame": "8070040050d961ea72fb03880e2cfaa060a25687474703a2f2f7777772e77332e6f72672f54522f63616e6f6e6963616c2d6578692f435687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c647369672d6d6f72652365636473612d736861353132443246c2c4e6ded8eae8caa0e4d2c6caa6c6d0cac8ead8ca6204ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184d4c4c9103195eb3a975d6ff8593642337711d3b554147591f6882158ded28aebb78dff78ddcdc0358093e8b6b0847a9eea9a242f3301ea13bd64dcd6a5bbf659b363bf1584c20080fdeba4e1d06170b3f3363c9d76fe6f70a261d2c96ec56acf17e85b01dc283d67f1563a661896205f7ccd10b401d2c0a4bfcaf9e4128c09d8bda8eb0112d47dd1d70009b619db5c15a527cb3bafc215af44537191f4c0cc6bc9d2a1e2fe7111b2012ccf92fd1cc3c1075517bbbb1c66da11ee1d904e5b3f9691eaba1f58ae93415545b7a0000040080010901c08006424030c2c4e6ded8eae8caa0e4d2c6caa6c6d0cac8ead8ca62000010106f66662d7065616b20666972737400a8aaaa401195b8193ab9371d34b9b79d39ba321d34b9b79d189a98989c1d1699181d283934b1b2a0b633b7b934ba34369d1896a837bbb2b918880e03f00c9083000007e023210601610880e03f00f1083000007e02d21060161628",
+      "verifyKey": {
+        "x": "00c49c7ab9a0a9dac86ee16b0228989a368f51af430e9c4b2350f08071a742a324532ff3ebe20a143ccfb9454870d32e8cd10c91a7b53127dc8ebf89a831eaafe86f",
+        "y": "01ea2637fe52006421a6c93202e4c65254df8b850f469d362e7be3734aa9aeabd1a2faa870aa5d9d4503dd7e2e964576b8be84fecb91d466278842be67499e5e7481"
+      },
+      "expected": {
+        "signaturePresent": true,
+        "digestOk": true,
+        "signatureOk": true
+      }
+    },
+    {
+      "name": "signed-dynamic",
+      "what": "Dynamic mode: no schedule tuples exist, so the same schedule sits directly on the control mode. Same key, same signature, same verdict \u2014 a verifier that only looks in the Scheduled tuples reports this signed offer as unsigned, which is exactly what an honest unsigning station looks like.",
+      "frame": "8070040050d961ea72fb03880e2cfaa060a25687474703a2f2f7777772e77332e6f72672f54522f63616e6f6e6963616c2d6578692f435687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c647369672d6d6f72652365636473612d736861353132443246c2c4e6ded8eae8caa0e4d2c6caa6c6d0cac8ead8ca6204ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184d4c4c9103195eb3a975d6ff8593642337711d3b554147591f6882158ded28aebb78dff78ddcdc0358093e8b6b0847a9eea9a242f3301ea13bd64dcd6a5bbf659b363bf1584c20080fdeba4e1d06170b3f3363c9d76fe6f70a261d2c96ec56acf17e85b01dc283d67f1563a661896205f7ccd10b401d2c0a4bfcaf9e4128c09d8bda8eb0112d47dd1d70009b619db5c15a527cb3bafc215af44537191f4c0cc6bc9d2a1e2fe7111b2012ccf92fd1cc3c1075517bbbb1c66da11ee1d904e5b3f9691eaba1f58ae93415545b7a000001830c2c4e6ded8eae8caa0e4d2c6caa6c6d0cac8ead8ca62000010106f66662d7065616b20666972737400a8aaaa401195b8193ab9371d34b9b79d39ba321d34b9b79d189a98989c1d1699181d283934b1b2a0b633b7b934ba34369d1896a837bbb2b918880e03f00c9083000007e023210601610880e03f00f1083000007e02d2106016160",
+      "verifyKey": {
+        "x": "00c49c7ab9a0a9dac86ee16b0228989a368f51af430e9c4b2350f08071a742a324532ff3ebe20a143ccfb9454870d32e8cd10c91a7b53127dc8ebf89a831eaafe86f",
+        "y": "01ea2637fe52006421a6c93202e4c65254df8b850f469d362e7be3734aa9aeabd1a2faa870aa5d9d4503dd7e2e964576b8be84fecb91d466278842be67499e5e7481"
+      },
+      "expected": {
+        "signaturePresent": true,
+        "digestOk": true,
+        "signatureOk": true
+      }
+    },
+    {
+      "name": "unsigned",
+      "what": "An AbsolutePriceSchedule with no header signature over it. There is something to check and nothing checking it, which is a different answer from having nothing to check at all \u2014 see no-price-schedule.",
+      "frame": "8070040050d961ea72fb03880e2cfaa06200001002000424070200190900c30b139b7b63aba32a83934b1b2a9b1b432b23ab63298800004041bd9998b5c19585ac8199a5c9cdd002a2aaa9004656e064eae4dc74d2e6de74e6e8c874d2e6de74626a626270745a646074a0e4d2c6ca82d8cedee4d2e8d0da74625aa0deeecae46220380fc032420c00001f808c84180584220380fc03c420c00001f80b4841805858a0",
+      "verifyKey": null,
+      "expected": {
+        "signaturePresent": false,
+        "digestOk": false,
+        "signatureOk": false
+      }
+    },
+    {
+      "name": "digest-tampered",
+      "what": "Signed correctly, then the schedule\u0027s description was edited. The SignedInfo signature still verifies \u2014 it covers the SignedInfo, never the schedule \u2014 and only the digest catches it. A verifier that trusts the ECDSA check alone prices the session off a tariff nobody signed.",
+      "frame": "8070040050d961ea72fb03880e2cfaa060a25687474703a2f2f7777772e77332e6f72672f54522f63616e6f6e6963616c2d6578692f435687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c647369672d6d6f72652365636473612d736861353132443246c2c4e6ded8eae8caa0e4d2c6caa6c6d0cac8ead8ca6204ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184d4c4c9103195eb3a975d6ff8593642337711d3b554147591f6882158ded28aebb78dff78ddcdc0358093e8b6b0847a9eea9a242f3301ea13bd64dcd6a5bbf659b363bf1584c20080fdeba4e1d06170b3f3363c9d76fe6f70a261d2c96ec56acf17e85b01dc283d67f1563a661896205f7ccd10b401d2c0a4bfcaf9e4128c09d8bda8eb0112d47dd1d70009b619db5c15a527cb3bafc215af44537191f4c0cc6bc9d2a1e2fe7111b2012ccf92fd1cc3c1075517bbbb1c66da11ee1d904e5b3f9691eaba1f58ae93415545b7a0000040080010901c08006424030c2c4e6ded8eae8caa0e4d2c6caa6c6d0cac8ead8ca620000101a6f66662d7065616b2066697273742028616c74657265642900a8aaaa401195b8193ab9371d34b9b79d39ba321d34b9b79d189a98989c1d1699181d283934b1b2a0b633b7b934ba34369d1896a837bbb2b918880e03f00c9083000007e023210601610880e03f00f1083000007e02d21060161628",
+      "verifyKey": {
+        "x": "00c49c7ab9a0a9dac86ee16b0228989a368f51af430e9c4b2350f08071a742a324532ff3ebe20a143ccfb9454870d32e8cd10c91a7b53127dc8ebf89a831eaafe86f",
+        "y": "01ea2637fe52006421a6c93202e4c65254df8b850f469d362e7be3734aa9aeabd1a2faa870aa5d9d4503dd7e2e964576b8be84fecb91d466278842be67499e5e7481"
+      },
+      "expected": {
+        "signaturePresent": true,
+        "digestOk": false,
+        "signatureOk": true
+      }
+    },
+    {
+      "name": "wrong-key",
+      "what": "A sound signature verified against an unrelated key. The digest half still holds, because it needs no key at all.",
+      "frame": "8070040050d961ea72fb03880e2cfaa060a25687474703a2f2f7777772e77332e6f72672f54522f63616e6f6e6963616c2d6578692f435687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c647369672d6d6f72652365636473612d736861353132443246c2c4e6ded8eae8caa0e4d2c6caa6c6d0cac8ead8ca6204ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184d4c4c9103195eb3a975d6ff8593642337711d3b554147591f6882158ded28aebb78dff78ddcdc0358093e8b6b0847a9eea9a242f3301ea13bd64dcd6a5bbf659b363bf1584c20080fdeba4e1d06170b3f3363c9d76fe6f70a261d2c96ec56acf17e85b01dc283d67f1563a661896205f7ccd10b401d2c0a4bfcaf9e4128c09d8bda8eb0112d47dd1d70009b619db5c15a527cb3bafc215af44537191f4c0cc6bc9d2a1e2fe7111b2012ccf92fd1cc3c1075517bbbb1c66da11ee1d904e5b3f9691eaba1f58ae93415545b7a0000040080010901c08006424030c2c4e6ded8eae8caa0e4d2c6caa6c6d0cac8ead8ca62000010106f66662d7065616b20666972737400a8aaaa401195b8193ab9371d34b9b79d39ba321d34b9b79d189a98989c1d1699181d283934b1b2a0b633b7b934ba34369d1896a837bbb2b918880e03f00c9083000007e023210601610880e03f00f1083000007e02d21060161628",
+      "verifyKey": {
+        "x": "01e1b66a3e730ed914ffaf1560ad7ae320f775dcb9dd0fe11e9e33cc8e582fb2af91cdb1de9cb297c25272c8d29fe84eb9ef6ae77006c824e1846c31d12f13640000",
+        "y": "01f8eef642fea163feefbf37c583004e3f1fcf1ea740842166537858c924095a8a6341e26b9fb515c18f932c863a96fa69dc3f9f8f96361d202204a327d3a27eb107"
+      },
+      "expected": {
+        "signaturePresent": true,
+        "digestOk": true,
+        "signatureOk": false
+      }
+    },
+    {
+      "name": "no-verify-key",
+      "what": "Signed schedule, correct digest, but the EV holds no eMSP key. signatureOk false here means \u0022not established\u0022 rather than \u0022failed\u0022 \u2014 and unlike -2 there is no grammar field to say which, so the distinction lives in this corpus alone.",
+      "frame": "8070040050d961ea72fb03880e2cfaa060a25687474703a2f2f7777772e77332e6f72672f54522f63616e6f6e6963616c2d6578692f435687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c647369672d6d6f72652365636473612d736861353132443246c2c4e6ded8eae8caa0e4d2c6caa6c6d0cac8ead8ca6204ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184d4c4c9103195eb3a975d6ff8593642337711d3b554147591f6882158ded28aebb78dff78ddcdc0358093e8b6b0847a9eea9a242f3301ea13bd64dcd6a5bbf659b363bf1584c20080fdeba4e1d06170b3f3363c9d76fe6f70a261d2c96ec56acf17e85b01dc283d67f1563a661896205f7ccd10b401d2c0a4bfcaf9e4128c09d8bda8eb0112d47dd1d70009b619db5c15a527cb3bafc215af44537191f4c0cc6bc9d2a1e2fe7111b2012ccf92fd1cc3c1075517bbbb1c66da11ee1d904e5b3f9691eaba1f58ae93415545b7a0000040080010901c08006424030c2c4e6ded8eae8caa0e4d2c6caa6c6d0cac8ead8ca62000010106f66662d7065616b20666972737400a8aaaa401195b8193ab9371d34b9b79d39ba321d34b9b79d189a98989c1d1699181d283934b1b2a0b633b7b934ba34369d1896a837bbb2b918880e03f00c9083000007e023210601610880e03f00f1083000007e02d21060161628",
+      "verifyKey": null,
+      "expected": {
+        "signaturePresent": true,
+        "digestOk": true,
+        "signatureOk": false
+      }
+    },
+    {
+      "name": "no-price-schedule",
+      "what": "The compact PriceLevelSchedule a station without a tariff key offers. There is no AbsolutePriceSchedule, so there is no verdict \u2014 expected is null, NOT three falses. Reporting an unsigned verdict here would accuse every ordinary station, Josev\u0027s included, of failing a check it was never asked to pass.",
+      "frame": "8070040050d961ea72fb03880e2cfaa0620000100200042407020019092800009008240700008a",
+      "verifyKey": null,
+      "expected": null
+    }
+  ]
+}

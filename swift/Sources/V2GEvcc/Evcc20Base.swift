@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import V2GMetering
 import ExiIso20AC
@@ -25,10 +26,13 @@ internal func expect<T>(_ actualSet: MessageSet, _ message: Any, _ expectedSet: 
 ///
 /// ## What is not here
 ///
-/// **Contract provisioning (CertificateInstallation) and price-schedule signature verification.**
-/// Both are signature work with no recorded oracle yet; named here rather than silently absent,
-/// exactly as in ``Evcc2``. (Plug & Charge itself *is* here, held to the signed traces; Dynamic
-/// control mode is here too, held to the `iso20-*-eim-dynamic` traces.)
+/// **Contract provisioning (CertificateInstallation).** Signature work with no recorded oracle yet;
+/// named here rather than silently absent, exactly as in ``Evcc2``.
+///
+/// Price-schedule signature verification *is* here now — ``Iso20PriceScheduleCheck``, held to
+/// `PriceSchedule.signature.vectors.json` rather than to a trace, because that verdict never reaches
+/// the wire. Plug & Charge is here too, held to the signed traces, and Dynamic control mode to the
+/// `iso20-*-eim-dynamic` ones.
 open class Evcc20Base {
 
     internal static let pollIntervalMs: UInt64 = 50
@@ -66,6 +70,14 @@ open class Evcc20Base {
     public var ongoingTimeoutMillis: UInt64 = 60_000
 
     public private(set) var sessionSetupCode: ExiIso20Common.ResponseCode?
+
+    /// The §7.9.2.5 verdict over a signed `AbsolutePriceSchedule`; nil when the offer carried none —
+    /// which is not a failure, see ``Iso20PriceScheduleCheck``.
+    public private(set) var tariff: Iso20TariffResult?
+
+    /// The eMSP's public key, when the app has one. Without it the digest half is still checked and
+    /// reported; the ECDSA half is not attempted.
+    public var tariffVerifyKey: P521.Signing.PublicKey?
 
     /// The session id in effect, station-assigned.
     public var sessionId: [UInt8] { sessionCtx.sessionId }
@@ -212,6 +224,14 @@ open class Evcc20Base {
             if scheduleRes.eVSEProcessing == .Finished { break }
             pollDelay(Self.pollIntervalMs)
         }
+
+        // §7.9.2.5's -20 half. Stays nil when the offer carries no AbsolutePriceSchedule at all,
+        // which is the ordinary case — most stations send the compact PriceLevelSchedule instead,
+        // and reporting an unsigned verdict for them would accuse them of failing a check nobody
+        // asked them to pass.
+        tariff = Iso20PriceScheduleCheck.evaluate(scheduleRes,
+                                                  headerSignature: scheduleRes.header.signature,
+                                                  verifyKey: tariffVerifyKey)
 
         try runPreChargeSequence()
 
