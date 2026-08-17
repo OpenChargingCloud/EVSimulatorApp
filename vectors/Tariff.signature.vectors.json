@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "generator": "ISO15118ConformanceTests.Simulation.Traces.TariffSignatureCorpusTests.RegenerateTheCorpus",
+  "generatorNote": "Each case is a whole ChargeParameterDiscoveryRes frame (header Signature included), the verify key the EV is given, and the Iso2TariffResult an EVCC must arrive at. Unlike the meter corpus this IS a conformance statement for the digest half \u2014 ISO 15118-2 \u00A77.9.2.5 fixes the digest as SHA-256 over the SalesTariff EXI fragment. The signature half is two-grammar by field reality rather than by the standard: ISO\u0027s own form signs the SignedInfo under the combined MsgDef fragment grammar, Josev under the standalone xmldsig one, and a verifier meeting both has to try both. Keys are fixed for reproducibility and are test material, never real Mobility-Operator keys.",
+  "tariffKeyD": "5a1f3c8e7b2d94061fae83c5d72b0e94183fa6c2b95d07e4318cfa62d5079b13",
+  "otherKeyD": "2c9d70b4e1583fa6027dc94b3e85107fa2c6d3095b74e128fa03d76c5b192e84",
+  "cases": [
+    {
+      "name": "signed-msgdef",
+      "what": "Two signed tariffs, SignedInfo signed under the combined V2G_CI_MsgDef fragment grammar (ISO\u0027s own form, what cbV2G produces). Everything checks out.",
+      "frame": "80980200286cb0f5397d81ca895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910791b9b0b632b9aa30b934b33318812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e632373686132353642035fe00f90d8ab1744081df7e92f02f6c0197adf87cdccea9a9d16f28f4239d8c041e46e6c2d8cae6a8c2e4d2cccc6404ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d90812aec7116c169257f20d096632e1f74953fbe37319e671e3e9da673796d9c4e804a04b6518cda756df54eaee809e54f9d2ff9817c7848489a1e3beb7db71cfe95014bfd5e06ce5e2e6bc0254586d5b12393e4de3de90cb0b8a922f992b2b7913e9f320a00000000000240700c50a056080739b0b632b9aa30b934b33318800014e6e8c2dcc8c2e4c8006000100440880e200ca00100001101c0628601c8022038220380c50c0ac01080739b0b632b9aa30b934b33319002020decccc5ae0cac2d640c4dedee6e8006000100240880e2008a4000000310398040c302000",
+      "verifyKey": {
+        "x": "ea2d9afb10ac4b9ef6b839e9b41c8d8bd8a6d12fa12f8144f015adfd01e219f6",
+        "y": "fd7fe84b2924b65735f394ea925c99563b8bcca867160c32c4838a2bd66bbfb4"
+      },
+      "expected": {
+        "tuplesOffered": 2,
+        "signaturePresent": true,
+        "digestOk": true,
+        "signatureOk": true,
+        "signatureGrammar": "iso2-msgdef",
+        "chosenTupleId": 2,
+        "profileEntries": 2
+      }
+    },
+    {
+      "name": "signed-standalone",
+      "what": "Identical offer, but the SignedInfo is signed over its STANDALONE xmldsig encoding (Josev\u0027s form). A verifier that only knows ISO\u0027s grammar reports signatureOk=false here and rejects a peer that is in the field today.",
+      "frame": "80980200286cb0f5397d81ca895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910791b9b0b632b9aa30b934b33318812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e632373686132353642035fe00f90d8ab1744081df7e92f02f6c0197adf87cdccea9a9d16f28f4239d8c041e46e6c2d8cae6a8c2e4d2cccc6404ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d90812aec7116c169257f20d096632e1f74953fbe37319e671e3e9da673796d9c4e804a012857694338e7688d9b02abe0ef7b670f30a995c523c5204ce2fb1517725e46c058f6e8187856fd670e2e36b42afc619ecf1284f9b9c2a1d145c31ae5721ddb620a00000000000240700c50a056080739b0b632b9aa30b934b33318800014e6e8c2dcc8c2e4c8006000100440880e200ca00100001101c0628601c8022038220380c50c0ac01080739b0b632b9aa30b934b33319002020decccc5ae0cac2d640c4dedee6e8006000100240880e2008a4000000310398040c302000",
+      "verifyKey": {
+        "x": "ea2d9afb10ac4b9ef6b839e9b41c8d8bd8a6d12fa12f8144f015adfd01e219f6",
+        "y": "fd7fe84b2924b65735f394ea925c99563b8bcca867160c32c4838a2bd66bbfb4"
+      },
+      "expected": {
+        "tuplesOffered": 2,
+        "signaturePresent": true,
+        "digestOk": true,
+        "signatureOk": true,
+        "signatureGrammar": "xmldsig-standalone",
+        "chosenTupleId": 2,
+        "profileEntries": 2
+      }
+    },
+    {
+      "name": "unsigned",
+      "what": "The plain single unsigned tuple. signaturePresent=false is the honest answer, and digestOk/signatureOk are false because there was nothing to check \u2014 not because something failed.",
+      "frame": "80980200286cb0f5397d81d0a00000000000240700c50a0560a80000006207300818604000",
+      "verifyKey": null,
+      "expected": {
+        "tuplesOffered": 1,
+        "signaturePresent": false,
+        "digestOk": false,
+        "signatureOk": false,
+        "signatureGrammar": "none",
+        "chosenTupleId": 1,
+        "profileEntries": 1
+      }
+    },
+    {
+      "name": "digest-tampered",
+      "what": "Signed correctly, then one SalesTariff\u0027s description was edited. The SignedInfo signature still verifies; the per-tariff digest does not. A verifier that trusts the ECDSA check alone reports this offer as good.",
+      "frame": "80980200286cb0f5397d81ca895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910791b9b0b632b9aa30b934b33318812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e632373686132353642035fe00f90d8ab1744081df7e92f02f6c0197adf87cdccea9a9d16f28f4239d8c041e46e6c2d8cae6a8c2e4d2cccc6404ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d90812aec7116c169257f20d096632e1f74953fbe37319e671e3e9da673796d9c4e804a005751fdbb1376eb8abbc0320b3ce84560b5ae939b17770ec8ac4183d1471708f2d9ad97efea8a3b4aba540251380a8e0ed8f8598eb13e399d1d285768b31bd1320a00000000000240700c50a056080739b0b632b9aa30b934b33318800014e6e8c2dcc8c2e4c8006000100440880e200ca00100001101c0628601c8022038220380c50c0ac01080739b0b632b9aa30b934b33319002034decccc5ae0cac2d640c4dedee6e84050c2d8e8cae4cac852006000100240880e2008a4000000310398040c302000",
+      "verifyKey": {
+        "x": "ea2d9afb10ac4b9ef6b839e9b41c8d8bd8a6d12fa12f8144f015adfd01e219f6",
+        "y": "fd7fe84b2924b65735f394ea925c99563b8bcca867160c32c4838a2bd66bbfb4"
+      },
+      "expected": {
+        "tuplesOffered": 2,
+        "signaturePresent": true,
+        "digestOk": false,
+        "signatureOk": true,
+        "signatureGrammar": "iso2-msgdef",
+        "chosenTupleId": 2,
+        "profileEntries": 2
+      }
+    },
+    {
+      "name": "wrong-key",
+      "what": "A sound signature verified against an unrelated key. Both grammars are tried and both fail, so signatureGrammar stays \u0022none\u0022 \u2014 the field says which grammar MATCHED, and none did.",
+      "frame": "80980200286cb0f5397d81ca895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910791b9b0b632b9aa30b934b33318812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e632373686132353642035fe00f90d8ab1744081df7e92f02f6c0197adf87cdccea9a9d16f28f4239d8c041e46e6c2d8cae6a8c2e4d2cccc6404ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d90812aec7116c169257f20d096632e1f74953fbe37319e671e3e9da673796d9c4e804a03dedb7b1fc326475b0778aac8dadc4be167dd500d23c565a50632e4e030c9c9dabe088cec2acf533f6154a3d51f80cbe9c2b95bb5f4e5ec59e839d64149b324620a00000000000240700c50a056080739b0b632b9aa30b934b33318800014e6e8c2dcc8c2e4c8006000100440880e200ca00100001101c0628601c8022038220380c50c0ac01080739b0b632b9aa30b934b33319002020decccc5ae0cac2d640c4dedee6e8006000100240880e2008a4000000310398040c302000",
+      "verifyKey": {
+        "x": "a1af5951f7392ac80641ed5b219d74c38cd35680b7d39a60044cddc2eb798fe5",
+        "y": "75540029a2d877036388d9e63b3703bb0eb38ce1b576d3d332aabc2c64ae25ba"
+      },
+      "expected": {
+        "tuplesOffered": 2,
+        "signaturePresent": true,
+        "digestOk": true,
+        "signatureOk": false,
+        "signatureGrammar": "none",
+        "chosenTupleId": 2,
+        "profileEntries": 2
+      }
+    },
+    {
+      "name": "no-verify-key",
+      "what": "Signed offer, correct digests, but the EV was given no tariff verify key. The digest half is still checkable and reported; the signature half is not attempted, and false here means \u0022not established\u0022 rather than \u0022failed\u0022.",
+      "frame": "80980200286cb0f5397d81ca895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910791b9b0b632b9aa30b934b33318812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e632373686132353642035fe00f90d8ab1744081df7e92f02f6c0197adf87cdccea9a9d16f28f4239d8c041e46e6c2d8cae6a8c2e4d2cccc6404ad0e8e8e0745e5eeeeeee5cee665cdee4ce5ea8a45ec6c2dcdedcd2c6c2d85acaf0d25e90a5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b195b98c8dcda184c8d4d90812aec7116c169257f20d096632e1f74953fbe37319e671e3e9da673796d9c4e804a04c3076ed1c8b27590f6203ed2a8832be800cdd1372143e50ee89d9b2a4ad8143ed91aac375e0e5adbee2fa57dcafe44cff774db36405baba61315a262a418f4fa0a00000000000240700c50a056080739b0b632b9aa30b934b33318800014e6e8c2dcc8c2e4c8006000100440880e200ca00100001101c0628601c8022038220380c50c0ac01080739b0b632b9aa30b934b33319002020decccc5ae0cac2d640c4dedee6e8006000100240880e2008a4000000310398040c302000",
+      "verifyKey": null,
+      "expected": {
+        "tuplesOffered": 2,
+        "signaturePresent": true,
+        "digestOk": true,
+        "signatureOk": false,
+        "signatureGrammar": "none",
+        "chosenTupleId": 2,
+        "profileEntries": 2
+      }
+    }
+  ]
+}

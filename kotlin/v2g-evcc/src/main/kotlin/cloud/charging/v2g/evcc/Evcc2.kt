@@ -10,11 +10,15 @@ import cloud.charging.v2g.tp.MessageSet
  * the EV chose (lowest average EPriceLevel), and how many ChargingProfile entries it derived from
  * that tuple's PMaxSchedule.
  *
- * The C# record carries four more fields describing the tariff *signature*; see [Evcc2] on why that
- * half is not ported yet.
+ * The §7.9.2.5 signature fields come from [Iso2TariffCheck]; only [Evcc2.tariffVerifyKey] makes the
+ * signature half answerable at all.
  */
 data class Iso2TariffResult(
     val tuplesOffered: Int,
+    val signaturePresent: Boolean,
+    val digestOk: Boolean,
+    val signatureOk: Boolean,
+    val signatureGrammar: String,
     val chosenTupleId: UByte,
     val profileEntries: Int,
 )
@@ -32,12 +36,7 @@ data class Iso2TariffResult(
  *
  * ## What is not here yet
  *
- * **Tariff-signature verification.** The C# original also runs the §7.9.2.5 check over signed
- * SalesTariffs (digest per tariff + ECDSA, dual-grammar); the tuple *choice* is ported, the
- * signature check is not — [Iso2TariffResult] carries three fields where C#'s carries seven, and
- * nothing here takes a tariff verify key.
- *
- * **Pause/resume** ([V2G2-740]) is likewise unported: it needs a trace that pauses and rejoins.
+ * **Pause/resume** ([V2G2-740]) is unported: it needs a trace that pauses and rejoins.
  */
 class Evcc2(
     private val stream: V2GTPStream,
@@ -116,6 +115,20 @@ class Evcc2(
     /** The smart-charging verdict over the (last) offer; null until ChargeParameterDiscovery ended. */
     var tariff: Iso2TariffResult? = null
         private set
+
+    /**
+     * The Mobility Operator's public key, when the app has one. Without it the §7.9.2.5 digest half is
+     * still checked and reported; the ECDSA half is not attempted, and [Iso2TariffResult.signatureOk]
+     * stays `false` meaning *not established* rather than *failed* — which is why
+     * [Iso2TariffResult.signatureGrammar] exists to tell those apart.
+     */
+    var tariffVerifyKey: java.security.PublicKey? = null
+
+    /**
+     * The header of the last response. Kept only for its Signature: the tariff check needs it, and it
+     * arrives one layer above the body that [evaluateSchedules] is handed.
+     */
+    private var lastHeader: MessageHeaderType? = null
 
     private var chosenTupleId: UByte = 1u
     private var chargingProfile: ChargingProfileType? = null
@@ -368,7 +381,16 @@ class Evcc2(
         })
         chargingProfile = profile
 
-        tariff = Iso2TariffResult(offer.sAScheduleTuple.size, chosenTupleId, profile.profileEntry.size)
+        val verdict = Iso2TariffCheck.evaluate(offer, lastHeader?.signature, tariffVerifyKey)
+
+        tariff = Iso2TariffResult(
+            tuplesOffered    = offer.sAScheduleTuple.size,
+            signaturePresent = verdict.signaturePresent,
+            digestOk         = verdict.digestOk,
+            signatureOk      = verdict.signatureOk,
+            signatureGrammar = verdict.signatureGrammar,
+            chosenTupleId    = chosenTupleId,
+            profileEntries   = profile.profileEntry.size)
     }
 
     private fun averagePriceLevel(tuple: SAScheduleTupleType): Double {
@@ -394,7 +416,8 @@ class Evcc2(
         if (body != null) refuseOnFailure(body)
 
         exchanges++
-        sessionId = message.header.sessionID   // adopt the station-assigned session id
+        sessionId  = message.header.sessionID   // adopt the station-assigned session id
+        lastHeader = message.header             // for its Signature; see the property
 
         if (body !is T)
             throw SessionAborted(

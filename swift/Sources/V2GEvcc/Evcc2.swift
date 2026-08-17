@@ -1,16 +1,24 @@
+import CryptoKit
 import Foundation
 import V2GMetering
 import ExiIso2
 import V2GDispatch
 
-/// The EV's smart-charging verdict over the SASchedule offer: how many tuples were offered, which
-/// one the EV chose (lowest average EPriceLevel), and how many ChargingProfile entries it derived
-/// from that tuple's PMaxSchedule.
-///
-/// The C# record carries four more fields describing the tariff *signature*; see ``Evcc2`` for why
-/// that half is not ported.
+/// The EV's smart-charging verdict over the SASchedule offer: how many tuples were offered, whether
+/// the SalesTariffs carried a header signature and it verified (digest per tariff + ECDSA,
+/// dual-grammar), which tuple the EV chose (lowest average EPriceLevel), and how many ChargingProfile
+/// entries it derived from that tuple's PMaxSchedule.
 public struct Iso2TariffResult: Equatable, Sendable {
+
     public let tuplesOffered: Int
+
+    /// The §7.9.2.5 verdict. See ``Iso2TariffCheck`` — and note that only ``Evcc2/tariffVerifyKey``
+    /// makes the signature half answerable at all.
+    public let signaturePresent: Bool
+    public let digestOk: Bool
+    public let signatureOk: Bool
+    public let signatureGrammar: String
+
     public let chosenTupleId: UInt8
     public let profileEntries: Int
 }
@@ -27,12 +35,7 @@ public struct Iso2TariffResult: Equatable, Sendable {
 ///
 /// ## What is not here
 ///
-/// **Tariff-signature verification.** The C# original also runs the §7.9.2.5 check over signed
-/// SalesTariffs (digest per tariff + ECDSA, dual-grammar); the tuple *choice* is ported, the
-/// signature check is not — ``Iso2TariffResult`` carries three fields where C#'s carries seven,
-/// and nothing here takes a tariff verify key.
-///
-/// **Pause/resume** ([V2G2-740]) is likewise unported: it needs a trace that pauses and rejoins.
+/// **Pause/resume** ([V2G2-740]) is unported: it needs a trace that pauses and rejoins.
 public final class Evcc2 {
 
     private static let pollIntervalMs: UInt64 = 50
@@ -78,6 +81,16 @@ public final class Evcc2 {
 
     /// The smart-charging verdict over the (last) offer; nil until ChargeParameterDiscovery ended.
     public private(set) var tariff: Iso2TariffResult?
+
+    /// The Mobility Operator's public key, when the app has one. Without it the §7.9.2.5 digest half is
+    /// still checked and reported; the ECDSA half is not attempted, and ``Iso2TariffResult/signatureOk``
+    /// stays `false` meaning *not established* rather than *failed* — which is why
+    /// ``Iso2TariffResult/signatureGrammar`` exists to tell those apart.
+    public var tariffVerifyKey: P256.Signing.PublicKey?
+
+    /// The header of the last response. Kept only for its Signature: the tariff check needs it, and it
+    /// arrives one layer above the body that `evaluateSchedules` is handed.
+    private var lastHeader: MessageHeaderType?
 
     private var chosenTupleId: UInt8 = 1
     /// The vehicle's own energy counter — what this EV thinks it took, kept independently of what
@@ -320,7 +333,15 @@ public final class Evcc2 {
         })
         chargingProfile = profile
 
+        let verdict = Iso2TariffCheck.evaluate(offer: offer,
+                                               headerSignature: lastHeader?.signature,
+                                               verifyKey: tariffVerifyKey)
+
         tariff = Iso2TariffResult(tuplesOffered: offer.sAScheduleTuple.count,
+                                  signaturePresent: verdict.signaturePresent,
+                                  digestOk: verdict.digestOk,
+                                  signatureOk: verdict.signatureOk,
+                                  signatureGrammar: verdict.signatureGrammar,
                                   chosenTupleId: chosenTupleId,
                                   profileEntries: profile.profileEntry.count)
     }
@@ -362,7 +383,8 @@ public final class Evcc2 {
         if let element = reply.body.bodyElement { try refuseOnFailure(element) }
 
         exchanges += 1
-        sessionId = reply.header.sessionID   // adopt the station-assigned session id
+        sessionId  = reply.header.sessionID   // adopt the station-assigned session id
+        lastHeader = reply.header             // for its Signature; see the property
 
         guard let body = reply.body.bodyElement as? T else {
             throw SessionAborted("expected a \(T.self), got \(String(describing: reply.body.bodyElement)).")
