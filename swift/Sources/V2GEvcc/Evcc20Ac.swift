@@ -45,7 +45,12 @@ public final class Evcc20Ac: Evcc20Base {
             cLReqControlMode: controlMode)
 
         let (set, message) = try exchangeRaw(.iso20AC, ACCodec.encode(request))
-        let _: AC_ChargeLoopRes = try expect(set, message, .iso20AC)
+        let response: AC_ChargeLoopRes = try expect(set, message, .iso20AC)
+
+        // [V2G20-1477]: the station asks for a service renegotiation through the otherwise
+        // absent EVSEStatus. The base acts on it once this iteration is finished and the
+        // contactor is open — it cannot see this type, which is why the loop reports it.
+        noteRenegotiationRequest(response.eVSEStatus?.eVSENotification == .ServiceRenegotiation)
 
         // The one place in this project where the EV's own inlet power is a field on the wire: -20 AC
         // has EVPresentActivePower in the request, so the vehicle's view needs no deriving and

@@ -75,6 +75,21 @@ open class Evcc20Base {
     /// which is not a failure, see ``Iso20PriceScheduleCheck``.
     public private(set) var tariff: Iso20TariffResult?
 
+    /// How many service renegotiations this session ran ([V2G20-1477]).
+    public private(set) var renegotiations = 0
+
+    fileprivate var renegotiationRequested = false
+
+    /// Record that a charge-loop response asked for a **service renegotiation** — the station puts
+    /// `EvseNotification.ServiceRenegotiation` in its EVSEStatus ([V2G20-1477]).
+    ///
+    /// Called by the AC and DC loops: the EVSEStatus is a different generated type in each message
+    /// set, and this class imports neither. Acted on where the charging phase ends rather than here —
+    /// a renegotiation has to finish the iteration and open the contactor before it can go anywhere.
+    public func noteRenegotiationRequest(_ requested: Bool) {
+        if requested { renegotiationRequested = true }
+    }
+
     /// The eMSP's public key, when the app has one. Without it the digest half is still checked and
     /// reported; the ECDSA half is not attempted.
     public var tariffVerifyKey: P521.Signing.PublicKey?
@@ -186,25 +201,19 @@ open class Evcc20Base {
             pollDelay(Self.pollIntervalMs)
         }
 
-        // Service negotiation is dynamic: select the service and parameter set the station actually
-        // advertises rather than assuming fixed ids. A live Josev run caught the old hardcoded
-        // ServiceID=1/ParameterSetID=1 — its DC catalogue offers neither, and our loopback SECC
-        // happened to advertise exactly those, which masked it.
-        let discovery: ServiceDiscoveryRes = try exchange(.iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceDiscoveryReq(header: sessionCtx.toCommonHeader())))
-        let serviceId = try selectEnergyTransferService(discovery)
-        selectedEnergyServiceId = serviceId
+        try runServiceSelection()
 
-        let detail: ServiceDetailRes = try exchange(.iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceDetailReq(header: sessionCtx.toCommonHeader(),
-                                                        serviceID: serviceId)))
-        let parameterSetId = try selectParameterSet(detail)
-
-        let _: ServiceSelectionRes = try exchange(.iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceSelectionReq(
-                header: sessionCtx.toCommonHeader(),
-                selectedEnergyTransferService: SelectedServiceType(serviceID: serviceId,
-                                                                   parameterSetID: parameterSetId))))
+        // ── the charging phase, which a service renegotiation sends round again ────────────────
+        //
+        // [V2G20-1477]: the station asks by putting `EvseNotification.ServiceRenegotiation` in a
+        // charge-loop response's EVSEStatus. The EV stops power delivery, sends
+        // `SessionStopReq(ServiceRenegotiation)` — which does NOT end the session — and both sides
+        // return to ServiceDiscovery. Everything from service selection down runs again, with charge
+        // parameters and the schedule offer negotiated afresh; authorization does not, and must not.
+        //
+        // A loop rather than a single re-entry: our station signals once, but nothing in the standard
+        // says a station may only ask once.
+        while true {
 
         try runChargeParameterDiscovery()
 
@@ -247,16 +256,63 @@ open class Evcc20Base {
             pollDelay(Self.pollIntervalMs)
         }
 
+        // Power off either way: a renegotiation stops delivery too, and the contactor must be open
+        // before the session goes back to talking about services.
         let _: PowerDeliveryRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(PowerDeliveryReq(
                 header: sessionCtx.toCommonHeader(), eVProcessing: .Finished,
                 chargeProgress: .Stop)))
+
+        if !renegotiationRequested { break }
+
+        renegotiationRequested = false
+        renegotiations += 1
+
+        // The one SessionStopReq that does not stop the session. Sending `stopMode` here instead
+        // would end it for real, which is the single most consequential thing to get wrong here.
+        let _: SessionStopRes = try exchange(.iso20CommonMessages,
+            CommonMessagesCodec.encode(SessionStopReq(header: sessionCtx.toCommonHeader(),
+                                                      chargingSession: .ServiceRenegotiation)))
+
+        try runServiceSelection()
+
+        }
 
         try runPostChargeSequence()
 
         let _: SessionStopRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(SessionStopReq(header: sessionCtx.toCommonHeader(),
                                                       chargingSession: stopMode)))
+    }
+
+    /// ServiceDiscovery → ServiceDetail → ServiceSelection.
+    ///
+    /// Its own method because a **service renegotiation** re-enters the session exactly here
+    /// ([V2G20-1477]) — the station puts the phase back to ServiceDiscovery, not to the top.
+    /// Authorization has already happened and is emphatically not repeated: a car that re-authorized
+    /// mid-session would be telling the station it might be a different car.
+    ///
+    /// Service negotiation is dynamic: select the service and parameter set the station actually
+    /// advertises rather than assuming fixed ids. A live Josev run caught the old hardcoded
+    /// ServiceID=1/ParameterSetID=1 — its DC catalogue offers neither, and our loopback SECC happened
+    /// to advertise exactly those, which masked it.
+    private func runServiceSelection() throws {
+
+        let discovery: ServiceDiscoveryRes = try exchange(.iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceDiscoveryReq(header: sessionCtx.toCommonHeader())))
+        let serviceId = try selectEnergyTransferService(discovery)
+        selectedEnergyServiceId = serviceId
+
+        let detail: ServiceDetailRes = try exchange(.iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceDetailReq(header: sessionCtx.toCommonHeader(),
+                                                        serviceID: serviceId)))
+        let parameterSetId = try selectParameterSet(detail)
+
+        let _: ServiceSelectionRes = try exchange(.iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceSelectionReq(
+                header: sessionCtx.toCommonHeader(),
+                selectedEnergyTransferService: SelectedServiceType(serviceID: serviceId,
+                                                                   parameterSetID: parameterSetId))))
     }
 
     private func makeAuthorizationReqBuilder(_ authSetup: AuthorizationSetupRes) throws -> () -> [UInt8] {

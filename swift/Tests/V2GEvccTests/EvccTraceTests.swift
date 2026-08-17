@@ -264,6 +264,49 @@ final class EvccTraceTests: XCTestCase {
         XCTAssertEqual(evcc.authorizationMode, "pnc-signed")
     }
 
+    // ── the -20 service renegotiation ─────────────────────────────────────
+
+    /// [V2G20-1477], and the first recorded -20 session in which the station changes its mind
+    /// mid-charge. Byte-exactness is the whole test: a renegotiation is a *sequence*, and getting the
+    /// order or the re-entry point wrong produces a session that still runs to completion.
+    func testTheServiceRenegotiationSessionMatchesTheRecordingByteForByte() throws {
+        let (replay, evcc) = try replay20("iso20-dc-eim-renegotiate", .dc)
+        XCTAssertTrue(replay.complete,
+            "the session stopped after \(replay.replayed) recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+        XCTAssertEqual(evcc.renegotiations, 1)
+    }
+
+    /// The half of [V2G20-1477] that is easiest to get wrong in the direction that still works.
+    ///
+    /// A renegotiation re-enters at **ServiceDiscovery**, not at the top of the session: the service
+    /// is selected again, charge parameters and the schedule are negotiated again — and authorization
+    /// is **not** repeated. An implementation that restarted the whole session would also charge
+    /// successfully, and would be telling the station it might be a different car. That claim is about
+    /// bytes which are *absent*, so only a recorded session can hold it.
+    func testARenegotiationReSelectsTheServiceButDoesNotReAuthorize() throws {
+
+        let trace = try SessionTrace.load("iso20-dc-eim-renegotiate")
+        var counts: [String: Int] = [:]
+        for exchange in trace.exchanges {
+            counts[exchange.request.message, default: 0] += 1
+        }
+
+        XCTAssertEqual(counts["AuthorizationSetupReq"], 1, "authorization must happen exactly once")
+        XCTAssertEqual(counts["AuthorizationReq"], 1)
+
+        XCTAssertEqual(counts["ServiceDiscoveryReq"], 2, "the service is selected again")
+        XCTAssertEqual(counts["ServiceSelectionReq"], 2)
+        XCTAssertEqual(counts["DC_ChargeParameterDiscoveryReq"], 2)
+        XCTAssertEqual(counts["ScheduleExchangeReq"], 2)
+
+        // Two SessionStopReq: the renegotiation's, which does not stop the session, and the real one.
+        XCTAssertEqual(counts["SessionStopReq"], 2)
+
+        // …and welding detection only at the real end, not at the renegotiation.
+        XCTAssertEqual(counts["DC_WeldingDetectionReq"], 1)
+    }
+
     // ── the signed tariff offer ───────────────────────────────────────────
 
     /// The Mobility Operator's public key, read out of `Tariff.signature.vectors.json`.

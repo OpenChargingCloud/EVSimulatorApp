@@ -192,6 +192,53 @@ abstract class Evcc20Base(
 
     /** Charge-parameter discovery. Runs once, not polled: -20's CPD response carries no
      *  EVSEProcessing field to poll on. */
+    /**
+     * ServiceDiscovery -> ServiceDetail -> ServiceSelection.
+     *
+     * Its own method because a **service renegotiation** re-enters the session exactly here
+     * ([V2G20-1477]) — the station puts the phase back to ServiceDiscovery, not to the top.
+     * Authorization has already happened and is emphatically not repeated: a car that re-authorized
+     * mid-session would be telling the station it might be a different car.
+     *
+     * Service negotiation is dynamic: select the service and parameter set the station actually
+     * advertises rather than assuming fixed ids. A live Josev run caught the old hardcoded
+     * ServiceID=1/ParameterSetID=1 — its DC catalogue offers neither, and our loopback SECC happened
+     * to advertise exactly those, which masked it.
+     */
+    private fun runServiceSelection() {
+
+        val discovery = exchange<ServiceDiscoveryRes>(MessageSet.Iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceDiscoveryReq(sessionCtx.toCommonHeader(), null)))
+        val serviceId = selectEnergyTransferService(discovery)
+        selectedEnergyServiceId = serviceId
+
+        val detail = exchange<ServiceDetailRes>(MessageSet.Iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceDetailReq(sessionCtx.toCommonHeader(), serviceId)))
+        val parameterSetId = selectParameterSet(detail)
+
+        exchange<ServiceSelectionRes>(MessageSet.Iso20CommonMessages,
+            CommonMessagesCodec.encode(ServiceSelectionReq(sessionCtx.toCommonHeader(),
+                SelectedServiceType(serviceId, parameterSetId), null)))
+    }
+
+    /** How many service renegotiations this session ran ([V2G20-1477]). */
+    var renegotiations: Int = 0
+        private set
+
+    private var renegotiationRequested = false
+
+    /**
+     * Record that a charge-loop response asked for a **service renegotiation** — the station puts
+     * `EvseNotification.ServiceRenegotiation` in its EVSEStatus ([V2G20-1477]).
+     *
+     * Called by the AC and DC loops: the EVSEStatus is a different generated type in each message set,
+     * and this class imports neither. Acted on where the charging phase ends rather than here — a
+     * renegotiation has to finish the iteration and open the contactor before it can go anywhere.
+     */
+    protected fun noteRenegotiationRequest(requested: Boolean) {
+        if (requested) renegotiationRequested = true
+    }
+
     protected abstract fun runChargeParameterDiscovery()
 
     /** DC: CableCheck + PreCharge. AC: nothing. */
@@ -246,22 +293,19 @@ abstract class Evcc20Base(
             pollDelay(POLL_INTERVAL_MS)
         }
 
-        // Service negotiation is dynamic: select the service and parameter set the station actually
-        // advertises rather than assuming fixed ids. A live Josev run caught the old hardcoded
-        // ServiceID=1/ParameterSetID=1 — its DC catalogue offers neither, and our loopback SECC
-        // happened to advertise exactly those, which masked it.
-        val discovery = exchange<ServiceDiscoveryRes>(MessageSet.Iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceDiscoveryReq(sessionCtx.toCommonHeader(), null)))
-        val serviceId = selectEnergyTransferService(discovery)
-        selectedEnergyServiceId = serviceId
+        runServiceSelection()
 
-        val detail = exchange<ServiceDetailRes>(MessageSet.Iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceDetailReq(sessionCtx.toCommonHeader(), serviceId)))
-        val parameterSetId = selectParameterSet(detail)
-
-        exchange<ServiceSelectionRes>(MessageSet.Iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceSelectionReq(sessionCtx.toCommonHeader(),
-                SelectedServiceType(serviceId, parameterSetId), null)))
+        // ── the charging phase, which a service renegotiation sends round again ────────────────
+        //
+        // [V2G20-1477]: the station asks by putting EvseNotification.ServiceRenegotiation in a
+        // charge-loop response's EVSEStatus. The EV stops power delivery, sends
+        // SessionStopReq(ServiceRenegotiation) — which does NOT end the session — and both sides
+        // return to ServiceDiscovery. Everything from service selection down runs again, with charge
+        // parameters and the schedule offer negotiated afresh; authorization does not, and must not.
+        //
+        // A loop rather than a single re-entry: our station signals once, but nothing in the standard
+        // says a station may only ask once.
+        while (true) {
 
         runChargeParameterDiscovery()
 
@@ -303,9 +347,26 @@ abstract class Evcc20Base(
             pollDelay(POLL_INTERVAL_MS)
         }
 
+        // Power off either way: a renegotiation stops delivery too, and the contactor must be open
+        // before the session goes back to talking about services.
         exchange<PowerDeliveryRes>(MessageSet.Iso20CommonMessages,
             CommonMessagesCodec.encode(PowerDeliveryReq(sessionCtx.toCommonHeader(),
                 Processing.Finished, ChargeProgress.Stop, null, null)))
+
+        if (!renegotiationRequested) break
+
+        renegotiationRequested = false
+        renegotiations++
+
+        // The one SessionStopReq that does not stop the session. Sending stopMode here instead would
+        // end it for real, which is the single most consequential thing to get wrong here.
+        exchange<SessionStopRes>(MessageSet.Iso20CommonMessages,
+            CommonMessagesCodec.encode(SessionStopReq(
+                sessionCtx.toCommonHeader(), ChargingSession.ServiceRenegotiation, null, null)))
+
+        runServiceSelection()
+
+        }
 
         runPostChargeSequence()
 

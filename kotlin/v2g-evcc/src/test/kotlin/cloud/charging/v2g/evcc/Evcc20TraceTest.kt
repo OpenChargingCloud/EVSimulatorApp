@@ -34,6 +34,51 @@ class Evcc20TraceTest {
      */
     private val recordedAt: () -> ULong = { 1_767_225_600uL }
 
+    // ── the -20 service renegotiation ─────────────────────────────────────
+
+    /**
+     * [V2G20-1477], and the first recorded -20 session in which the station changes its mind
+     * mid-charge. Byte-exactness is the whole test: a renegotiation is a *sequence*, and getting the
+     * order or the re-entry point wrong produces a session that still runs to completion.
+     */
+    @Test
+    fun `the service renegotiation session matches the recording byte for byte`() {
+        val replay = replay("iso20-dc-eim-renegotiate", PowerMode.Dc)
+        assertTrue(replay.complete,
+            "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /**
+     * The half of [V2G20-1477] that is easiest to get wrong in the direction that still works.
+     *
+     * A renegotiation re-enters at **ServiceDiscovery**, not at the top of the session: the service is
+     * selected again, charge parameters and the schedule are negotiated again — and authorization is
+     * **not** repeated. An implementation that restarted the whole session would also charge
+     * successfully, and would be telling the station it might be a different car. That claim is about
+     * bytes which are *absent*, so only a recorded session can hold it.
+     */
+    @Test
+    fun `a renegotiation re-selects the service but does not re-authorize`() {
+
+        val counts = SessionTrace.load("iso20-dc-eim-renegotiate")
+            .exchanges.groupingBy { it.request.message }.eachCount()
+
+        assertEquals(1, counts["AuthorizationSetupReq"], "authorization must happen exactly once")
+        assertEquals(1, counts["AuthorizationReq"])
+
+        assertEquals(2, counts["ServiceDiscoveryReq"], "the service is selected again")
+        assertEquals(2, counts["ServiceSelectionReq"])
+        assertEquals(2, counts["DC_ChargeParameterDiscoveryReq"])
+        assertEquals(2, counts["ScheduleExchangeReq"])
+
+        // Two SessionStopReq: the renegotiation's, which does not stop the session, and the real one.
+        assertEquals(2, counts["SessionStopReq"])
+
+        // …and welding detection only at the real end, not at the renegotiation.
+        assertEquals(1, counts["DC_WeldingDetectionReq"])
+    }
+
     private fun replay(name: String, mode: PowerMode, preferDynamic: Boolean = false): TraceReplay {
 
         val trace  = SessionTrace.load(name)

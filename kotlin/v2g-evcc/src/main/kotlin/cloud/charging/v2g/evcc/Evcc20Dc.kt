@@ -99,6 +99,12 @@ open class Evcc20Dc(
         val (set, message) = exchangeRaw(MessageSet.Iso20DC, DCCodec.encode(request))
         val response = expect<DC_ChargeLoopRes>(set, message, MessageSet.Iso20DC)
 
+        // [V2G20-1477]: the station asks for a service renegotiation through the otherwise absent
+        // EVSEStatus. The base acts on it once this iteration is finished and the contactor is
+        // open — it cannot see this type, which is why the loop reports it.
+        noteRenegotiationRequest(
+            response.eVSEStatus?.eVSENotification == cloud.charging.v2g.iso20.dc.EvseNotification.ServiceRenegotiation)
+
         // The EV's own voltage — it sent EVPresentVoltage above, and a DC vehicle really does measure
         // that at its own inlet — times the current the station reports. Half-borrowed on purpose:
         // -20 DC gives the vehicle no field for a current it measured itself, and EVTargetCurrent
