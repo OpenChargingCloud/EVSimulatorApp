@@ -19,6 +19,12 @@
 
 import { BitReader, BitWriter, ExiError } from "../runtime/index.ts";
 import { AuthorizationReqType, encodeAuthorizationReqType, decodeAuthorizationReqType } from "./AuthorizationReqType.ts";
+import { CertificateChainType, encodeCertificateChainType, decodeCertificateChainType } from "./CertificateChainType.ts";
+import { CertificateInstallationReqType, encodeCertificateInstallationReqType, decodeCertificateInstallationReqType } from "./CertificateInstallationReqType.ts";
+import { CertificateUpdateReqType, encodeCertificateUpdateReqType, decodeCertificateUpdateReqType } from "./CertificateUpdateReqType.ts";
+import { ContractSignatureEncryptedPrivateKeyType, encodeContractSignatureEncryptedPrivateKeyType, decodeContractSignatureEncryptedPrivateKeyType } from "./ContractSignatureEncryptedPrivateKeyType.ts";
+import { DiffieHellmanPublickeyType, encodeDiffieHellmanPublickeyType, decodeDiffieHellmanPublickeyType } from "./DiffieHellmanPublickeyType.ts";
+import { EMAIDType, encodeEMAIDType, decodeEMAIDType } from "./EMAIDType.ts";
 import { MeteringReceiptReqType, encodeMeteringReceiptReqType, decodeMeteringReceiptReqType } from "./MeteringReceiptReqType.ts";
 import { SalesTariffType, encodeSalesTariffType, decodeSalesTariffType } from "./SalesTariffType.ts";
 import { SignedInfoType, encodeSignedInfoType, decodeSignedInfoType } from "./SignedInfoType.ts";
@@ -69,6 +75,120 @@ export const Iso15118_2Codec = {
         const r = new BitReader(src, 1);
         if (r.readBits(8) !== 4) throw ExiError.invalidEventCode("not a AuthorizationReq fragment");
         const result = decodeAuthorizationReqType(r);
+        if (r.readBits(8) !== 244) throw ExiError.invalidEventCode("missing End Fragment");
+        return result;
+    },
+
+    encodeFragment_CertificateInstallationReq(content: CertificateInstallationReqType): Uint8Array {
+        const w = new BitWriter();
+        w.writeBits(0x80, 8);
+        w.writeBits(15, 8);   // fragment SE(CertificateInstallationReq)
+        encodeCertificateInstallationReqType(w, content);
+        w.writeBits(244, 8);   // End Fragment (ED)
+        w.alignToByte();
+        return w.bytes;
+    },
+
+    decodeFragment_CertificateInstallationReq(src: Uint8Array): CertificateInstallationReqType {
+        if (src.length === 0 || src[0] !== 0x80) throw ExiError.invalidHeader();
+        const r = new BitReader(src, 1);
+        if (r.readBits(8) !== 15) throw ExiError.invalidEventCode("not a CertificateInstallationReq fragment");
+        const result = decodeCertificateInstallationReqType(r);
+        if (r.readBits(8) !== 244) throw ExiError.invalidEventCode("missing End Fragment");
+        return result;
+    },
+
+    encodeFragment_CertificateUpdateReq(content: CertificateUpdateReqType): Uint8Array {
+        const w = new BitWriter();
+        w.writeBits(0x80, 8);
+        w.writeBits(17, 8);   // fragment SE(CertificateUpdateReq)
+        encodeCertificateUpdateReqType(w, content);
+        w.writeBits(244, 8);   // End Fragment (ED)
+        w.alignToByte();
+        return w.bytes;
+    },
+
+    decodeFragment_CertificateUpdateReq(src: Uint8Array): CertificateUpdateReqType {
+        if (src.length === 0 || src[0] !== 0x80) throw ExiError.invalidHeader();
+        const r = new BitReader(src, 1);
+        if (r.readBits(8) !== 17) throw ExiError.invalidEventCode("not a CertificateUpdateReq fragment");
+        const result = decodeCertificateUpdateReqType(r);
+        if (r.readBits(8) !== 244) throw ExiError.invalidEventCode("missing End Fragment");
+        return result;
+    },
+
+    encodeFragment_ContractSignatureCertChain(content: CertificateChainType): Uint8Array {
+        const w = new BitWriter();
+        w.writeBits(0x80, 8);
+        w.writeBits(33, 8);   // fragment SE(ContractSignatureCertChain)
+        encodeCertificateChainType(w, content);
+        w.writeBits(244, 8);   // End Fragment (ED)
+        w.alignToByte();
+        return w.bytes;
+    },
+
+    decodeFragment_ContractSignatureCertChain(src: Uint8Array): CertificateChainType {
+        if (src.length === 0 || src[0] !== 0x80) throw ExiError.invalidHeader();
+        const r = new BitReader(src, 1);
+        if (r.readBits(8) !== 33) throw ExiError.invalidEventCode("not a ContractSignatureCertChain fragment");
+        const result = decodeCertificateChainType(r);
+        if (r.readBits(8) !== 244) throw ExiError.invalidEventCode("missing End Fragment");
+        return result;
+    },
+
+    encodeFragment_ContractSignatureEncryptedPrivateKey(content: ContractSignatureEncryptedPrivateKeyType): Uint8Array {
+        const w = new BitWriter();
+        w.writeBits(0x80, 8);
+        w.writeBits(34, 8);   // fragment SE(ContractSignatureEncryptedPrivateKey)
+        encodeContractSignatureEncryptedPrivateKeyType(w, content);
+        w.writeBits(244, 8);   // End Fragment (ED)
+        w.alignToByte();
+        return w.bytes;
+    },
+
+    decodeFragment_ContractSignatureEncryptedPrivateKey(src: Uint8Array): ContractSignatureEncryptedPrivateKeyType {
+        if (src.length === 0 || src[0] !== 0x80) throw ExiError.invalidHeader();
+        const r = new BitReader(src, 1);
+        if (r.readBits(8) !== 34) throw ExiError.invalidEventCode("not a ContractSignatureEncryptedPrivateKey fragment");
+        const result = decodeContractSignatureEncryptedPrivateKeyType(r);
+        if (r.readBits(8) !== 244) throw ExiError.invalidEventCode("missing End Fragment");
+        return result;
+    },
+
+    encodeFragment_DHpublickey(content: DiffieHellmanPublickeyType): Uint8Array {
+        const w = new BitWriter();
+        w.writeBits(0x80, 8);
+        w.writeBits(45, 8);   // fragment SE(DHpublickey)
+        encodeDiffieHellmanPublickeyType(w, content);
+        w.writeBits(244, 8);   // End Fragment (ED)
+        w.alignToByte();
+        return w.bytes;
+    },
+
+    decodeFragment_DHpublickey(src: Uint8Array): DiffieHellmanPublickeyType {
+        if (src.length === 0 || src[0] !== 0x80) throw ExiError.invalidHeader();
+        const r = new BitReader(src, 1);
+        if (r.readBits(8) !== 45) throw ExiError.invalidEventCode("not a DHpublickey fragment");
+        const result = decodeDiffieHellmanPublickeyType(r);
+        if (r.readBits(8) !== 244) throw ExiError.invalidEventCode("missing End Fragment");
+        return result;
+    },
+
+    encodeFragment_eMAID(content: EMAIDType): Uint8Array {
+        const w = new BitWriter();
+        w.writeBits(0x80, 8);
+        w.writeBits(236, 8);   // fragment SE(eMAID)
+        encodeEMAIDType(w, content);
+        w.writeBits(244, 8);   // End Fragment (ED)
+        w.alignToByte();
+        return w.bytes;
+    },
+
+    decodeFragment_eMAID(src: Uint8Array): EMAIDType {
+        if (src.length === 0 || src[0] !== 0x80) throw ExiError.invalidHeader();
+        const r = new BitReader(src, 1);
+        if (r.readBits(8) !== 236) throw ExiError.invalidEventCode("not a eMAID fragment");
+        const result = decodeEMAIDType(r);
         if (r.readBits(8) !== 244) throw ExiError.invalidEventCode("missing End Fragment");
         return result;
     },

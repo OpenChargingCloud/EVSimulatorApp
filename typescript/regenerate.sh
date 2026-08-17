@@ -66,7 +66,7 @@ generate 'typescript/src/appprotocol' \
 s="$libs/WWCP_ISO15118_2/Schemas"
 generate 'typescript/src/iso2' \
     'cloud.charging.v2g.iso2' 'Iso15118_2Codec' \
-    'AuthorizationReq MeteringReceiptReq SalesTariff SignedInfo' \
+    'AuthorizationReq CertificateInstallationReq CertificateUpdateReq ContractSignatureCertChain ContractSignatureEncryptedPrivateKey DHpublickey eMAID MeteringReceiptReq SalesTariff SignedInfo' \
     "$s/V2G_CI_MsgDef.xsd" "$s/V2G_CI_MsgBody.xsd" "$s/V2G_CI_MsgDataTypes.xsd" \
     "$s/V2G_CI_MsgHeader.xsd" "$s/xmldsig-core-schema.xsd"
 

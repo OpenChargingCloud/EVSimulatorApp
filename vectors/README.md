@@ -14,6 +14,30 @@ they must change when somebody means them to and never as a side effect of a tes
 | `Session.pnc-material.json` | `SessionTraceCorpusTests.RegenerateThePncMaterial` |
 | `Certificate.chain.vectors.json` | `CertificateChainCorpusTests` |
 | `Meter.signing.vectors.json` | `MeterVectorTests` |
+| `Tariff.signature.vectors.json` | `TariffSignatureCorpusTests.RegenerateTheCorpus` |
+| `PriceSchedule.signature.vectors.json` | `PriceScheduleSignatureCorpusTests.RegenerateTheCorpus` |
+| `Contract.provisioning.vectors.json` | `ContractProvisioningCorpusTests.RegenerateTheCorpus` |
+
+## Two kinds of file, and they are not interchangeable
+
+`Session.*.trace.json` is a **recording**: what actually crossed the wire, replayed byte for byte.
+`*.vectors.json` is a **corpus of named cases**: bytes paired with the conclusion an implementation
+must reach about them.
+
+The split is not stylistic. A recording can only hold what a message carries, and three of the
+things a port must get right never appear in one:
+
+- **A verdict.** Whether a tariff, a price schedule or a provisioning response verified is something
+  the car decides and never tells the station. A replayed signed message proves a port can parse it;
+  only a corpus proves the port judges it.
+- **A negative.** No station sends a tampered digest or signs with the wrong key, so the cases where
+  a broken verifier still answers "fine" cannot be recorded — they have to be constructed.
+- **A key that was never transmitted.** `Contract.provisioning.vectors.json` carries
+  `recoveredKeyD`: the private scalar a car must derive from an ECDH, a KDF and a cipher. Nothing
+  echoes it, so two implementations can disagree about it forever without any message looking wrong.
+
+Conversely a *sequence* — which messages, in which order, how many times — is on the wire and
+nowhere else, so it wants a recording rather than a corpus.
 
 ## Why they live here and not with the generator
 

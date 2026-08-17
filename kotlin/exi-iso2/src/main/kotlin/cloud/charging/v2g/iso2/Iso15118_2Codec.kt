@@ -76,6 +76,126 @@ object Iso15118_2Codec {
         return result
     }
 
+    fun encodeFragment_CertificateInstallationReq(content: CertificateInstallationReqType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(15u, 8)   // fragment SE(CertificateInstallationReq)
+        encodeCertificateInstallationReqType(w, content)
+        w.writeBits(244u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_CertificateInstallationReq(src: ByteArray): CertificateInstallationReqType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 15u) { "Not a CertificateInstallationReq fragment." }
+        val result = decodeCertificateInstallationReqType(r)
+        require(r.readBits(8) == 244u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_CertificateUpdateReq(content: CertificateUpdateReqType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(17u, 8)   // fragment SE(CertificateUpdateReq)
+        encodeCertificateUpdateReqType(w, content)
+        w.writeBits(244u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_CertificateUpdateReq(src: ByteArray): CertificateUpdateReqType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 17u) { "Not a CertificateUpdateReq fragment." }
+        val result = decodeCertificateUpdateReqType(r)
+        require(r.readBits(8) == 244u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_ContractSignatureCertChain(content: CertificateChainType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(33u, 8)   // fragment SE(ContractSignatureCertChain)
+        encodeCertificateChainType(w, content)
+        w.writeBits(244u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_ContractSignatureCertChain(src: ByteArray): CertificateChainType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 33u) { "Not a ContractSignatureCertChain fragment." }
+        val result = decodeCertificateChainType(r)
+        require(r.readBits(8) == 244u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_ContractSignatureEncryptedPrivateKey(content: ContractSignatureEncryptedPrivateKeyType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(34u, 8)   // fragment SE(ContractSignatureEncryptedPrivateKey)
+        encodeContractSignatureEncryptedPrivateKeyType(w, content)
+        w.writeBits(244u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_ContractSignatureEncryptedPrivateKey(src: ByteArray): ContractSignatureEncryptedPrivateKeyType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 34u) { "Not a ContractSignatureEncryptedPrivateKey fragment." }
+        val result = decodeContractSignatureEncryptedPrivateKeyType(r)
+        require(r.readBits(8) == 244u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_DHpublickey(content: DiffieHellmanPublickeyType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(45u, 8)   // fragment SE(DHpublickey)
+        encodeDiffieHellmanPublickeyType(w, content)
+        w.writeBits(244u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_DHpublickey(src: ByteArray): DiffieHellmanPublickeyType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 45u) { "Not a DHpublickey fragment." }
+        val result = decodeDiffieHellmanPublickeyType(r)
+        require(r.readBits(8) == 244u) { "missing End Fragment." }
+        return result
+    }
+
+    fun encodeFragment_eMAID(content: EMAIDType): ByteArray {
+        val buf = ByteArray(MAX_MESSAGE_BYTES)
+        buf[0] = EXI_HEADER
+        val w = BitWriter(buf, 1)
+        w.writeBits(236u, 8)   // fragment SE(eMAID)
+        encodeEMAIDType(w, content)
+        w.writeBits(244u, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return buf.copyOf(1 + w.bytesWritten)
+    }
+
+    fun decodeFragment_eMAID(src: ByteArray): EMAIDType {
+        require(src.isNotEmpty() && src[0] == EXI_HEADER) { "Invalid EXI header." }
+        val r = BitReader(src, 1)
+        require(r.readBits(8) == 236u) { "Not a eMAID fragment." }
+        val result = decodeEMAIDType(r)
+        require(r.readBits(8) == 244u) { "missing End Fragment." }
+        return result
+    }
+
     fun encodeFragment_MeteringReceiptReq(content: MeteringReceiptReqType): ByteArray {
         val buf = ByteArray(MAX_MESSAGE_BYTES)
         buf[0] = EXI_HEADER

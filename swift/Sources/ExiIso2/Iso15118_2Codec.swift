@@ -73,6 +73,144 @@ public enum Iso15118_2Codec {
         return result
     }
 
+    public static func encodeFragment_CertificateInstallationReq(_ content: CertificateInstallationReqType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(15, 8)   // fragment SE(CertificateInstallationReq)
+        encodeCertificateInstallationReqType(w, content)
+        w.writeBits(244, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_CertificateInstallationReq(_ src: [UInt8]) throws -> CertificateInstallationReqType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 15 else {
+            throw ExiError.invalidEventCode("not a CertificateInstallationReq fragment")
+        }
+        let result = try decodeCertificateInstallationReqType(r)
+        guard try r.readBits(8) == 244 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
+
+    public static func encodeFragment_CertificateUpdateReq(_ content: CertificateUpdateReqType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(17, 8)   // fragment SE(CertificateUpdateReq)
+        encodeCertificateUpdateReqType(w, content)
+        w.writeBits(244, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_CertificateUpdateReq(_ src: [UInt8]) throws -> CertificateUpdateReqType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 17 else {
+            throw ExiError.invalidEventCode("not a CertificateUpdateReq fragment")
+        }
+        let result = try decodeCertificateUpdateReqType(r)
+        guard try r.readBits(8) == 244 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
+
+    public static func encodeFragment_ContractSignatureCertChain(_ content: CertificateChainType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(33, 8)   // fragment SE(ContractSignatureCertChain)
+        encodeCertificateChainType(w, content)
+        w.writeBits(244, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_ContractSignatureCertChain(_ src: [UInt8]) throws -> CertificateChainType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 33 else {
+            throw ExiError.invalidEventCode("not a ContractSignatureCertChain fragment")
+        }
+        let result = try decodeCertificateChainType(r)
+        guard try r.readBits(8) == 244 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
+
+    public static func encodeFragment_ContractSignatureEncryptedPrivateKey(_ content: ContractSignatureEncryptedPrivateKeyType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(34, 8)   // fragment SE(ContractSignatureEncryptedPrivateKey)
+        encodeContractSignatureEncryptedPrivateKeyType(w, content)
+        w.writeBits(244, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_ContractSignatureEncryptedPrivateKey(_ src: [UInt8]) throws -> ContractSignatureEncryptedPrivateKeyType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 34 else {
+            throw ExiError.invalidEventCode("not a ContractSignatureEncryptedPrivateKey fragment")
+        }
+        let result = try decodeContractSignatureEncryptedPrivateKeyType(r)
+        guard try r.readBits(8) == 244 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
+
+    public static func encodeFragment_DHpublickey(_ content: DiffieHellmanPublickeyType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(45, 8)   // fragment SE(DHpublickey)
+        encodeDiffieHellmanPublickeyType(w, content)
+        w.writeBits(244, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_DHpublickey(_ src: [UInt8]) throws -> DiffieHellmanPublickeyType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 45 else {
+            throw ExiError.invalidEventCode("not a DHpublickey fragment")
+        }
+        let result = try decodeDiffieHellmanPublickeyType(r)
+        guard try r.readBits(8) == 244 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
+
+    public static func encodeFragment_eMAID(_ content: EMAIDType) -> [UInt8] {
+        let w = BitWriter(capacity: 512)
+        w.writeBits(UInt32(exiHeader), 8)
+        w.writeBits(236, 8)   // fragment SE(eMAID)
+        encodeEMAIDType(w, content)
+        w.writeBits(244, 8)   // End Fragment (ED)
+        w.alignToByte()
+        return w.bytes
+    }
+
+    public static func decodeFragment_eMAID(_ src: [UInt8]) throws -> EMAIDType {
+        guard src.first == exiHeader else { throw ExiError.invalidHeader }
+        let r = BitReader(src, offset: 1)
+        guard try r.readBits(8) == 236 else {
+            throw ExiError.invalidEventCode("not a eMAID fragment")
+        }
+        let result = try decodeEMAIDType(r)
+        guard try r.readBits(8) == 244 else {
+            throw ExiError.invalidEventCode("missing End Fragment")
+        }
+        return result
+    }
+
     public static func encodeFragment_MeteringReceiptReq(_ content: MeteringReceiptReqType) -> [UInt8] {
         let w = BitWriter(capacity: 512)
         w.writeBits(UInt32(exiHeader), 8)
