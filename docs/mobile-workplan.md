@@ -354,28 +354,36 @@ secp521r1, or present a client chain rooted outside its trust store.
 - ~~**Measure first, on a real device.**~~ **Measured 2026-08-17** —
   [`experiments/tls-platform-suites.md`](experiments/tls-platform-suites.md), three stacks of four.
   The assumption held and the stage does not shrink; it moved, in two directions at once.
-  - **iOS is out on `-2` entirely**, not merely on the mandatory suite. Apple's `tls_ciphersuite_t`
-    has 23 members and not one static `ECDH_` among them, and appending the *optional* `0xC023` is
-    silently discarded — the ClientHello comes back with the full default set of seventeen. Our own
-    `-2` station refuses it: `Cipher Suite negotiation failure`.
-  - **The JVM completes a `-2` handshake with our station** on `TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256`,
-    TLS 1.2. So the optional suite is alive on that side, and whether **Conscrypt** matches SunJSSE is
-    now the highest-value hour left here — it decides whether Android needs BouncyCastle for the whole
-    transport or only for the mandatory suite and `trusted_ca_keys`.
-  - **Both stacks accept a cipher-suite pin they do not honour and report no error.** JSSE returns the
-    unimplemented suite from `getEnabledCipherSuites` and never sends it; Network.framework discards
-    the append and *widens* the offer. A transport that pinned and checked for an error would report
-    success while negotiating something else. Whatever is built here has to verify the negotiated
-    suite after the handshake rather than trust the configuration before it.
-  - **Neither platform sends `trusted_ca_keys`** (`[V2G2-651]`) or offers a hook to add it — the same
-    wall `SslStream` hit, and an independent second reason `-2` cannot ride on a platform stack.
-- **Android is the easy half if it fails:** BouncyCastle's `bctls` is the same library the C# side
-  already uses, so the port would be a second transport beside `TcpV2GTransport` — suites pinned,
-  `trusted_ca_keys` available, secp521r1 and Ed448 reachable.
-- **iOS is an open decision, not a task.** Network.framework can only append suites the system
-  already implements, and swift-nio-ssl sits on BoringSSL, which dropped static ECDH too. Either a
-  BoringSSL build with those suites restored, or a Swift TLS layer — both are large. Write the
-  decision down before writing code.
+  - **Both phone platforms are out on `-2`**, and not only on the mandatory suite. Static ECDH is
+    gone as predicted — Apple's `tls_ciphersuite_t` has 23 members and not one static `ECDH_` among
+    them — but so is the *optional* `0xC023`: Conscrypt does not implement it and Network.framework
+    will not put it on the wire. Our own `-2` station refuses both with
+    `Cipher Suite negotiation failure`.
+  - **Both are out on `-20` too, and the suites were never the problem.** Both offer
+    `TLS_AES_256_GCM_SHA384` and `TLS_CHACHA20_POLY1305_SHA256`; neither advertises
+    `ecdsa_secp521r1_sha512`, so neither can verify a P-521 station certificate. The control isolates
+    it: with the `-20` suites and a **P-256** certificate both complete the handshake, and with P-521
+    both answer `illegal_parameter(47)`.
+  - **The JDK is not a proxy for Android.** SunJSSE completes a `-2` handshake with our station on
+    `0xC023` and offers both of `-20`'s signature suites; Conscrypt does neither. A desktop `kotlin/`
+    TLS test would have proved nothing about the phone.
+  - **Two of the three stacks accept a cipher-suite pin they do not honour and report no error.**
+    JSSE returns the unimplemented suite from `getEnabledCipherSuites` and never sends it;
+    Network.framework discards the append and *widens* the offer to seventeen suites. Only Conscrypt
+    refuses out loud. Whatever is built here has to verify the negotiated suite **after** the
+    handshake rather than trust the configuration before it.
+  - **No platform sends `trusted_ca_keys`** (`[V2G2-651]`) or offers a hook to add it — the same wall
+    `SslStream` hit, and a reason `-2` could not ride on a platform stack even if the suites returned.
+- **Android is no longer the easy half — it is the same problem, with an obvious answer.**
+  BouncyCastle's `bctls` is the same library the C# side already uses, so the port would be a second
+  transport beside `TcpV2GTransport` — suites pinned, `trusted_ca_keys` available, secp521r1 and
+  Ed448 reachable. What the measurement changed is that this is no longer conditional, and no longer
+  only about `-2`.
+- **iOS is an open decision, not a task, and it now has to carry `-20` as well.** Network.framework
+  can only append suites the system already implements, and swift-nio-ssl sits on BoringSSL, which
+  dropped static ECDH too — and neither offers `ecdsa_secp521r1_sha512`. Either a BoringSSL build
+  with the missing algorithms restored, or a Swift TLS layer; both are large. Write the decision down
+  before writing code.
 
 **Done when:** `-2` on the prescribed suites and `-20` over mutual TLS 1.3 run from at least one
 platform, and the other platform has a recorded decision rather than an omission.

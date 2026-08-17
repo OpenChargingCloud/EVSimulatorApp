@@ -62,6 +62,16 @@ GROUPS = {
     0x0100: "ffdhe2048", 0x0101: "ffdhe3072",
 }
 
+# What a TLS 1.3 client says it can verify. -20 signs with secp521r1/SHA-512, so its presence here
+# is the difference between "a P-521 station certificate can be checked" and "it cannot".
+SIGNATURE_ALGORITHMS = {
+    0x0403: "ecdsa_secp256r1_sha256", 0x0503: "ecdsa_secp384r1_sha384",
+    0x0603: "ecdsa_secp521r1_sha512", 0x0807: "ed25519", 0x0808: "ed448",
+    0x0804: "rsa_pss_rsae_sha256", 0x0805: "rsa_pss_rsae_sha384", 0x0806: "rsa_pss_rsae_sha512",
+    0x0401: "rsa_pkcs1_sha256", 0x0501: "rsa_pkcs1_sha384", 0x0601: "rsa_pkcs1_sha512",
+    0x0201: "rsa_pkcs1_sha1", 0x0203: "ecdsa_sha1",
+}
+
 VERSIONS = {0x0300: "SSL3.0", 0x0301: "TLS1.0", 0x0302: "TLS1.1", 0x0303: "TLS1.2", 0x0304: "TLS1.3"}
 
 EXTENSIONS = {
@@ -109,7 +119,7 @@ def parse_client_hello(record):
 
     r.take(r.u8())                           # compression methods
 
-    extensions, groups, versions = {}, [], []
+    extensions, groups, versions, signatures = {}, [], [], []
     if r.i < len(r.data):
         end = r.i + r.u16()
         while r.i < end:
@@ -121,6 +131,9 @@ def parse_client_hello(record):
             elif kind == 43:
                 inner = body[1:]
                 versions = [struct.unpack(">H", inner[i:i + 2])[0] for i in range(0, len(inner), 2)]
+            elif kind == 13:
+                inner = body[2:]
+                signatures = [struct.unpack(">H", inner[i:i + 2])[0] for i in range(0, len(inner), 2)]
 
     def named(value, table):
         return table.get(value, f"0x{value:04x}")
@@ -133,13 +146,16 @@ def parse_client_hello(record):
         "cipherSuites":     [named(s, SUITES) for s in suites],
         "cipherSuiteCount": len(suites),
         "supportedGroups":  [named(g, GROUPS) for g in groups],
+        "signatureAlgorithms": [named(a, SIGNATURE_ALGORITHMS) for a in signatures],
         "extensions":       sorted(EXTENSIONS.get(k, f"0x{k:04x}") for k in extensions),
         "iso15118": {
             "iso2Mandatory_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256": 0xC025 in suites,
             "iso2Optional_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": 0xC023 in suites,
             "iso20_TLS_AES_256_GCM_SHA384":       0x1302 in suites,
             "iso20_TLS_CHACHA20_POLY1305_SHA256": 0x1303 in suites,
-            "secp521r1Offered":  0x0019 in groups,
+            "secp521r1Offered":       0x0019 in groups,
+            "ecdsaSecp521r1Sha512":   0x0603 in signatures,
+            "ed448Offered":           0x0808 in signatures,
             "trustedCaKeysSent": 3 in extensions,
         },
     }

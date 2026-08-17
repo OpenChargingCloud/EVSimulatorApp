@@ -1,14 +1,16 @@
 # What the platform TLS stacks actually offer
 
-Date: **2026-08-17**. Status: **MEASURED**, three stacks of four. This is the measurement
+Date: **2026-08-17**. Status: **MEASURED**, all four stacks. This is the measurement
 [`mobile-workplan.md`](../mobile-workplan.md) §4 asks for before any TLS code is written, and it
 exists to replace a derivation with a fact:
 
 > Everything below is written *assuming* the platform stores no longer carry
 > `TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256`; if the measurement says otherwise, this stage shrinks.
 
-The assumption holds. The stage does not shrink — and the measurement found something the plan did
-not anticipate, which makes iOS worse and Android's answer more interesting than expected.
+The assumption held, and then the measurement went further than the assumption. **Neither phone
+platform can open a conformant session on either protocol through its own TLS stack** — `-2` for want
+of a cipher suite, `-20` for want of a signature algorithm. The stage does not shrink. It stops being
+about `-2`.
 
 ## What was measured, and how
 
@@ -18,51 +20,68 @@ Two instruments, because two different questions.
 Deliberately not a TLS server: a server answers, and its own preferences and its own library's
 support filter what you get to see, which is the thing being measured. It listens on a plain socket,
 parses the first ClientHello and hangs up. Every client below therefore fails its handshake; that is
-expected and is not the result. The result is the cipher-suite list on the wire.
+the method, not the result. The result is what was on the wire.
 
-**Whether our own station accepts it** — a throwaway `TcpV2GListener` pinned to
-`TlsProfiles.Iso2CipherSuites` (`{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256}`) over TLS 1.2 — the real profile, not a stand-in.
+**Whether our own station accepts it** — a throwaway `TcpV2GListener` configured from `TlsProfiles`,
+so the profile under test is the real one rather than a stand-in:
 
-## The suites at issue
+| Profile | TLS | Suites | Station certificate |
+|---|---|---|---|
+| `-2` | 1.2 | `TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256`, `TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256` | P-256 |
+| `-20` | 1.3 | `TLS_AES_256_GCM_SHA384`, `TLS_CHACHA20_POLY1305_SHA256` | P-521 |
+| `-20` *(control)* | 1.3 | same as `-20` | **P-256** — not conformant, and that is the point |
 
-| | IANA | Where |
-|---|---|---|
-| `TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256` | `0xC025` | ISO 15118-2, **mandatory**. Static ECDH. |
-| `TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256` | `0xC023` | ISO 15118-2, optional. Ephemeral. |
-| `TLS_AES_256_GCM_SHA384` | `0x1302` | ISO 15118-20 |
-| `TLS_CHACHA20_POLY1305_SHA256` | `0x1303` | ISO 15118-20 |
+## What each client offers
 
-## Results
+| Stack | `0xC025` `-2` mand. | `0xC023` `-2` opt. | `-20` suites | secp521r1 group | `ecdsa_secp521r1_sha512` | Ed448 | `trusted_ca_keys` |
+|---|---|---|---|---|---|---|---|
+| OpenSSL 3.6.3 CLI *(control)* | no | **yes** | yes | yes | yes | yes | no |
+| **SunJSSE** — JDK 21.0.12, macOS 26.5.2 | no | **yes** | yes | yes | **yes** | **yes** | no |
+| **Conscrypt** — Android 12, API 32 | no | **no** | yes | **no** | **no** | no | no |
+| **Network.framework** — macOS 26.5.2 | no | **no** | yes | yes | **no** | no | no |
+| **Network.framework** — iOS 26.5 *(Simulator)* | no | **no** | yes | yes | **no** | no | no |
 
-| Stack | Version | `0xC025` | `0xC023` | -20 pair | secp521r1 | `trusted_ca_keys` |
-|---|---|---|---|---|---|---|
-| OpenSSL 3.6.3 CLI *(control)* | macOS 26.5.2 | no | **offered** | yes | yes | no |
-| SunJSSE | JDK 21.0.12, macOS | **not implemented** | **offered by default** | yes | yes | no |
-| Network.framework | macOS 26.5.2 | **not in the API** | **not offered, cannot be added** | yes | yes | no |
-| Network.framework | iOS 26.5 *(Simulator)* | **not in the API** | **not offered, cannot be added** | yes | yes | no |
-| Conscrypt | Android | **unmeasured** — see below | | | | |
+## What our own station does with them
 
-Against our own `-2` station, pinned to the two prescribed suites:
+| Client | `-2` profile | `-20` profile | `-20` control (P-256 cert) |
+|---|---|---|---|
+| SunJSSE | **completed** — `TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256`, TLS 1.2 | **completed** | — |
+| Conscrypt / Android 12 | refused — `Cipher Suite negotiation failure` | refused — `illegal_parameter(47)` | **completed** |
+| Network.framework / macOS | refused — `Cipher Suite negotiation failure` | refused — `illegal_parameter(47)` | **completed** |
 
-| Client | Outcome |
-|---|---|
-| Network.framework, asking for `0xC023` | **refused** — `SslException: Cipher Suite negotiation failure` |
-| SunJSSE | **completed** — `TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256`, TLS 1.2 |
+## The four findings
 
-## The three findings
+**1. `-2` is out on both phone platforms, and not only on the mandatory suite.**
 
-**1. The mandatory `-2` suite is gone everywhere it was looked for.** Static ECDH is not implemented
-by SunJSSE and is not even *nameable* on Apple: `tls_ciphersuite_t` has 23 members and **not one
-of them is a static `ECDH_` suite** — every ECDH entry is ECDH**E**. So ISO 15118-2's mandatory suite
-cannot be offered by any measured platform stack, and a conformant `-2` handshake from a phone is
-impossible through them. That was the plan's assumption and it is now a measurement.
+Static ECDH is gone everywhere, as expected: SunJSSE does not implement `0xC025`, and Apple's
+`tls_ciphersuite_t` has 23 members with **not one static `ECDH_` among them** — every ECDH entry is
+ECDH**E**, so the API cannot even name it.
 
-**2. Both stacks accept a pin they do not honour, and neither says so.** This is the finding the plan
-did not anticipate, and it is worse than absence.
+The part the plan did not expect is that the *optional* ephemeral suite `0xC023` is gone from the
+phone platforms too. Conscrypt does not implement it; Network.framework will not put it on the wire.
+Only the JDK still has it — and the JDK is not what either port ships on. Both phone stacks are
+refused by our own `-2` station with `Cipher Suite negotiation failure`.
 
-*JSSE* reports `0xC025` as unsupported, then accepts it in `setEnabledCipherSuites` **without
-throwing**, reports it back from `getEnabledCipherSuites`, and never puts it on the wire:
+**2. `-20` is out as well, and the reason is the certificate rather than the suites.**
+
+Both platforms offer `TLS_AES_256_GCM_SHA384` and `TLS_CHACHA20_POLY1305_SHA256`, so a cipher-suite
+table alone says `-20` is reachable. It is not: neither platform advertises
+**`ecdsa_secp521r1_sha512`** in `signature_algorithms`, and ISO 15118-20's PKI is secp521r1/SHA-512
+throughout — so a station presenting its P-521 certificate is presenting one the client has already
+said it cannot verify.
+
+The control isolates it to a single variable. With the `-20` suites and TLS 1.3 but a **P-256**
+station certificate, both Network.framework and Conscrypt **complete the handshake**. Change nothing
+but the certificate back to P-521 and both answer `illegal_parameter(47)`. The suites were never the
+problem.
+
+Ed448, `-20`'s second signature suite, is absent from both as well. The JDK offers both — which is
+what makes this a difference between stacks rather than a mistake in the instrument.
+
+**3. Three of the four stacks accept a cipher-suite pin they do not honour. Two of them say nothing.**
+
+*JSSE* reports `0xC025` as unsupported, accepts it in `setEnabledCipherSuites` **without throwing**,
+reports it back from `getEnabledCipherSuites`, and never puts it on the wire:
 
 ```
 factory says supported: false
@@ -70,59 +89,64 @@ socket says supported:  false
 after set, enabled =    [TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256]
 ```
 
-*Network.framework* is worse still, because its silent failure is **permissive**. Appending
-`0xC023` and pinning TLS 1.2 produced a ClientHello with **17 suites and not one of them the
-requested suite** — the full default TLS-1.2 set. The control settles what that means: appending
+*Network.framework* fails silently **and permissively**, which is worse. Appending `0xC023` and
+pinning TLS 1.2 produced a ClientHello with **seventeen suites and not one of them the requested
+suite** — the full default set. The control settles what that means: appending
 `ECDHE_ECDSA_WITH_AES_128_GCM_SHA256`, which the stack does implement, produced a ClientHello with
 **exactly one suite**. So the mechanism works, and an unimplemented-but-nameable suite is discarded
 without a diagnostic, leaving the client offering seventeen suites where it asked for one.
 
-A transport that pinned the ISO suites and checked for an error would report success on both
-platforms while negotiating something else entirely. That is the failure mode this project spends
-most of its effort refusing, and it is sitting in the two APIs the ports would have used.
+*Conscrypt* is the only one that refuses out loud, and it is worth quoting because it is the
+behaviour the other two should have:
 
-**3. Neither platform sends `trusted_ca_keys`, and neither offers a way to add it.** `[V2G2-651]`
-obliges every `-2` EV to name the V2G roots it holds in the ClientHello. No measured stack sends the
-extension, and neither API has a hook to add an arbitrary one — the same wall
+```
+REFUSED by setEnabledCipherSuites: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
+  (cipherSuite TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 is not supported.)
+```
+
+Whatever gets built here must **verify the negotiated suite after the handshake** rather than trust
+the configuration before it. On two of three stacks the configuration is not an instruction.
+
+**4. No platform sends `trusted_ca_keys`, and none offers a way to add it.**
+
+`[V2G2-651]` obliges every `-2` EV to name the V2G roots it holds in the ClientHello. No measured
+stack sends the extension and no measured API has a hook for an arbitrary one — the same wall
 [`ours-iso2-trusted-ca-keys.md`](../../../ISO15118ConformanceTests/docs/matrix/ours-iso2-trusted-ca-keys.md)
-hit with `SslStream`, which is what pushed the C# side onto BouncyCastle. The extension is not a
-detail on top of the suite problem; it is a second, independent reason the platform stacks cannot
-carry a conformant `-2` session.
+hit with `SslStream`, which is what pushed the C# side onto BouncyCastle. Independent of the suite
+problem, and it would still be there if the suites came back.
 
 ## What this changes in the plan
 
-The plan expected the asymmetry to be *static ECDH is gone, ephemeral is fine*. It is sharper than
-that:
+The plan expected to be choosing between platform stacks and a bundled one, per platform, for `-2`.
+That choice is gone: **for both protocols and on both platforms, the answer is a bundled TLS stack.**
 
-- **iOS is definitively out on `-2`, on both suites.** Not "the mandatory one is missing" but "no `-2`
-  suite is reachable through Network.framework at all". The plan's "iOS is an open decision, not a
-  task" stands, and the decision is now forced rather than weighed: `-2` over Network.framework is not
-  a configuration problem.
-- **The JVM is fine on the optional suite** — a full TLS 1.2 handshake with our own station, on
-  `0xC023`. Whether *Android* is fine is the open question, and it is now the highest-value hour left
-  in this stage: if Conscrypt matches SunJSSE, Android can speak `-2` to any station that accepts the
-  optional suite, and only the mandatory suite and `trusted_ca_keys` need BouncyCastle.
-- **`-20` looks reachable on both platforms.** Both offer `TLS_AES_256_GCM_SHA384` and
-  `TLS_CHACHA20_POLY1305_SHA256`, both offer secp521r1, and Network.framework's append **does**
-  restrict the offer to exactly the `-20` pair when asked. Mutual authentication and a private trust
-  root are not measured here and are the next thing to measure, not to assume.
+- **Android is no longer "the easy half if it fails".** It is now the same problem as iOS — and it is
+  also the one with an obvious answer: BouncyCastle's `bctls` is the library the C# side already
+  runs, so the Kotlin port would gain a second transport beside `TcpV2GTransport` with the suites
+  pinned, `trusted_ca_keys` available, and secp521r1 and Ed448 reachable. The plan already said this;
+  what changed is that it is no longer conditional on a measurement.
+- **iOS remains the open decision, and the ground under it moved.** It was "`-2` needs a decision,
+  `-20` is fine". It is now "both need one". A BoringSSL build with the missing algorithms restored
+  and a Swift TLS layer are still the two candidates, and the argument for whichever is chosen now
+  has to carry `-20` too.
+- **The JDK is not a proxy for Android, and this is the measurement that shows it.** SunJSSE passes
+  `-2` against our station and offers both of `-20`'s signature suites; Conscrypt does neither. A
+  desktop `kotlin/` test that opened a TLS session would have proved nothing about the phone.
 
 ## Honest limits
 
-- **Android is unmeasured.** The AVD (`Pixel_3a_API_32_arm64-v8a`) is configured but its system image
-  directory is empty, so the emulator will not boot. The probe for it is built and takes seconds to
-  run: `javac --release 11`, `d8`, `adb push`, `dalvikvm -cp probe.dex JsseProbe 10.0.2.2 <port>` —
-  which runs on ART with Conscrypt as the default provider. It needs an `sdkmanager` download first.
-- **iOS was measured on the Simulator, not a device.** The binary is a real
-  `arm64-apple-ios-simulator` Mach-O run under `simctl spawn`, against the same Network.framework the
-  device carries, and its results are identical to macOS's. Cipher-suite support is a property of the
-  library rather than of the hardware, so this is a strong proxy — but the workplan asked for a
-  device, and this is not one.
-- **SunJSSE is not Android.** It is the JDK's provider, measured here because it is what `kotlin/`
-  builds against on a desktop. Android replaces it with Conscrypt, and nothing here says what
-  Conscrypt does.
-- **Nothing was measured about mutual TLS**, client-certificate chains rooted outside the platform
-  trust store, or `-20`'s full handshake requirement. Those are the next measurements.
+- **Both phones were emulated.** Android 12 / API 32 on `Pixel_3a_API_32_arm64-v8a`; iOS 26.5 in the
+  Simulator, as a real `arm64-apple-ios-simulator` Mach-O run under `simctl spawn`. Cipher suites and
+  signature algorithms are properties of the library rather than of the hardware, and the iOS results
+  match macOS's suite for suite — but the workplan asked for a device and these are not devices. A
+  newer Android release in particular could differ from API 32.
+- **Nothing here measures mutual authentication**, client-certificate chains rooted outside the
+  platform trust store, or the client-side half of `-20`'s full-handshake requirement. Those are the
+  next measurements, and none of them can improve the two findings above.
+- **The `-20` control is deliberately non-conformant.** A P-256 station certificate is not an ISO
+  15118-20 station certificate; it exists only to isolate one variable, and it did.
+- **`illegal_parameter(47)` is the client's word for it.** The control makes the certificate the
+  cause beyond reasonable doubt, but neither stack says which parameter it disliked.
 
 ## Re-running it
 
