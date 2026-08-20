@@ -379,11 +379,29 @@ secp521r1, or present a client chain rooted outside its trust store.
   transport beside `TcpV2GTransport` — suites pinned, `trusted_ca_keys` available, secp521r1 and
   Ed448 reachable. What the measurement changed is that this is no longer conditional, and no longer
   only about `-2`.
-- **iOS is an open decision, not a task, and it now has to carry `-20` as well.** Network.framework
-  can only append suites the system already implements, and swift-nio-ssl sits on BoringSSL, which
-  dropped static ECDH too — and neither offers `ecdsa_secp521r1_sha512`. Either a BoringSSL build
-  with the missing algorithms restored, or a Swift TLS layer; both are large. Write the decision down
-  before writing code.
+- ~~**iOS is an open decision, not a task, and it now has to carry `-20` as well.**~~ **Decided
+  2026-08-20** — [`decisions/ios-tls-stack.md`](decisions/ios-tls-stack.md): **a TLS client of our
+  own, in Swift**, covering both profiles, `-20` first. A record layer and a handshake state machine
+  over primitives the Swift package already ships — swift-crypto, CommonCrypto, swift-certificates,
+  CGoldilocks — with no cryptography of its own and no server side, because the phone is never the
+  station. Three things are worth carrying up here:
+  - **The sentence above is wrong, and measuring the rejected option is what found it.**
+    swift-nio-ssl's BoringSSL *does* offer `ecdsa_secp521r1_sha512` — not by default, but
+    `verifySignatureAlgorithms` puts it on the wire and our own `-20` station then **completes the
+    handshake** where both phone stacks answer `illegal_parameter(47)`. So the decision is made
+    against a working `-20` option, and the write-up says what would reverse it.
+  - **What sinks swift-nio-ssl is `-2`, not `-20`.** Neither `-2` suite exists there either, so
+    taking it would mean two TLS stacks on iOS rather than one — plus no Ed448, no
+    `trusted_ca_keys`, and a `-20` suite pair that **cannot be pinned**, only checked afterwards.
+  - **Pinning a suite it does not implement segfaults it** — a null dereference in
+    `SSL_CIPHER_standard_name` via `NIOTLSCipher.standardName`. That is a fourth answer to the
+    measurement's "what happens when you pin a suite the stack lacks", and the worst of them.
+- **The oracle has to be built before the Swift code**, and it is the one part with no precedent
+  here: BouncyCastle takes an injected `SecureRandom`, so a C# client and a C# station seeded
+  deterministically produce a **byte-reproducible handshake** on our exact suites. RFC 8448's
+  published traces cover the TLS 1.3 key schedule but use a suite that is not one of ours, so they
+  validate the machinery and not the profile; this closes that gap. Same split as everywhere else in
+  this repository — a sequence on the wire wants a recording, a derived key wants named cases.
 
 **Done when:** `-2` on the prescribed suites and `-20` over mutual TLS 1.3 run from at least one
 platform, and the other platform has a recorded decision rather than an omission.

@@ -1,6 +1,6 @@
 # What the platform TLS stacks actually offer
 
-Date: **2026-08-17**. Status: **MEASURED**, all four stacks. This is the measurement
+Date: **2026-08-17**, with a fifth stack added **2026-08-20**. Status: **MEASURED**. This is the measurement
 [`mobile-workplan.md`](../mobile-workplan.md) §4 asks for before any TLS code is written, and it
 exists to replace a derivation with a fact:
 
@@ -40,6 +40,10 @@ so the profile under test is the real one rather than a stand-in:
 | **Conscrypt** — Android 12, API 32 | no | **no** | yes | **no** | **no** | no | no |
 | **Network.framework** — macOS 26.5.2 | no | **no** | yes | yes | **no** | no | no |
 | **Network.framework** — iOS 26.5 *(Simulator)* | no | **no** | yes | yes | **no** | no | no |
+| **BoringSSL** — swift-nio-ssl 2.37.2, macOS *(2026-08-20)* | no | **no** | yes | no | **yes**¹ | no | no |
+
+¹ Not by default — `TLSConfiguration.verifySignatureAlgorithms` puts it on the wire, and then the
+`-20` handshake completes. The only measured stack that can. See the addendum.
 
 ## What our own station does with them
 
@@ -48,8 +52,11 @@ so the profile under test is the real one rather than a stand-in:
 | SunJSSE | **completed** — `TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256`, TLS 1.2 | **completed** | — |
 | Conscrypt / Android 12 | refused — `Cipher Suite negotiation failure` | refused — `illegal_parameter(47)` | **completed** |
 | Network.framework / macOS | refused — `Cipher Suite negotiation failure` | refused — `illegal_parameter(47)` | **completed** |
+| BoringSSL / swift-nio-ssl | cannot start — neither suite exists | **completed**, with `ecdsa_secp521r1_sha512` asked for | — |
 
 ## The four findings
+
+*A fifth stack was measured on 2026-08-20; see [the addendum](#addendum-2026-08-20--the-fifth-stack), which corrects nothing below but adds a fourth answer to finding 3 and a stack that finding 2 does not cover.*
 
 **1. `-2` is out on both phone platforms, and not only on the mandatory suite.**
 
@@ -125,13 +132,51 @@ That choice is gone: **for both protocols and on both platforms, the answer is a
   runs, so the Kotlin port would gain a second transport beside `TcpV2GTransport` with the suites
   pinned, `trusted_ca_keys` available, and secp521r1 and Ed448 reachable. The plan already said this;
   what changed is that it is no longer conditional on a measurement.
-- **iOS remains the open decision, and the ground under it moved.** It was "`-2` needs a decision,
-  `-20` is fine". It is now "both need one". A BoringSSL build with the missing algorithms restored
-  and a Swift TLS layer are still the two candidates, and the argument for whichever is chosen now
-  has to carry `-20` too.
+- ~~**iOS remains the open decision, and the ground under it moved.**~~ **Decided 2026-08-20** —
+  [`decisions/ios-tls-stack.md`](../decisions/ios-tls-stack.md): a TLS client of our own, in Swift,
+  for both profiles. The decision had to be argued against a *working* `-20` option rather than in
+  the absence of one, because measuring the fifth stack first is what the addendum below found.
 - **The JDK is not a proxy for Android, and this is the measurement that shows it.** SunJSSE passes
   `-2` against our station and offers both of `-20`'s signature suites; Conscrypt does neither. A
   desktop `kotlin/` test that opened a TLS session would have proved nothing about the phone.
+
+## Addendum 2026-08-20 · the fifth stack
+
+Measured because the iOS decision rejected it, and a rejection resting on an assumption is the
+failure this report exists to undo. It did not survive contact:
+[`decisions/ios-tls-stack.md`](../decisions/ios-tls-stack.md) has the full write-up.
+
+**BoringSSL can verify a P-521 station certificate.** Not by default, but
+`verifySignatureAlgorithms = [.ecdsaSecp521R1Sha512]` puts the signature algorithm on the wire, and
+the same station that answers `illegal_parameter(47)` to both phone stacks **completes** the `-20`
+handshake. One variable, isolated the same way the P-256 control isolated it before:
+
+```
+verifySignatureAlgorithms unset  → RESULT: handshake refused — illegal_parameter(47)
+verifySignatureAlgorithms set    → RESULT: handshake completed
+```
+
+So finding 2's "neither platform advertises `ecdsa_secp521r1_sha512`" is right about the two phone
+platforms and must not be read as a statement about every stack that could ship on them.
+
+**`-2` is out here too**, on both suites, which makes it four of five stacks — BouncyCastle on the
+JVM is the only measured implementation that speaks `TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256`.
+
+**And finding 3 gains a fourth answer, worse than the other three.** Pinning a suite BoringSSL does
+not implement is a null-pointer dereference:
+
+```
+EXC_BAD_ACCESS (SIGSEGV) — KERN_INVALID_ADDRESS at 0x8
+  CNIOBoringSSL_SSL_CIPHER_standard_name
+  NIOTLSCipher.standardName.getter
+  closure #1 in TLSConfiguration.cipherSuiteValues.setter
+```
+
+`NIOTLSCipher` is `RawRepresentable` over `UInt16`, so any code point can be named — the opposite of
+Apple's closed enum, and here that is the defect rather than the feature. Pinning the two `-20`
+suites instead trips a Swift precondition in `NIOSSLContext.init`: BoringSSL's cipher list governs
+TLS 1.2 only and its three TLS 1.3 suites are fixed, so **the `-20` pair cannot be pinned on this
+stack at all**.
 
 ## Honest limits
 
@@ -145,14 +190,22 @@ That choice is gone: **for both protocols and on both platforms, the answer is a
   next measurements, and none of them can improve the two findings above.
 - **The `-20` control is deliberately non-conformant.** A P-256 station certificate is not an ISO
   15118-20 station certificate; it exists only to isolate one variable, and it did.
+- **swift-nio-ssl was measured on macOS**, not on iOS, and its `-20` completion was measured with
+  certificate verification disabled — so it establishes that the `CertificateVerify` signature over a
+  P-521 key was accepted, not that a chain validation would pass.
 - **`illegal_parameter(47)` is the client's word for it.** The control makes the certificate the
   cause beyond reasonable doubt, but neither stack says which parameter it disliked.
 
 ## Re-running it
 
 ```bash
-python3 tools/tls-clienthello-observer.py my-client 44330 &
-# …then point the client at 127.0.0.1:44330
+python3 tools/tls-clienthello-observer.py my-client 44330
+```
+
+…then point the client at `127.0.0.1:44330`. For the fifth stack that client is checked in too:
+
+```bash
+swift run --package-path tools/tls-nio-probe TlsNioProbe 127.0.0.1 44330 iso20-sigalgs-only
 ```
 
 Worth re-running rather than citing: platform TLS stacks change under you, and a claim about one is
