@@ -28,11 +28,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive          # WWCP_ISO15118 holds the codec vectors
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -40,7 +40,7 @@ jobs:
 
       # The npm test scripts run `node --test` over .ts sources with no flag, so the floor is a Node
       # that strips types unflagged rather than the 22.6 that first offered it behind one.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
 
@@ -51,7 +51,7 @@ jobs:
     runs-on: macos-latest
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
