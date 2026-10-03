@@ -316,8 +316,11 @@ namespace cloud.charging.open.protocols.ISO15118.EXI.Tests
                 Assert.That(depth, Is.Zero, $"{f.FileName} has unbalanced braces");
 
                 Assert.That(f.Source, Does.EndWith("\n"), f.FileName);
-                Assert.That(f.Source.TrimEnd('\r', '\n').Length, Is.EqualTo(f.Source.Length - 1).Or
-                                                                   .EqualTo(f.Source.Length - 2),
+
+                // Counted in line breaks, not characters: the emitters write Environment.NewLine,
+                // so on Windows one line break is two characters and a single blank line four.
+                var lineBreaksAtTheEnd = f.Source[f.Source.TrimEnd('\r', '\n').Length..].Replace("\r\n", "\n").Length;
+                Assert.That(lineBreaksAtTheEnd, Is.EqualTo(1).Or.EqualTo(2),
                             $"{f.FileName} ends with more than one blank line");
             }
         }
