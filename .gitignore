@@ -32,3 +32,4 @@ obj/
 
 # macOS
 .DS_Store
+tools/tls-nio-probe/.build/

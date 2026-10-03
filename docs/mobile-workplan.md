@@ -325,11 +325,18 @@ The port work proper. Two piles, and the first is bigger than it looks.
     ECDH, a KDF and a cipher, which is never transmitted, echoed or acknowledged and therefore cannot
     be checked any other way. Three recordings carry the half a corpus cannot — *where in the session
     the exchange sits*, which is not the same place on the two protocols.
-  - **Resume.** *Pause* is ported on both protocols as a stop mode; rejoining a paused session
-    (`[V2G2-740]`) is not, and it needs a trace that pauses and rejoins — so it depends on stage 2.
-    The last one left.
+  - ~~**Resume** (`[V2G2-740]`).~~ **Done 2026-08-17**, and the last of the five. Five recordings,
+    because one name covers two different sessions: a resumed `-2` session repeats its whole opening
+    sequence and differs in exactly two fields (the id in the header, and `EAmount` reduced by what
+    the pause took, `[V2G2-743]`), while a resumed `-20` session repeats **none** of it and opens at
+    ChargeParameterDiscovery. The fifth is a `-20` resume the station refuses for want of a session
+    binding — which is what plain TCP always gives, and where the security property lives.
+    `SessionBinding20` is ported with it.
 
 **Done when:** the ports drive the same scenarios as the C# EVCC, against the same recordings.
+~~**Done 2026-08-17.**~~ All five gaps are closed; the corpus that grew to close them is 21 recorded
+sessions and four vector corpora, and the split between the two is the lasting part — a *sequence* is
+on the wire and wants a recording, a *verdict* or a derived key never travels and wants named cases.
 
 ## 4 · TLS — the real wall, and a measurement before any code
 
@@ -344,18 +351,57 @@ our own side that was not enough, and it is written down —
 `TlsPlatform.cs` says the same for `-20`: even Windows/Schannel cannot pin the suites, use
 secp521r1, or present a client chain rooted outside its trust store.
 
-- **Measure first, on a real device.** One `-2` TLS handshake from an Android phone against our own
-  SECC, and one from an iPhone: which suite does it land on, and does the station's `-2` profile
-  accept it? Half an hour, and it replaces a derivation with a fact. Everything below is written
-  *assuming* the platform stores no longer carry `TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256`; if the
-  measurement says otherwise, this stage shrinks.
-- **Android is the easy half if it fails:** BouncyCastle's `bctls` is the same library the C# side
-  already uses, so the port would be a second transport beside `TcpV2GTransport` — suites pinned,
-  `trusted_ca_keys` available, secp521r1 and Ed448 reachable.
-- **iOS is an open decision, not a task.** Network.framework can only append suites the system
-  already implements, and swift-nio-ssl sits on BoringSSL, which dropped static ECDH too. Either a
-  BoringSSL build with those suites restored, or a Swift TLS layer — both are large. Write the
-  decision down before writing code.
+- ~~**Measure first, on a real device.**~~ **Measured 2026-08-17** —
+  [`experiments/tls-platform-suites.md`](experiments/tls-platform-suites.md), three stacks of four.
+  The assumption held and the stage does not shrink; it moved, in two directions at once.
+  - **Both phone platforms are out on `-2`**, and not only on the mandatory suite. Static ECDH is
+    gone as predicted — Apple's `tls_ciphersuite_t` has 23 members and not one static `ECDH_` among
+    them — but so is the *optional* `0xC023`: Conscrypt does not implement it and Network.framework
+    will not put it on the wire. Our own `-2` station refuses both with
+    `Cipher Suite negotiation failure`.
+  - **Both are out on `-20` too, and the suites were never the problem.** Both offer
+    `TLS_AES_256_GCM_SHA384` and `TLS_CHACHA20_POLY1305_SHA256`; neither advertises
+    `ecdsa_secp521r1_sha512`, so neither can verify a P-521 station certificate. The control isolates
+    it: with the `-20` suites and a **P-256** certificate both complete the handshake, and with P-521
+    both answer `illegal_parameter(47)`.
+  - **The JDK is not a proxy for Android.** SunJSSE completes a `-2` handshake with our station on
+    `0xC023` and offers both of `-20`'s signature suites; Conscrypt does neither. A desktop `kotlin/`
+    TLS test would have proved nothing about the phone.
+  - **Two of the three stacks accept a cipher-suite pin they do not honour and report no error.**
+    JSSE returns the unimplemented suite from `getEnabledCipherSuites` and never sends it;
+    Network.framework discards the append and *widens* the offer to seventeen suites. Only Conscrypt
+    refuses out loud. Whatever is built here has to verify the negotiated suite **after** the
+    handshake rather than trust the configuration before it.
+  - **No platform sends `trusted_ca_keys`** (`[V2G2-651]`) or offers a hook to add it — the same wall
+    `SslStream` hit, and a reason `-2` could not ride on a platform stack even if the suites returned.
+- **Android is no longer the easy half — it is the same problem, with an obvious answer.**
+  BouncyCastle's `bctls` is the same library the C# side already uses, so the port would be a second
+  transport beside `TcpV2GTransport` — suites pinned, `trusted_ca_keys` available, secp521r1 and
+  Ed448 reachable. What the measurement changed is that this is no longer conditional, and no longer
+  only about `-2`.
+- ~~**iOS is an open decision, not a task, and it now has to carry `-20` as well.**~~ **Decided
+  2026-08-20** — [`decisions/ios-tls-stack.md`](decisions/ios-tls-stack.md): **a TLS client of our
+  own, in Swift**, covering both profiles, `-20` first. A record layer and a handshake state machine
+  over primitives the Swift package already ships — swift-crypto, CommonCrypto, swift-certificates,
+  CGoldilocks — with no cryptography of its own and no server side, because the phone is never the
+  station. Three things are worth carrying up here:
+  - **The sentence above is wrong, and measuring the rejected option is what found it.**
+    swift-nio-ssl's BoringSSL *does* offer `ecdsa_secp521r1_sha512` — not by default, but
+    `verifySignatureAlgorithms` puts it on the wire and our own `-20` station then **completes the
+    handshake** where both phone stacks answer `illegal_parameter(47)`. So the decision is made
+    against a working `-20` option, and the write-up says what would reverse it.
+  - **What sinks swift-nio-ssl is `-2`, not `-20`.** Neither `-2` suite exists there either, so
+    taking it would mean two TLS stacks on iOS rather than one — plus no Ed448, no
+    `trusted_ca_keys`, and a `-20` suite pair that **cannot be pinned**, only checked afterwards.
+  - **Pinning a suite it does not implement segfaults it** — a null dereference in
+    `SSL_CIPHER_standard_name` via `NIOTLSCipher.standardName`. That is a fourth answer to the
+    measurement's "what happens when you pin a suite the stack lacks", and the worst of them.
+- **The oracle has to be built before the Swift code**, and it is the one part with no precedent
+  here: BouncyCastle takes an injected `SecureRandom`, so a C# client and a C# station seeded
+  deterministically produce a **byte-reproducible handshake** on our exact suites. RFC 8448's
+  published traces cover the TLS 1.3 key schedule but use a suite that is not one of ours, so they
+  validate the machinery and not the profile; this closes that gap. Same split as everywhere else in
+  this repository — a sequence on the wire wants a recording, a derived key wants named cases.
 
 **Done when:** `-2` on the prescribed suites and `-20` over mutual TLS 1.3 run from at least one
 platform, and the other platform has a recorded decision rather than an omission.

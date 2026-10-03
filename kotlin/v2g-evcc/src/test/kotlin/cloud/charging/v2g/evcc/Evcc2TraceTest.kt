@@ -5,8 +5,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.test.assertContentEquals
+import kotlin.test.assertFalse
 
 import cloud.charging.v2g.iso2.ChargingStatusResType
+import cloud.charging.v2g.iso2.ChargingSession
+import cloud.charging.v2g.iso2.ResponseCode
 import cloud.charging.v2g.iso2.V2G_Message
 import cloud.charging.v2g.metering.MeterSignature
 import cloud.charging.v2g.tp.V2GTPDecodeResult
@@ -196,6 +200,78 @@ class Evcc2TraceTest {
                     "$name exchange ${exchange.index} (${exchange.request.message}): the signature C# " +
                     "recorded does not verify here. The two standalone-xmldsig encoders disagree, " +
                     "which no other check in this suite can see.")
+        }
+    }
+
+    // ── pause and resume ──────────────────────────────────────────────────
+    //
+    // Two protocols doing genuinely different things under one name, and the interesting half is what
+    // a resumed session does NOT send — which is why these are recordings and not corpus cases. An
+    // absence has no bytes to write down.
+
+    /** -2: the pause, whose only distinguishing frame is its last request. */
+    @Test
+    fun `the -2 pause session matches the recording`() {
+
+        val trace  = SessionTrace.load("iso2-ac-eim-pause")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_2, PowerMode.Ac)
+        val evcc = Evcc2(stream, PowerMode.Ac, pollDelay = { })
+            .apply { stopMode = ChargingSession.Pause }
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+    }
+
+    /**
+     * -2: the connection after it. The session id in the opening header is the whole of [V2G2-740] on
+     * the wire, and `EAmount` less what the pause took is the whole of [V2G2-743].
+     */
+    @Test
+    fun `the -2 resume session matches the recording`() {
+
+        val paused = SessionTrace.load("iso2-ac-eim-pause")
+        val trace  = SessionTrace.load("iso2-ac-eim-resume")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_2, PowerMode.Ac)
+        val evcc = Evcc2(stream, PowerMode.Ac, pollDelay = { }).apply {
+            // Read out of the paused recording rather than written here: what the pair has to agree
+            // on is what actually went on the wire, and a constant would agree with itself.
+            resumeSessionId  = sessionIdOf(paused, 2)
+            alreadyChargedWh = 552.0
+        }
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+        assertEquals(ResponseCode.OK_OldSessionJoined, evcc.sessionSetupCode,
+            "the station answered as though this were a first visit, so nothing was resumed")
+    }
+
+    /**
+     * What the pair means, stated once: a resumed session names the session it resumes, and a fresh
+     * one does not. This lives *between* two recordings, so no single replay can express it.
+     */
+    @Test
+    fun `a resumed session carries the paused session's id`() {
+
+        for (family in listOf("iso2-ac-eim", "iso20-dc-eim")) {
+
+            val paused  = SessionTrace.load("$family-pause")
+            val resumed = SessionTrace.load("$family-resume")
+
+            // The id the paused session ran under: assigned in SessionSetupRes, carried by every
+            // request after it.
+            val pausedId = sessionIdOf(paused, 2)
+
+            assertContentEquals(pausedId, sessionIdOf(resumed, 1),
+                "$family: the resumed SessionSetupReq does not name the session it resumes")
+            assertFalse(sessionIdOf(paused, 1).contentEquals(pausedId),
+                "$family: the paused session opened with the id it was later given, so this corpus " +
+                "cannot tell a resume from a first visit")
         }
     }
 

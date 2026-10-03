@@ -13,6 +13,7 @@ they must change when somebody means them to and never as a side effect of a tes
 | `Session.*.trace.json`, `Session.ocpp-transactions.json` | `SessionTraceCorpusTests.RegenerateTheCorpus` |
 | `Session.pnc-material.json` | `SessionTraceCorpusTests.RegenerateThePncMaterial` |
 | `Session.oem-material.json` | `SessionTraceCorpusTests.RegenerateTheOemMaterial` |
+| `Session.resume-material.json` | `SessionTraceCorpusTests.RegenerateTheResumeMaterial` |
 | `Certificate.chain.vectors.json` | `CertificateChainCorpusTests` |
 | `Meter.signing.vectors.json` | `MeterVectorTests` |
 | `Tariff.signature.vectors.json` | `TariffSignatureCorpusTests.RegenerateTheCorpus` |

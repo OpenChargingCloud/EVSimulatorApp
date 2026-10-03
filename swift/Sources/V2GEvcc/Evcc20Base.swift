@@ -24,15 +24,17 @@ internal func expect<T>(_ actualSet: MessageSet, _ message: Any, _ expectedSet: 
 /// A port of the C# `Evcc20Base`, checked the same way ``Evcc2`` is: `Evcc20TraceTests` replays the
 /// recorded -20 sessions and requires byte-identical requests.
 ///
-/// ## What is not here
+/// ## What each part is held to, since it is not all the same kind of evidence
 ///
-/// **Contract provisioning (CertificateInstallation).** Signature work with no recorded oracle yet;
-/// named here rather than silently absent, exactly as in ``Evcc2``.
+/// Plug & Charge, contract provisioning, service renegotiation and **resume** are held to recorded
+/// sessions, because each is a *sequence* and a sequence is only ever on the wire. Price-schedule
+/// signature verification is held to `PriceSchedule.signature.vectors.json` instead, and the
+/// provisioning key transport to `Contract.provisioning.vectors.json`, because a verdict and an
+/// unwrapped key never travel at all.
 ///
-/// Price-schedule signature verification *is* here now — ``Iso20PriceScheduleCheck``, held to
-/// `PriceSchedule.signature.vectors.json` rather than to a trace, because that verdict never reaches
-/// the wire. Plug & Charge is here too, held to the signed traces, and Dynamic control mode to the
-/// `iso20-*-eim-dynamic` ones.
+/// The resume pair is the sharpest case of the first kind. A resumed session is defined by what it
+/// does **not** send — no AuthorizationSetup, no AuthorizationReq, no service discovery, detail or
+/// selection — and no corpus of frames can state an absence.
 open class Evcc20Base {
 
     internal static let pollIntervalMs: UInt64 = 50
@@ -105,6 +107,60 @@ open class Evcc20Base {
     /// `CertificateInstallationService` — the EVCC runs the contract-provisioning exchange before
     /// authorization. Nil (the default) skips it.
     public var certInstallRequest: CertInstallEvccOptions?
+
+    /// A paused predecessor's session id: the opening `SessionSetupReq` carries it so the SECC rejoins
+    /// the old session instead of assigning a new one.
+    ///
+    /// The rejoin is where -20 stops resembling -2. A -2 resume repeats the whole opening sequence;
+    /// this one repeats **none** of it — no AuthorizationSetup, no AuthorizationReq, no service
+    /// discovery, detail or selection. The session opens at ChargeParameterDiscovery.
+    public var resumeSessionId: [UInt8]?
+
+    /// The paused session's binding to the *station* — the car's half of the same mechanism the SECC
+    /// applies to the car, and its obligation rather than a courtesy: an EV that resumes has to
+    /// establish it is still talking to the SECC it paused with.
+    ///
+    /// Asymmetric with the station's, on purpose. Where the station cannot verify a resume it must
+    /// refuse it, because failing open there hands one EV's authorization to another. Here failing
+    /// open only risks the car continuing at a station it cannot confirm — a risk it bears itself — so
+    /// an unverifiable resume proceeds and is recorded in ``resumedStationVerified``, while an actual
+    /// *mismatch* ends the session. The distinction matters to a harness that deliberately speaks
+    /// plain TCP, where no binding can exist on either side.
+    public var resumeBinding: [UInt8]?
+
+    /// The energy-transfer service the paused session settled on; a resumed session does not repeat
+    /// service negotiation and would otherwise forget it.
+    public var resumeEnergyServiceId: UInt16 = 0
+
+    /// The station's TLS leaf certificate (DER). Settable for callers that drive the machine over
+    /// something that is not an authenticated TLS stream — which is what the trace corpus is.
+    public var seccLeafCertificate: [UInt8]?
+
+    /// The binding of the session in effect — keep it with ``sessionId`` for a resume.
+    public private(set) var sessionBinding: [UInt8]?
+
+    /// Whether a resumed session was confirmed to be with the same station: `true` on a match, `nil`
+    /// when it could not be checked (no binding on one side or the other), and never `false` — a
+    /// mismatch ends the session rather than being reported.
+    public private(set) var resumedStationVerified: Bool?
+
+    /// Whether a resume was offered and the station started a fresh session instead. Not an error:
+    /// the refusal is indistinguishable from a first visit by design, so this is the only place the
+    /// car can say it asked.
+    public private(set) var resumeRefused = false
+
+    /// Resume a paused predecessor — all three values at once; see ``resumeBinding``.
+    public func resume(from paused: ResumableSession?) {
+        resumeSessionId       = paused?.sessionId
+        resumeBinding         = paused?.binding
+        resumeEnergyServiceId = paused?.energyServiceId ?? 0
+    }
+
+    /// What this session hands on when it pauses.
+    public var pausedSession: ResumableSession {
+        ResumableSession(sessionId: sessionCtx.sessionId, binding: sessionBinding,
+                         energyServiceId: selectedEnergyServiceId)
+    }
 
     /// The contract certificate (DER) installed via CertificateInstallation, once recovered.
     public private(set) var installedContractCertificate: [UInt8]?
@@ -191,6 +247,10 @@ open class Evcc20Base {
 
     public func run() throws {
 
+        if let resumeSessionId {
+            sessionCtx.sessionId = resumeSessionId   // rejoin: SessionSetupReq carries the paused id
+        }
+
         let setupRes: SessionSetupRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(SessionSetupReq(header: sessionCtx.toCommonHeader(),
                                                        eVCCID: "EVCC01")))
@@ -200,6 +260,58 @@ open class Evcc20Base {
         // the all-zero id SessionSetup opens with (§7.9.2.4). A live Josev run caught this — its
         // SECC strictly rejects a mismatched session id where our loopback one did not.
         sessionCtx.sessionId = setupRes.header.sessionID
+
+        if setupRes.responseCode == .OK_OldSessionJoined {
+            try joinOldSession()
+        } else {
+            try openNewSession()
+        }
+
+        try runChargingPhase()
+    }
+
+    /// Picks up a session the station agreed to rejoin: nothing is negotiated, because nothing was
+    /// forgotten. The one thing the car still owes is the mirror of what the station did to it —
+    /// establishing that this is the same SECC.
+    private func joinOldSession() throws {
+
+        // A mismatch is not a warning: the paused session is purged and terminated, because if this
+        // is a different station then something is wrong that continuing cannot improve.
+        let presented = SessionBinding20.compute(sessionId: sessionCtx.sessionId,
+                                                 peerLeafCertificate: seccLeafCertificate)
+
+        if let resumeBinding, !resumeBinding.isEmpty, let presented, !presented.isEmpty {
+            guard SessionBinding20.matches(resumeBinding, presented) else {
+                resumeSessionId       = nil
+                resumeEnergyServiceId = 0
+                throw SessionAborted(
+                    "Resumed session is with a different SECC than the one that paused it — " +
+                    "session purged and terminated.")
+            }
+            resumedStationVerified = true
+        }
+        // else: nothing to check against on one side or the other. See `resumeBinding` for why the
+        // car proceeds where the station would refuse.
+
+        sessionBinding          = resumeBinding
+        selectedEnergyServiceId = resumeEnergyServiceId
+    }
+
+    /// Opens a fresh session: authorization setup, authorization, then the service negotiation that
+    /// settles which energy-transfer service and parameter set this session runs.
+    ///
+    /// Reached either because this is a new session, or because a resume was **refused** — in which
+    /// case everything the paused session carried, authorization included, is dropped first and the
+    /// sequence below runs from scratch, which is what the standard prescribes.
+    private func openNewSession() throws {
+
+        if resumeSessionId != nil {
+            resumeRefused          = true
+            resumeSessionId        = nil
+            resumeBinding          = nil
+            resumeEnergyServiceId  = 0
+            resumedStationVerified = nil
+        }
 
         let authSetup: AuthorizationSetupRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(AuthorizationSetupReq(header: sessionCtx.toCommonHeader())))
@@ -228,6 +340,17 @@ open class Evcc20Base {
         }
 
         try runServiceSelection()
+
+        // The binding this session would be resumed under, computed once the id is settled. Kept even
+        // when the session goes on to terminate: whether it pauses is decided at the very end, and a
+        // value computed only then would need the leaf and the id to still be around.
+        sessionBinding = SessionBinding20.compute(sessionId: sessionCtx.sessionId,
+                                                  peerLeafCertificate: seccLeafCertificate)
+    }
+
+    /// The charging phase, which a service renegotiation sends round again — and which a resumed
+    /// session enters directly, having negotiated nothing.
+    private func runChargingPhase() throws {
 
         // ── the charging phase, which a service renegotiation sends round again ────────────────
         //

@@ -82,3 +82,35 @@ internal object OemMaterial {
         ((s[it * 2].digitToInt(16) shl 4) or s[it * 2 + 1].digitToInt(16)).toByte()
     }
 }
+
+/**
+ * The stand-in TLS leaves the recorded -20 pause and resume are bound to.
+ *
+ * A -20 session binding hashes the peer's TLS leaf certificate, and a loopback recording has no TLS to
+ * take one from — so both state machines accept the leaf as a property and the corpus supplies it.
+ * Labelled ASCII rather than real certificates on purpose: a real X.509 leaf here would suggest the
+ * recording exercised TLS. See `ResumeMaterial.cs` for the whole argument, including why there are two.
+ */
+internal object ResumeMaterial {
+
+    private val material: JsonObject by lazy {
+        var dir = File(".").absoluteFile
+        while (!File(dir, "EVSimulatorApp.slnx").isFile)
+            dir = dir.parentFile ?: error("repository root not found")
+
+        val file = File(dir, "vectors/Session.resume-material.json")
+        require(file.isFile) { "resume material not found at $file" }
+        JsonParser.parseString(file.readText()).asJsonObject
+    }
+
+    /** What the station sees of the car — the leaf the SECC binds the session to. */
+    val vehicleLeaf: ByteArray by lazy { hex(material.get("vehicleLeafCertificate").asString) }
+
+    /** What the car sees of the station — the leaf the EVCC binds the session to, and therefore the
+     *  only one this port needs. */
+    val seccLeaf: ByteArray by lazy { hex(material.get("seccLeafCertificate").asString) }
+
+    private fun hex(s: String) = ByteArray(s.length / 2) {
+        ((s[it * 2].digitToInt(16) shl 4) or s[it * 2 + 1].digitToInt(16)).toByte()
+    }
+}

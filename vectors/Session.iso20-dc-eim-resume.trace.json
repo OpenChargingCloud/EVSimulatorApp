@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 3,
+  "generator": "ISO15118ConformanceTests.Simulation.Traces.SessionTraceCorpusTests.RegenerateTheCorpus",
+  "name": "iso20-dc-eim-resume",
+  "protocol": "iso15118-20",
+  "mode": "dc",
+  "note": "The connection after that pause, and the shortest complete -20 session in the corpus: SessionSetup answers OK_OldSessionJoined and charging begins at DC_ChargeParameterDiscovery. No AuthorizationSetup, no AuthorizationReq, no service discovery, detail or selection \u2014 a resumed session repeats none of it, and the energy service it settled on travels with the session rather than being negotiated again.",
+  "exchanges": [
+    {
+      "index": 0,
+      "request": {
+        "payloadType": "0x8001",
+        "message": "SupportedAppProtocolReq",
+        "frame": "01fe8001000000258000f3ab9371d34b9b79d39ba321d34b9b79d189a98989c1d1699181d22218010000040040"
+      },
+      "response": {
+        "payloadType": "0x8001",
+        "message": "SupportedAppProtocolRes",
+        "frame": "01fe80010000000480400040"
+      }
+    },
+    {
+      "index": 1,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "SessionSetupReq",
+        "frame": "01fe800200000019808c040505860687078808880f2d6ca0620422ab21a1981880"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "SessionSetupRes",
+        "frame": "01fe80020000001d8090040505860687078808880f2d6ca0620602d1114a905090ca914c40"
+      }
+    },
+    {
+      "index": 2,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeParameterDiscoveryReq",
+        "frame": "01fe800400000029803c040505860687078808880f2d6ca062881088270400000200320041000000800f40304001902800"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeParameterDiscoveryRes",
+        "frame": "01fe8004000000298040040505860687078808880f2d6ca062004408441382000001001900208000004007a0182000c840"
+      }
+    },
+    {
+      "index": 3,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "ScheduleExchangeReq",
+        "frame": "01fe800200000014806c040505860687078808880f2d6ca062000680"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "ScheduleExchangeRes",
+        "frame": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a"
+      }
+    },
+    {
+      "index": 4,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_CableCheckReq",
+        "frame": "01fe800400000011802c040505860687078808880f2d6ca062"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_CableCheckRes",
+        "frame": "01fe8004000000138030040505860687078808880f2d6ca0620000"
+      }
+    },
+    {
+      "index": 5,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_PreChargeReq",
+        "frame": "01fe8004000000198044040505860687078808880f2d6ca0620100000080090030"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_PreChargeRes",
+        "frame": "01fe8004000000178048040505860687078808880f2d6ca0620010010c0600"
+      }
+    },
+    {
+      "index": 6,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "PowerDeliveryReq",
+        "frame": "01fe80020000001d8054040505860687078808880f2d6ca06200000100420480e041805124"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "PowerDeliveryRes",
+        "frame": "01fe8002000000138058040505860687078808880f2d6ca0620040"
+      }
+    },
+    {
+      "index": 7,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopReq",
+        "frame": "01fe80040000001e8034040505860687078808880f2d6ca062810012006464003c02002400ca"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopRes",
+        "frame": "01fe80040000001c8038040505860687078808880f2d6ca0620064003c02002400c00090"
+      }
+    },
+    {
+      "index": 8,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopReq",
+        "frame": "01fe80040000001e8034040505860687078808880f2d6ca062810012006464003c02002400ca"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopRes",
+        "frame": "01fe80040000001c8038040505860687078808880f2d6ca0620064003c02002400c00090"
+      }
+    },
+    {
+      "index": 9,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopReq",
+        "frame": "01fe80040000001e8034040505860687078808880f2d6ca062810012006464003c02002400ca"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_ChargeLoopRes",
+        "frame": "01fe80040000001c8038040505860687078808880f2d6ca0620064003c02002400c00090"
+      }
+    },
+    {
+      "index": 10,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "PowerDeliveryReq",
+        "frame": "01fe8002000000138054040505860687078808880f2d6ca0620140"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "PowerDeliveryRes",
+        "frame": "01fe8002000000138058040505860687078808880f2d6ca0620040"
+      }
+    },
+    {
+      "index": 11,
+      "request": {
+        "payloadType": "0x8004",
+        "message": "DC_WeldingDetectionReq",
+        "frame": "01fe800400000012804c040505860687078808880f2d6ca06200"
+      },
+      "response": {
+        "payloadType": "0x8004",
+        "message": "DC_WeldingDetectionRes",
+        "frame": "01fe8004000000168050040505860687078808880f2d6ca0620010000a00"
+      }
+    },
+    {
+      "index": 12,
+      "request": {
+        "payloadType": "0x8002",
+        "message": "SessionStopReq",
+        "frame": "01fe8002000000128094040505860687078808880f2d6ca06228"
+      },
+      "response": {
+        "payloadType": "0x8002",
+        "message": "SessionStopRes",
+        "frame": "01fe8002000000138098040505860687078808880f2d6ca0620000"
+      }
+    }
+  ]
+}

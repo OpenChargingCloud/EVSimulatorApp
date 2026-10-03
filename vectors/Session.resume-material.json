@@ -1,0 +1,5 @@
+{
+  "note": "Stand-in TLS leaf certificates for the recorded ISO 15118-20 pause/resume sessions. A -20 session binding is SHA-512(SessionID || SHA-512(peer leaf)), and the leaf comes from the TLS handshake \u2014 which a loopback recording does not have, so both state machines take it as a property instead. These are labelled ASCII rather than real certificates on purpose: a real X.509 leaf would imply the recording exercised TLS. TWO of them, because the binding is not symmetric \u2014 the station binds to the vehicle\u0027s leaf and the car to the station\u0027s, so one session has two binding values and each side checks the one it is owed. Read by the C#, Kotlin and Swift trace suites alike. Changing these invalidates Session.iso20-dc-eim-resume.trace.json.",
+  "vehicleLeafCertificate": "76656869636c652d6c6561662d63657274696669636174652d666f722d7468652d7265636f726465642d726573756d65",
+  "seccLeafCertificate": "73746174696f6e2d6c6561662d63657274696669636174652d666f722d7468652d7265636f726465642d726573756d65"
+}

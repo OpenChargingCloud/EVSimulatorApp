@@ -6,8 +6,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 
 import cloud.charging.v2g.iso20.dc.DC_ChargeLoopRes
+import cloud.charging.v2g.iso20.common.ChargingSession
+import cloud.charging.v2g.iso20.common.ResponseCode
 import cloud.charging.v2g.metering.MeterSignature
 import cloud.charging.v2g.tp.V2GTPDecodeResult
 import cloud.charging.v2g.tp.V2GTPDispatcher
@@ -263,6 +267,86 @@ class Evcc20TraceTest {
         assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
         assertEquals("pnc-signed", evcc.authorizationMode,
             "the session completed but authorized via EIM — then nothing signed was compared")
+    }
+
+    // ── pause and resume ──────────────────────────────────────────────────
+
+    /** -20: the pause. Its successor is the shortest complete -20 session in the corpus. */
+    @Test
+    fun `the -20 pause session matches the recording`() {
+
+        val trace  = SessionTrace.load("iso20-dc-eim-pause")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_20, PowerMode.Dc)
+        val evcc = Evcc20Dc(stream, recordedAt, pollDelay = { }).apply {
+            stopMode            = ChargingSession.Pause
+            seccLeafCertificate = ResumeMaterial.seccLeaf
+        }
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+        assertNotNull(evcc.sessionBinding,
+            "the paused session carries no binding, so nothing could claim it afterwards")
+    }
+
+    /**
+     * -20: the resume, and the one that matters. A rejoined session negotiates nothing — it opens at
+     * ChargeParameterDiscovery — so a port that replayed its opening sequence would charge perfectly
+     * and diverge on the second frame.
+     */
+    @Test
+    fun `the -20 resume session matches the recording`() {
+
+        val paused = SessionTrace.load("iso20-dc-eim-pause")
+        val trace  = SessionTrace.load("iso20-dc-eim-resume")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        val pausedId = sessionIdOf(paused, 2)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_20, PowerMode.Dc)
+        val evcc = Evcc20Dc(stream, recordedAt, pollDelay = { }).apply {
+            seccLeafCertificate = ResumeMaterial.seccLeaf
+        }
+        // DC = service 2 (Table 204): carried over rather than renegotiated, which is the point.
+        evcc.resumeFrom(ResumableSession(
+            pausedId, SessionBinding20.compute(pausedId, ResumeMaterial.seccLeaf), 2u))
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+        assertEquals(ResponseCode.OK_OldSessionJoined, evcc.sessionSetupCode)
+        assertFalse(evcc.resumeRefused)
+        assertEquals(true, evcc.resumedStationVerified,
+            "the binding was presentable on both sides, so this is the case that had to be checked")
+        assertEquals(2u.toUShort(), evcc.selectedEnergyServiceId,
+            "a resumed session does not renegotiate the service — it carries the one it had")
+    }
+
+    /**
+     * -20: the resume the station refuses, because it has no binding to check. The car drops everything
+     * the pause carried and runs the full opening sequence — which is what makes this recording
+     * eighteen exchanges where the accepted one is thirteen.
+     */
+    @Test
+    fun `a refused -20 resume starts over completely`() {
+
+        val paused = SessionTrace.load("iso20-dc-eim-pause")
+        val trace  = SessionTrace.load("iso20-dc-eim-resume-refused")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_20, PowerMode.Dc)
+        val evcc = Evcc20Dc(stream, recordedAt, pollDelay = { })
+        // Offered without a binding on either side — the shape of every plain-TCP resume.
+        evcc.resumeFrom(ResumableSession(sessionIdOf(paused, 2), null, 2u))
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+        assertEquals(ResponseCode.OK_NewSessionEstablished, evcc.sessionSetupCode)
+        assertTrue(evcc.resumeRefused, "the car cannot tell it was refused, and that is the only record")
+        assertNull(evcc.resumedStationVerified)
     }
 
     // ── contract provisioning ─────────────────────────────────────────────
