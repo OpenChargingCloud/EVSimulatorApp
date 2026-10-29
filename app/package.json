@@ -12,7 +12,7 @@
     "build": "esbuild src/vendor/entry.ts --bundle --format=esm --platform=browser --target=es2022 --outfile=vendor/ev-simulator.js"
   },
   "devDependencies": {
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.28.0"
   },
   "dependencies": {
     "@open-charging-cloud/capacitor-ev-simulator": "file:../capacitor",
