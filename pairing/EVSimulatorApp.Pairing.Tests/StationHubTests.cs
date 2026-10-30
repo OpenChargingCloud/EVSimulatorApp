@@ -173,7 +173,7 @@ public class StationHubTests
         hub.Subscribe(_ => throw new IOException("socket gone"));
         var healthy = Collect(hub);
 
-        Assert.DoesNotThrowAsync(async () => await hub.LogAsync("rx", "SessionSetupReq"));
+        await Assert.DoesNotThrowAsync(async () => await hub.LogAsync("rx", "SessionSetupReq"));
         await hub.LogAsync("tx", "SessionSetupRes");
 
         Assert.That(healthy, Has.Count.EqualTo(2));

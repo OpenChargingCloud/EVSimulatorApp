@@ -83,21 +83,21 @@ public class HandshakeTests
             "GET / HTTP/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" +
             "Sec-WebSocket-Key: k\r\nSec-WebSocket-Version: 8\r\n\r\n");
 
-        Assert.ThrowsAsync<HandshakeRefusedException>(() => WebSocketHandshake.AcceptAsync(stream));
+        // Awaited, which it was not before NUnit 5 made ThrowsAsync return the Task: the two
+        // assertions below read what the handshake wrote, so without the await they raced it.
+        await Assert.ThrowsAsync<HandshakeRefusedException>(() => WebSocketHandshake.AcceptAsync(stream));
 
         Assert.That(stream.Written, Does.StartWith("HTTP/1.1 426"));
         Assert.That(stream.Written, Does.Contain("version 13"));
-
-        await Task.CompletedTask;
 
     }
 
 
     [Test]
-    public void AHeadThatNeverEndsIsRefusedRatherThanBuffered()
+    public async Task AHeadThatNeverEndsIsRefusedRatherThanBuffered()
     {
         var stream = new DuplexBuffer(new string('x', 16 * 1024));
-        Assert.ThrowsAsync<HandshakeRefusedException>(() => WebSocketHandshake.AcceptAsync(stream));
+        await Assert.ThrowsAsync<HandshakeRefusedException>(() => WebSocketHandshake.AcceptAsync(stream));
     }
 
 }
@@ -154,7 +154,7 @@ public class V2GFrameReaderTests
     /// carries no payload at all.
     /// </remarks>
     [Test]
-    public void AnAbsurdDeclaredLengthIsRefusedRatherThanAllocated()
+    public async Task AnAbsurdDeclaredLengthIsRefusedRatherThanAllocated()
     {
 
         var header = new byte[V2GTPCodec.HeaderSize];
@@ -162,32 +162,32 @@ public class V2GFrameReaderTests
 
         var reader = new V2GFrameReader(new DribblingStream(header, 8));
 
-        Assert.That(Assert.ThrowsAsync<V2GFramingException>(() => reader.ReadFrameAsync())!.Message,
+        Assert.That((await Assert.ThrowsAsync<V2GFramingException>(() => reader.ReadFrameAsync()))!.Message,
                     Does.Contain("forwards at most"));
 
     }
 
 
     [Test]
-    public void APeerThatClosesInsideAFrameIsNotACleanEnd()
+    public async Task APeerThatClosesInsideAFrameIsNotACleanEnd()
     {
 
         var truncated = Frame(0x8001, 10)[..12];
         var reader    = new V2GFrameReader(new DribblingStream(truncated, 4));
 
-        Assert.That(Assert.ThrowsAsync<V2GFramingException>(() => reader.ReadFrameAsync())!.Message,
+        Assert.That((await Assert.ThrowsAsync<V2GFramingException>(() => reader.ReadFrameAsync()))!.Message,
                     Does.Contain("closed inside a frame"));
 
     }
 
 
     [Test]
-    public void BytesThatAreNotAV2gtpHeaderAreNamedRatherThanSkipped()
+    public async Task BytesThatAreNotAV2gtpHeaderAreNamedRatherThanSkipped()
     {
 
         var reader = new V2GFrameReader(new DribblingStream(Encoding.ASCII.GetBytes("GET / HTTP"), 10));
 
-        Assert.That(Assert.ThrowsAsync<V2GFramingException>(() => reader.ReadFrameAsync())!.Message,
+        Assert.That((await Assert.ThrowsAsync<V2GFramingException>(() => reader.ReadFrameAsync()))!.Message,
                     Does.Contain("not one"));
 
     }

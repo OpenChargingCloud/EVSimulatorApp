@@ -189,10 +189,17 @@ public class PairingPayloadEqualityTests
     [Test]
     public void TwoParsesOfTheSameCodeAreEqual()
     {
+        // Two separate instances, held in locals rather than parsed inline twice. The point of the
+        // test is that a `sealed record`'s structural equality holds across two parses, and spelling
+        // the instances out is what says so — inline, NUnit2009 reads it as comparing one expression
+        // to itself, and a reader cannot tell the difference either.
+        var first  = Parse();
+        var second = Parse();
+
         Assert.Multiple(() =>
         {
-            Assert.That(Parse(), Is.EqualTo(Parse()));
-            Assert.That(Parse().GetHashCode(), Is.EqualTo(Parse().GetHashCode()));
+            Assert.That(first,               Is.EqualTo(second));
+            Assert.That(first.GetHashCode(), Is.EqualTo(second.GetHashCode()));
         });
     }
 
