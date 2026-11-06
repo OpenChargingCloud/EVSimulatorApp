@@ -7984,7 +7984,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CableCheckResType",
-        "exi": "01fe8001000000128098020282c3034383c40450400000021000",
+        "exi": "01fe8001000000138098020282c3034383c4045040000000204000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -8001,6 +8001,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evseProcessing": "Finished"
@@ -8056,7 +8057,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PreChargeResType",
-        "exi": "01fe8001000000168098020282c3034383c4045180000002103102180c00",
+        "exi": "01fe8001000000178098020282c3034383c40451800000002040c408603000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -8073,6 +8074,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -8132,7 +8134,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryResType",
-        "exi": "01fe8001000000128098020282c3034383c40451600400010800",
+        "exi": "01fe8001000000128098020282c3034383c40451600400001020",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -8149,6 +8151,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               }
             }
@@ -8204,7 +8207,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CurrentDemandResType",
-        "exi": "01fe8001000000278098020282c3034383c40450e0000002103102400c0c3078000182d1114a905090ca914c400200",
+        "exi": "01fe8001000000278098020282c3034383c40450e00000002040c409003030c1e000060b44452a4142432a45310008",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -8221,6 +8224,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -8293,7 +8297,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CurrentDemandResType",
-        "exi": "01fe8001000000278098020282c3034383c40450e0000002103102400c0c3078000182d1114a905090ca914c400200",
+        "exi": "01fe8001000000278098020282c3034383c40450e00000002040c409003030c1e000060b44452a4142432a45310008",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -8310,6 +8314,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -8365,7 +8370,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryResType",
-        "exi": "01fe8001000000128098020282c3034383c40451600400010800",
+        "exi": "01fe8001000000128098020282c3034383c40451600400001020",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -8382,6 +8387,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               }
             }
@@ -8424,7 +8430,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "WeldingDetectionResType",
-        "exi": "01fe8001000000158098020282c3034383c40452200000021031001400",
+        "exi": "01fe8001000000168098020282c3034383c40452200000002040c4005000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -8441,6 +8447,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -8959,7 +8966,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CableCheckResType",
-        "exi": "01fe8001000000128098020282c3034383c40450400000021000",
+        "exi": "01fe8001000000138098020282c3034383c4045040000000204000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -8976,6 +8983,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evseProcessing": "Finished"
@@ -9031,7 +9039,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PreChargeResType",
-        "exi": "01fe8001000000168098020282c3034383c4045180000002103102180c00",
+        "exi": "01fe8001000000178098020282c3034383c40451800000002040c408603000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9048,6 +9056,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -9107,7 +9116,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryResType",
-        "exi": "01fe8001000000128098020282c3034383c40451600400010800",
+        "exi": "01fe8001000000128098020282c3034383c40451600400001020",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9124,6 +9133,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               }
             }
@@ -9179,7 +9189,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CurrentDemandResType",
-        "exi": "01fe8001000000278098020282c3034383c40450e0000002103102400c0c3078000182d1114a905090ca914c400200",
+        "exi": "01fe8001000000278098020282c3034383c40450e00000002040c409003030c1e000060b44452a4142432a45310008",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9196,6 +9206,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -9251,7 +9262,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryResType",
-        "exi": "01fe8001000000128098020282c3034383c40451600400010800",
+        "exi": "01fe8001000000128098020282c3034383c40451600400001020",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9268,6 +9279,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               }
             }
@@ -9328,7 +9340,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "ChargeParameterDiscoveryResType",
-        "exi": "01fe8001000000368098020282c3034383c40450a00000000000240700c50a0560aa00004206186400820a130ea06207a0181860000620640088c3001100",
+        "exi": "01fe8001000000378098020282c3034383c40450a00000000000240700c50a0560aa000004081861900208284c3a81881e806061800018819002230c004400",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9376,6 +9388,7 @@
                   "@type": "DC_EVSEStatusType",
                   "notificationMaxDelay": 0,
                   "evseNotification": "None",
+                  "evseIsolationStatus": "Valid",
                   "evseStatusCode": "EVSE_Ready"
                 },
                 "evseMaximumCurrentLimit": {
@@ -9455,7 +9468,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CableCheckResType",
-        "exi": "01fe8001000000128098020282c3034383c40450400000021000",
+        "exi": "01fe8001000000138098020282c3034383c4045040000000204000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9472,6 +9485,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evseProcessing": "Finished"
@@ -9527,7 +9541,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PreChargeResType",
-        "exi": "01fe8001000000168098020282c3034383c4045180000002103102180c00",
+        "exi": "01fe8001000000178098020282c3034383c40451800000002040c408603000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9544,6 +9558,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -9603,7 +9618,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryResType",
-        "exi": "01fe8001000000128098020282c3034383c40451600400010800",
+        "exi": "01fe8001000000128098020282c3034383c40451600400001020",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9620,6 +9635,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               }
             }
@@ -9675,7 +9691,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CurrentDemandResType",
-        "exi": "01fe8001000000278098020282c3034383c40450e0000002103102400c0c3078000182d1114a905090ca914c400200",
+        "exi": "01fe8001000000278098020282c3034383c40450e00000002040c409003030c1e000060b44452a4142432a45310008",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9692,6 +9708,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -9764,7 +9781,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CurrentDemandResType",
-        "exi": "01fe8001000000278098020282c3034383c40450e0000002103102400c0c3078000182d1114a905090ca914c400200",
+        "exi": "01fe8001000000278098020282c3034383c40450e00000002040c409003030c1e000060b44452a4142432a45310008",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9781,6 +9798,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -9836,7 +9854,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryResType",
-        "exi": "01fe8001000000128098020282c3034383c40451600400010800",
+        "exi": "01fe8001000000128098020282c3034383c40451600400001020",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9853,6 +9871,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               }
             }
@@ -9895,7 +9914,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "WeldingDetectionResType",
-        "exi": "01fe8001000000158098020282c3034383c40452200000021031001400",
+        "exi": "01fe8001000000168098020282c3034383c40452200000002040c4005000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -9912,6 +9931,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -10430,7 +10450,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CableCheckResType",
-        "exi": "01fe8001000000128098020282c3034383c40450400000021000",
+        "exi": "01fe8001000000138098020282c3034383c4045040000000204000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -10447,6 +10467,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evseProcessing": "Finished"
@@ -10502,7 +10523,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PreChargeResType",
-        "exi": "01fe8001000000168098020282c3034383c4045180000002103102180c00",
+        "exi": "01fe8001000000178098020282c3034383c40451800000002040c408603000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -10519,6 +10540,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -10578,7 +10600,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryResType",
-        "exi": "01fe8001000000128098020282c3034383c40451600400010800",
+        "exi": "01fe8001000000128098020282c3034383c40451600400001020",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -10595,6 +10617,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               }
             }
@@ -10650,7 +10673,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CurrentDemandResType",
-        "exi": "01fe8001000000278098020282c3034383c40450e0000002103102400c0c3078000182d1114a905090ca914c400200",
+        "exi": "01fe8001000000278098020282c3034383c40450e00000002040c409003030c1e000060b44452a4142432a45310008",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -10667,6 +10690,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -10739,7 +10763,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CurrentDemandResType",
-        "exi": "01fe8001000000278098020282c3034383c40450e0000002103102400c0c3078000182d1114a905090ca914c400200",
+        "exi": "01fe8001000000278098020282c3034383c40450e00000002040c409003030c1e000060b44452a4142432a45310008",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -10756,6 +10780,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -10828,7 +10853,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "CurrentDemandResType",
-        "exi": "01fe8001000000278098020282c3034383c40450e0000002103102400c0c3078000182d1114a905090ca914c400200",
+        "exi": "01fe8001000000278098020282c3034383c40450e00000002040c409003030c1e000060b44452a4142432a45310008",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -10845,6 +10870,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
@@ -10900,7 +10926,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "PowerDeliveryResType",
-        "exi": "01fe8001000000128098020282c3034383c40451600400010800",
+        "exi": "01fe8001000000128098020282c3034383c40451600400001020",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -10917,6 +10943,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               }
             }
@@ -10959,7 +10986,7 @@
         "direction": "in",
         "payloadType": "0x8001",
         "messageName": "WeldingDetectionResType",
-        "exi": "01fe8001000000158098020282c3034383c40452200000021031001400",
+        "exi": "01fe8001000000168098020282c3034383c40452200000002040c4005000",
         "json": {
           "@context": "urn:iso:15118:2:2013:MsgDef",
           "@type": "V2G_Message",
@@ -10976,6 +11003,7 @@
                 "@type": "DC_EVSEStatusType",
                 "notificationMaxDelay": 0,
                 "evseNotification": "None",
+                "evseIsolationStatus": "Valid",
                 "evseStatusCode": "EVSE_Ready"
               },
               "evsePresentVoltage": {
