@@ -121,7 +121,7 @@ is the person who can fix a weakened profile, so it should not only be the phone
 
 ## Hosting it — `EVSimulatorApp.Pi`
 
-A .NET 10 minimal-API host. Nothing in it is Raspberry-Pi-specific, which is the point: it runs and
+A .NET 11 minimal-API host. Nothing in it is Raspberry-Pi-specific, which is the point: it runs and
 is exercised identically on a laptop, and only the layer *below* it — binding to the WLAN interface,
 AP mode, PLC — actually needs the hardware.
 

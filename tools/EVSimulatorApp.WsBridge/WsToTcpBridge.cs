@@ -22,6 +22,8 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
+using org.GraphDefined.Vanaheimr.Hermod.DNS;
+
 using cloud.charging.open.protocols.ISO15118.Transport;
 
 namespace EVSimulatorApp.WsBridge;
@@ -155,10 +157,15 @@ public sealed class WsToTcpBridge(WsToTcpBridge.Options options)
     private async Task<Stream> ConnectAsync(BridgeTarget target, CancellationToken cancel)
     {
 
+        // A station named by host name is resolved by Hermod's DNS client, which asks the name servers
+        // of this machine's network configuration itself; TcpV2GClient refuses a host name it is given no
+        // client for, and never asks the resolver of the operating system. An address needs none.
+        await using var dnsClient = NameResolution.TryLiteral(target.Host, out _) ? null : new DNSClient();
+
         if (!options.Tls)
             // The cast picks the SslStream overload over the BouncyCastle one, which a bare `null`
             // cannot choose between. Either would do nothing here; being explicit is free.
-            return await TcpV2GClient.ConnectAsync(target.Host, target.Port, (TlsOptions?) null, cancel);
+            return await TcpV2GClient.ConnectAsync(target.Host, target.Port, (TlsOptions?) null, dnsClient, cancel);
 
         var pin = options.PinnedRoot
                       ?? throw new InvalidOperationException(
@@ -172,7 +179,7 @@ public sealed class WsToTcpBridge(WsToTcpBridge.Options options)
             // assuming it.
             EnabledSslProtocols         = SslProtocols.Tls12 | SslProtocols.Tls13,
             ServerCertificateValidation = (_, _, chain, _) => ValidateAgainstPinnedRoot(chain, pin),
-        }, cancel);
+        }, dnsClient, cancel);
 
     }
 

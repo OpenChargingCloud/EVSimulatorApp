@@ -1466,7 +1466,7 @@ the first check whose inputs came from somewhere the encoder did not choose.
 > negative catalogue for pairing is covered — expired slot, replay, wrong secret, ±1 and ±2 skew,
 > and a two-minute-old screenshot.
 >
-> **The station host** — `EVSimulatorApp.Pi`, a .NET 10 minimal-API application. It serves the
+> **The station host** — `EVSimulatorApp.Pi`, a .NET 11 minimal-API application. It serves the
 > display page, pushes each new pairing slot over a WebSocket (rather than letting the page reload
 > on a timer, which drifts against the station's own clock), shows whether a vehicle is attached,
 > and streams the session log. The real SECC runs behind it as a `BackgroundService`, and the
