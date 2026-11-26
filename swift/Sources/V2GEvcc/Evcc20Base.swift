@@ -559,6 +559,7 @@ open class Evcc20Base {
         try stream.writeFrame(expectedSet, payload)
         let reply = try stream.readFrame()
         try refuseOnFailure(reply.message)
+        if let seccTime = Self.timeStamp(of: reply.message) { seccTimeStamp = seccTime }
         exchanges += 1
         return reply
     }
@@ -676,28 +677,25 @@ open class Evcc20Base {
             eVMinimumEnergyRequest: RationalNumberType(exponent: 3, value: 10))   // 10 kWh
     }
 
-    /// The EVPowerProfile that PowerDelivery(Start) must carry. Scheduled mode selects the first
-    /// schedule tuple the station returned and echoes one power-schedule entry (falling back to
-    /// tuple 1 if the station returned no Scheduled control mode); Dynamic mode has no tuple to
-    /// point at, so its control-mode element is empty — the profile is then only the EV's own power
-    /// curve.
+    /// The EVPowerProfile that PowerDelivery(Start) must carry: anchored at the station's latest
+    /// `TimeStamp` and following the first schedule tuple it offered — see ``Iso20EvPowerProfile`` for
+    /// the rules, and for why the anchor used to be 1970.
     private func buildEvPowerProfile(_ scheduleRes: ScheduleExchangeRes) -> EVPowerProfileType {
+        Iso20EvPowerProfile.build(scheduleRes,
+                                  seccTimeSeconds: seccTimeStamp ?? sessionCtx.toCommonHeader().timeStamp,
+                                  dynamic: preferDynamicControlMode)
+    }
 
-        let tupleId = scheduleRes.scheduled_SEResControlMode?.scheduleTuple.first?.scheduleTupleID ?? 1
+    /// SECC time as the station last stated it: the `TimeStamp` of its latest response, in seconds; nil
+    /// until the first. `[V2G20-1536]` makes the station's header the reference for SECC time, and taking
+    /// it from the response rather than our clock keeps a replayed session a pure function of the
+    /// responses.
+    public private(set) var seccTimeStamp: UInt64?
 
-        return EVPowerProfileType(
-            timeAnchor: 0,
-            dynamic_EVPPTControlMode:
-                preferDynamicControlMode ? Dynamic_EVPPTControlModeType() : nil,
-            // PowerToleranceAcceptance is schema-optional but Josev's model requires it — its SECC
-            // rejects an absent one, and a live run needed it set.
-            scheduled_EVPPTControlMode:
-                preferDynamicControlMode ? nil : Scheduled_EVPPTControlModeType(
-                    selectedScheduleTupleID: tupleId,
-                    powerToleranceAcceptance: .PowerToleranceConfirmed),
-            eVPowerProfileEntries: EVPowerProfileEntryListType(eVPowerProfileEntry: [
-                // one 1-hour entry at 10 kW (Power = 10 × 10³ W)
-                PowerScheduleEntryType(duration: 3600, power: RationalNumberType(exponent: 3, value: 10))
-            ]))
+    private static func timeStamp(of message: Any) -> UInt64? {
+        if let response = message as? ExiIso20Common.V2GResponseType { return response.header.timeStamp }
+        if let response = message as? ExiIso20AC.V2GResponseType     { return response.header.timeStamp }
+        if let response = message as? ExiIso20DC.V2GResponseType     { return response.header.timeStamp }
+        return nil
     }
 }
