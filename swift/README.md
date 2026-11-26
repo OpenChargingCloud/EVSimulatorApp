@@ -466,8 +466,8 @@ needed it:
 
 1. **Vectors** — `expectedHex` from EVerest's libcbv2g at a pinned commit, read straight out of
    the submodule, the same corpus the C# and Kotlin suites use. AppProtocol encodes and compares
-   (17); the rest decode and re-encode — ISO 15118-2 (39), -20 CommonMessages (26), DC (16),
-   AC (10), ACDP (8), AC_DER_IEC (16), AC_DER_SAE (16). **148 vectors, all byte-exact.** Every one
+   (17); the rest decode and re-encode — ISO 15118-2 (40), -20 CommonMessages (26), DC (16),
+   AC (10), ACDP (8), AC_DER_IEC (16), AC_DER_SAE (16). **149 vectors, all byte-exact.** Every one
    exercises the decoder too, and none of them *can* catch a bug mirrored in both directions — see
    gate 2. WPT's 12 are not covered, because that set is refused.
 
