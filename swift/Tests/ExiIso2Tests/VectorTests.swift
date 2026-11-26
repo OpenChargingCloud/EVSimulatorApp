@@ -55,7 +55,7 @@ final class Iso2VectorTests: XCTestCase {
 
     /// The corpus has to actually load, or every assertion below is vacuously true.
     func testCorpusIsTheExpectedSize() throws {
-        XCTAssertEqual(try Self.loadVectors().count, 39)
+        XCTAssertEqual(try Self.loadVectors().count, 40)
     }
 
     func testEveryVectorDecodes() throws {
@@ -66,8 +66,9 @@ final class Iso2VectorTests: XCTestCase {
 
     func testEveryVectorReEncodesToTheReferenceBytes() throws {
         var failures: [String] = []
+        let vectors = try Self.loadVectors()
 
-        for v in try Self.loadVectors() {
+        for v in vectors {
             do {
                 guard let msg = try Iso15118_2Codec.decodeAny(v.expected) as? V2G_Message else {
                     failures.append("\(v.name): decodeAny returned something other than V2G_Message")
@@ -84,9 +85,9 @@ final class Iso2VectorTests: XCTestCase {
             }
         }
 
-        // Reported together: with 39 vectors over one grammar, a single wrong bit width usually
+        // Reported together: with forty vectors over one grammar, a single wrong bit width usually
         // moves several at once, and the pattern says more than the first failure does.
         XCTAssertTrue(failures.isEmpty,
-                      "\(failures.count) of 39 vectors differ:\n" + failures.joined(separator: "\n"))
+                      "\(failures.count) of \(vectors.count) vectors differ:\n" + failures.joined(separator: "\n"))
     }
 }
