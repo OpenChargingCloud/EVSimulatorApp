@@ -537,7 +537,8 @@ abstract class Evcc20Base(
         runPreChargeSequence()
 
         // PowerDelivery(Start) must carry an EVPowerProfile referencing a schedule tuple the station
-        // offered (§7.9.2.4). A live Josev run rejected the earlier absent profile; ours did not.
+        // offered (§7.9.2.4). A live Josev run rejected the earlier absent profile; ours did not. EVerest
+        // 2026.10.0 rejected one anchored at 1970 — see Iso20EvPowerProfile.
         val evPowerProfile = buildEvPowerProfile(scheduleRes)
         exchange<PowerDeliveryRes>(MessageSet.Iso20CommonMessages,
             CommonMessagesCodec.encode(PowerDeliveryReq(sessionCtx.toCommonHeader(),
@@ -584,6 +585,7 @@ abstract class Evcc20Base(
         stream.writeFrame(expectedSet, payload)
         val reply = stream.readFrame()
         refuseOnFailure(reply.second)
+        timeStampOf(reply.second)?.let { seccTimeStamp = it }
         exchanges++
         return reply
     }
@@ -692,28 +694,25 @@ abstract class Evcc20Base(
             eVMaximumV2XEnergyRequest = null,
             eVMinimumV2XEnergyRequest = null)
 
-    /** The EVPowerProfile that PowerDelivery(Start) must carry. Scheduled mode selects the first
-     *  schedule tuple the station returned and echoes one power-schedule entry (falling back to
-     *  tuple 1 if the station returned no Scheduled control mode); Dynamic mode has no tuple to
-     *  point at, so its control-mode element is empty — the profile is then only the EV's own power
-     *  curve. */
-    private fun buildEvPowerProfile(scheduleRes: ScheduleExchangeRes): EVPowerProfileType {
+    /** The EVPowerProfile that PowerDelivery(Start) must carry: anchored at the station's latest
+     *  `TimeStamp` and following the first schedule tuple it offered — see [Iso20EvPowerProfile] for
+     *  the rules, and for why the anchor used to be 1970. */
+    private fun buildEvPowerProfile(scheduleRes: ScheduleExchangeRes): EVPowerProfileType =
+        Iso20EvPowerProfile.build(scheduleRes,
+                                  seccTimeStamp ?: sessionCtx.toCommonHeader().timeStamp,
+                                  preferDynamicControlMode)
 
-        val tupleId = scheduleRes.scheduled_SEResControlMode?.scheduleTuple?.firstOrNull()?.scheduleTupleID ?: 1u
+    /** SECC time as the station last stated it: the `TimeStamp` of its latest response, in seconds;
+     *  null until the first. `[V2G20-1536]` makes the station's header the reference for SECC time, and
+     *  taking it from the response rather than our clock keeps a replayed session a pure function of
+     *  the responses. */
+    var seccTimeStamp: ULong? = null
+        private set
 
-        return EVPowerProfileType(
-            timeAnchor = 0u,
-            dynamic_EVPPTControlMode =
-                if (preferDynamicControlMode) Dynamic_EVPPTControlModeType() else null,
-            // PowerToleranceAcceptance is schema-optional but Josev's model requires it — its SECC
-            // rejects an absent one, and a live run needed it set.
-            scheduled_EVPPTControlMode =
-                if (preferDynamicControlMode) null
-                else Scheduled_EVPPTControlModeType(
-                    tupleId, PowerToleranceAcceptance.PowerToleranceConfirmed),
-            eVPowerProfileEntries = EVPowerProfileEntryListType(listOf(
-                // one 1-hour entry at 10 kW (Power = 10 × 10³ W)
-                PowerScheduleEntryType(duration = 3600u, power = RationalNumberType(3, 10),
-                                       power_L2 = null, power_L3 = null))))
+    private fun timeStampOf(message: Any): ULong? = when (message) {
+        is V2GResponseType                          -> message.header.timeStamp
+        is cloud.charging.v2g.iso20.ac.V2GResponseType -> message.header.timeStamp
+        is cloud.charging.v2g.iso20.dc.V2GResponseType -> message.header.timeStamp
+        else                                        -> null
     }
 }
