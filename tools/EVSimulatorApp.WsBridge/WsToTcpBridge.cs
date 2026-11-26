@@ -22,6 +22,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
+using IPPort = org.GraphDefined.Vanaheimr.Hermod.IPPort;
 using org.GraphDefined.Vanaheimr.Hermod.DNS;
 
 using cloud.charging.open.protocols.ISO15118.Transport;
@@ -165,7 +166,7 @@ public sealed class WsToTcpBridge(WsToTcpBridge.Options options)
         if (!options.Tls)
             // The cast picks the SslStream overload over the BouncyCastle one, which a bare `null`
             // cannot choose between. Either would do nothing here; being explicit is free.
-            return await TcpV2GClient.ConnectAsync(target.Host, target.Port, (TlsOptions?) null, dnsClient, cancel);
+            return await TcpV2GClient.ConnectAsync(target.Host, IPPort.Parse(target.Port), (TlsOptions?) null, dnsClient, cancel);
 
         var pin = options.PinnedRoot
                       ?? throw new InvalidOperationException(
@@ -173,7 +174,7 @@ public sealed class WsToTcpBridge(WsToTcpBridge.Options options)
                            + "the whole reason this bridge terminates TLS — so if this does not "
                            + "check it, nothing does.");
 
-        return await TcpV2GClient.ConnectAsync(target.Host, target.Port, new TlsOptions {
+        return await TcpV2GClient.ConnectAsync(target.Host, IPPort.Parse(target.Port), new TlsOptions {
             // Both, because the bridge does not know which protocol the session will negotiate, and
             // docs/pki-model.md pins -2 to 1.2 and -20 to 1.3. Verify what was negotiated rather than
             // assuming it.
