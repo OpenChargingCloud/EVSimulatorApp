@@ -162,8 +162,30 @@ class V2GKeystoreTest {
     @Test
     fun aSignerProducesRawRsWithoutRevealingTheKey() {
         val s = signer()
-        assertEquals(64, s.signature("hello".toByteArray()).size,
+        assertEquals(64, s.signature("hello".toByteArray(), V2GSignatureHash.SHA256).size,
                      "P-256 raw r‖s; a DER signature would be longer and vary")
         assertTrue(s.publicKeyDer.isNotEmpty())
+    }
+
+    /** The hash the caller names is the hash signed over: a SHA-512 signature verifies under
+     *  SHA-512 and not under SHA-256, whatever the curve's natural pairing. -20 needs this for a
+     *  P-256 key as much as for a P-521 one. */
+    @Test
+    fun theNamedHashIsTheOneSignedOver() {
+        val generator = java.security.KeyPairGenerator.getInstance("EC").apply {
+            initialize(java.security.spec.ECGenParameterSpec("secp256r1"))
+        }
+        val pair   = generator.generateKeyPair()
+        val signer = InMemoryP256Signer(pair.private, pair.public.encoded)
+        val octets = "SignedInfo".toByteArray()
+
+        fun verifies(hash: V2GSignatureHash, signature: ByteArray) =
+            java.security.Signature.getInstance(hash.jcaP1363).run {
+                initVerify(pair.public); update(octets); verify(signature)
+            }
+
+        val sha512 = signer.signature(octets, V2GSignatureHash.SHA512)
+        assertTrue(verifies(V2GSignatureHash.SHA512, sha512))
+        assertTrue(!verifies(V2GSignatureHash.SHA256, sha512), "a SHA-512 signature verified under SHA-256")
     }
 }

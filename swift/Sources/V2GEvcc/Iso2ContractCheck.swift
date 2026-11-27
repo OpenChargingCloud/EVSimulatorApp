@@ -157,7 +157,8 @@ public enum Iso2ContractCheck {
                                        digestOk: digestOk, signatureOk: true, signatureGrammar: "iso2-msgdef")
         }
 
-        if XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(signature.signedInfo), value, verifyKey) {
+        if XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(signature.signedInfo), value, verifyKey,
+                                 signatureMethod: signature.signedInfo.signatureMethod.algorithm) {
             return Iso2ContractVerdict(signaturePresent: true, references: references,
                                        digestOk: digestOk, signatureOk: true, signatureGrammar: "xmldsig-standalone")
         }

@@ -92,6 +92,21 @@ bundleTraces((config: SessionConfig) =>
 
 const V2GTP_HEADER_BYTES = 8;
 
+/**
+ * WebCrypto's names for the digest and signature algorithms a `SignedInfo` may declare. Read from
+ * the declaration, never assumed: -2 and Josev's -20 form are SHA-256, -20's own suite is SHA-512
+ * (`ecdsa-sha512` since 2026-11-27, the corpus with it). An algorithm missing here makes the answer
+ * `null`, "not checked", and never a verdict.
+ */
+const DIGEST_NAMES: Record<string, string> = {
+    "http://www.w3.org/2001/04/xmlenc#sha256": "SHA-256",
+    "http://www.w3.org/2001/04/xmlenc#sha512": "SHA-512",
+};
+const SIGNATURE_HASH_NAMES: Record<string, string> = {
+    "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256": "SHA-256",
+    "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512": "SHA-512",
+};
+
 const bytesOfHex = (hex: string) =>
     new Uint8Array((hex.match(/.{1,2}/g) ?? []).map(b => parseInt(b, 16)));
 
@@ -110,7 +125,8 @@ const payloadTypeOf = (frame: Uint8Array): number =>
  *
  * The session inspector shows what a signature *claims* — which element it covers, and the digest
  * over it — and says on screen that it verified nothing. This is what lets it stop saying that for
- * ISO 15118-2: decode the frame, re-encode the covered element as canonical EXI, SHA-256 it.
+ * ISO 15118-2: decode the frame, re-encode the covered element as canonical EXI, digest it under
+ * the algorithm its own `DigestMethod` declares.
  *
  * **No key is involved**, and that is the point. A matching digest says the signature covers *this
  * content* — that nobody altered the message under a signature that still parses. Whether the right
@@ -135,7 +151,11 @@ async function digestOfFrame(frameHex: string): Promise<string | null> {
         const fragment = fragmentOf(bytes);
         if (fragment === null) return null;
 
-        const digest = await crypto.subtle.digest("SHA-256", fragment as BufferSource);
+        const declared = declaredDigestOf(bytes);
+        const name = declared === null ? undefined : DIGEST_NAMES[declared];
+        if (name === undefined) return null;
+
+        const digest = await crypto.subtle.digest(name, fragment as BufferSource);
         return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join("");
 
     } catch {
@@ -276,6 +296,22 @@ function fragmentOf(frame: Uint8Array): Uint8Array | null {
 }
 
 
+/** The `DigestMethod` a frame's header signature declares for its reference, or `null`. */
+function declaredDigestOf(frame: Uint8Array): string | null {
+
+    const payload = frame.slice(V2GTP_HEADER_BYTES);
+
+    const decoded = payloadTypeOf(frame) === 0x8001 ? Iso15118_2Codec.decodeAny(payload)
+                  : payloadTypeOf(frame) === 0x8002 ? CommonMessagesCodec.decodeAny(payload)
+                  : null;
+
+    const signature = decoded instanceof V2G_Message || decoded instanceof AuthorizationReq
+                          ? decoded.header.signature : null;
+
+    return signature?.signedInfo.reference[0]?.digestMethod.algorithm ?? null;
+}
+
+
 /**
  * The header signature of a frame of either protocol, and the contract certificate to check it with.
  *
@@ -358,13 +394,18 @@ async function verifySignatureOfFrame(signedFrameHex: string,
         const found = signatureAndKeyOf(bytesOfHex(signedFrameHex), bytesOfHex(certificateFrameHex));
         if (found === null) return null;
 
+        // The hash is the one the SignedInfo declares: SHA-256 for -2 and Josev's -20 form, SHA-512
+        // for -20's own. A fixed SHA-256 here called every current -20 signature wrong.
+        const hash = SIGNATURE_HASH_NAMES[found.signedInfo.signatureMethod.algorithm];
+        if (hash === undefined) return null;
+
         const key = await crypto.subtle.importKey(
             "spki", found.spki as BufferSource, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
 
         // ISO 15118 carries the signature as raw r‖s, which is exactly what WebCrypto expects — the
         // DER-wrapped form every other ECDSA API defaults to would be rejected here.
         return await crypto.subtle.verify(
-            { name: "ECDSA", hash: "SHA-256" }, key,
+            { name: "ECDSA", hash }, key,
             found.value as BufferSource,
             XmlDsigCodec.encodeFragment_SignedInfo(toStandalone(found.signedInfo)) as BufferSource);
 

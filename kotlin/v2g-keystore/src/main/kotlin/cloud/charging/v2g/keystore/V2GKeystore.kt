@@ -28,6 +28,22 @@ enum class V2GKeyCurve {
 
 
 /**
+ * The digest an ECDSA signature is computed over. **The caller names it**, never the curve: the
+ * signature form that declares the algorithm in its `SignedInfo` is what decides, and a signer that
+ * picked the curve's natural pairing would contradict that declaration.
+ *
+ * Both are needed. ISO 15118-2, Josev's -20 interop form, and a PKCS#10 request are SHA-256. The
+ * -20 header signature is `ecdsa-sha512` ([V2G20-2473]), and EVerest 2026.10.0 refuses anything else.
+ *
+ * @property jcaP1363 the JCA algorithm that signs over this digest and returns raw `r‖s`
+ */
+enum class V2GSignatureHash(val jcaP1363: String) {
+    SHA256("SHA256withECDSAinP1363Format"),
+    SHA512("SHA512withECDSAinP1363Format"),
+}
+
+
+/**
  * Where a private key actually lives, and therefore what may be claimed about it.
  *
  * §3.4 asks for the asymmetry to be explicit in the UI, because "a simulator that quietly pretends
@@ -101,20 +117,22 @@ interface V2GSigner {
     val publicKeyDer: ByteArray
 
     /**
-     * Signs `octets` **with ECDSA over their SHA-256 digest**, returning raw `r‖s` — never DER, since
+     * Signs `octets` **with ECDSA over their [hash] digest**, returning raw `r‖s` — never DER, since
      * the wire field is sized to the curve and the usual mistake then fails loudly rather than
      * silently.
      *
-     * The hash is named here rather than left to the curve. This interface serves one caller: the
-     * Josev interop signature form, which hard-codes `ecdsa-sha256` in the `SignedInfo` it produces —
-     * on both protocols and whatever the key. A P-521 signer that used SHA-512, the curve's natural
-     * pairing, would produce a signature contradicting its own declaration: self-consistent, and
-     * verifiable by nobody else.
+     * The hash is the caller's to name, and has no default. It used to be fixed at SHA-256, because
+     * the only form signed through here was Josev's, which declares `ecdsa-sha256` on both protocols
+     * and whatever the key. That was right for Josev and wrong for -20, which asks for `ecdsa-sha512`:
+     * EVerest 2026.10.0 refused the result with `FAILED_SignatureError` (2026-11-27). The curve cannot
+     * decide either. A P-521 signer that chose SHA-512 by itself would contradict a SHA-256
+     * declaration, and a P-256 signer that chose SHA-256 would contradict a SHA-512 one. Both results
+     * verify against themselves and against nobody else.
      *
-     * The nominal -20 suite (P-521/SHA-512 over the combined grammar) does not come through here at
-     * all — `V2GSignature.sign` takes the key directly.
+     * A hardware P-256 key keeps working under both: the Android Keystore signs `SHA512withECDSA`,
+     * the Secure Enclave signs a SHA-512 digest.
      */
-    fun signature(octets: ByteArray): ByteArray
+    fun signature(octets: ByteArray, hash: V2GSignatureHash): ByteArray
 }
 
 
@@ -133,8 +151,8 @@ class InMemoryP256Signer(
 
     override val curve get() = V2GKeyCurve.P256
 
-    override fun signature(octets: ByteArray): ByteArray =
-        Signature.getInstance("SHA256withECDSAinP1363Format").apply {
+    override fun signature(octets: ByteArray, hash: V2GSignatureHash): ByteArray =
+        Signature.getInstance(hash.jcaP1363).apply {
             initSign(key)
             update(octets)
         }.sign()
@@ -152,8 +170,8 @@ class InMemoryP256Signer(
  * secp521r1 key agreement at all, and until then every credential this stack signed with was a
  * contract key, which is P-256 because -2's signature field is 64 bytes wide.
  *
- * **SHA-256, like its P-256 sibling** — see [V2GSigner.signature]. The Josev interop form declares
- * `ecdsa-sha256` whatever key signs it, so the digest belongs to the form and not to the curve.
+ * The digest is the caller's, as for its P-256 sibling — see [V2GSigner.signature]. It belongs to
+ * the signature form, not to the curve.
  */
 class InMemoryP521Signer(
     private val key: PrivateKey,
@@ -167,8 +185,8 @@ class InMemoryP521Signer(
 
     override val curve get() = V2GKeyCurve.P521
 
-    override fun signature(octets: ByteArray): ByteArray =
-        Signature.getInstance("SHA256withECDSAinP1363Format").apply {
+    override fun signature(octets: ByteArray, hash: V2GSignatureHash): ByteArray =
+        Signature.getInstance(hash.jcaP1363).apply {
             initSign(key)
             update(octets)
         }.sign()

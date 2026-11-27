@@ -334,6 +334,7 @@ open class Evcc20Base {
         let authGuard = OngoingGuard("Authorization", limitMillis: ongoingTimeoutMillis)
         while true {
             let res: AuthorizationRes = try exchange(.iso20CommonMessages, buildAuthorizationReq())
+            try stopOnAuthorizationWarning(res)
             if res.eVSEProcessing == .Finished { break }
             try authGuard.tick()
             pollDelay(Self.pollIntervalMs)
@@ -480,7 +481,7 @@ open class Evcc20Base {
 
         let signature = try XmlDsigInterop.sign20(
             "id1", CommonMessagesCodec.encodeFragment_OEMProvisioningCertificateChain(chain),
-            oem.oemSignKey)
+            oem.oemSignKey, oem.suite)
 
         var header = sessionCtx.toCommonHeader()
         header.signature = signature
@@ -522,7 +523,7 @@ open class Evcc20Base {
 
             let signature = try XmlDsigInterop.sign20(
                 "id1", CommonMessagesCodec.encodeFragment_PnC_AReqAuthorizationMode(pncMode),
-                credentials.contractKey)
+                credentials.contractKey, credentials.suite)
 
             authorizationMode = "pnc-signed"
 
@@ -564,6 +565,26 @@ open class Evcc20Base {
         return reply
     }
 
+    /// Ends the session when `AuthorizationRes` carries a `WARNING` code: the one response where a
+    /// warning means "not authorized", not "carry on".
+    ///
+    /// [V2G20-1583] gives the car four options after such a warning: authorize again, switch between
+    /// PnC and EIM, install a contract, or stop. Going on to ServiceDiscovery is not one of them. This
+    /// car takes "stop". EVerest 2026.10.0 answered a P-256 contract with
+    /// `WARNING_CertificateValidationError` and `Finished`. Our C# car read only `Finished`, asked for
+    /// services, and was refused with `FAILED_SequenceError` (2026-11-27). This port had the same gap.
+    /// The C# counterpart is `Evcc20Base.StopOnAuthorizationWarning`.
+    /// Internal rather than private: exercised directly by `Evcc20FailureTests`.
+    internal func stopOnAuthorizationWarning(_ res: AuthorizationRes) throws {
+        let code = res.responseCode.rawValue
+        if code >= ExiIso20Common.ResponseCode.WARNING_AuthorizationSelectionInvalid.rawValue,
+           code <  ExiIso20Common.ResponseCode.FAILED.rawValue {
+            throw SessionAborted(
+                "the station answered AuthorizationRes with \(res.responseCode): not authorized, so this "
+              + "car stops instead of continuing to ServiceDiscovery ([V2G20-1583]).")
+        }
+    }
+
     /// Ends the session when the station answers with a code from the `FAILED` family.
     ///
     /// **Found live, not by reasoning.** Until 2026-08-01 no -20 EVCC in this repository looked at a
@@ -573,7 +594,8 @@ open class Evcc20Base {
     /// and the trace corpus could not show it, because our own SECC never says FAILED.
     ///
     /// `OK*` and `WARNING*` continue — a warning is explicitly the code for "something is off and the
-    /// session goes on" — and `FAILED*` terminates. The comparison is on the raw value because the
+    /// session goes on" — and `FAILED*` terminates (`AuthorizationRes` is the exception, see
+    /// ``stopOnAuthorizationWarning(_:)``). The comparison is on the raw value because the
     /// enumeration is ordered by family in the schema (OK, then WARNING, then FAILED), which
     /// `Evcc20FailureTests.testResponseCodeFamiliesAreContiguousAndOrdered` pins.
     ///

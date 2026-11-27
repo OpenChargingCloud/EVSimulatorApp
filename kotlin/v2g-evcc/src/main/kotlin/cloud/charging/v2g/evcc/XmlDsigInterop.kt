@@ -4,6 +4,7 @@ import java.security.MessageDigest
 import java.security.PublicKey
 import java.security.Signature
 
+import cloud.charging.v2g.keystore.V2GSignatureHash
 import cloud.charging.v2g.keystore.V2GSigner
 import cloud.charging.v2g.xmldsig.XmlDsigCodec
 import cloud.charging.v2g.xmldsig.CanonicalizationMethodType as XCanonicalizationMethodType
@@ -53,56 +54,58 @@ import cloud.charging.v2g.iso20.common.TransformsType as CTransformsType
  * same `xmldsig-core-schema.xsd`. They are structurally identical and mutually unassignable, exactly
  * like the three `MessageHeaderType`s that [SessionContext] reconciles. So the map below is a
  * field-for-field copy that looks like boilerplate and is not.
+ *
+ * ## Which algorithms
+ *
+ * -2 is always `ecdsa-sha256` over a SHA-256 digest. -20 follows an [XmlDsigSuite]: `ecdsa-sha512`
+ * over SHA-512 by default, Josev's SHA-256 pair on request.
  */
 internal object XmlDsigInterop {
 
     private const val CANONICALIZATION_EXI = "http://www.w3.org/TR/canonical-exi/"
-    private const val ECDSA_SHA256         = "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"
-    private const val SHA256_URI           = "http://www.w3.org/2001/04/xmlenc#sha256"
 
-    /** Raw `r‖s`, not DER — the field is 64 bytes and a DER signature does not fit, so the usual
-     *  trap fails loudly rather than silently. */
-    private const val JCA_P1363 = "SHA256withECDSAinP1363Format"
-
-    /** Signs one -2 element: digests its fragment, assembles SignedInfo, signs the standalone form. */
+    /** Signs one -2 element: digests its fragment, assembles SignedInfo, signs the standalone form.
+     *  -2 has one suite, and it is the SHA-256 pair. */
     fun sign2(referenceId: String, signedElementFragment: ByteArray, contractKey: V2GSigner): I2SignatureType {
 
+        val suite = XmlDsigSuite.JosevSha256
         val signedInfo = I2SignedInfoType(
             id = null,
             canonicalizationMethod = I2CanonicalizationMethodType(CANONICALIZATION_EXI, null),
-            signatureMethod = I2SignatureMethodType(ECDSA_SHA256, null, null),
+            signatureMethod = I2SignatureMethodType(suite.signatureMethod, null, null),
             reference = listOf(I2ReferenceType(
                 id = null, type = null, uRI = "#$referenceId",
                 transforms = I2TransformsType(listOf(I2TransformType(CANONICALIZATION_EXI, null, null))),
-                digestMethod = I2DigestMethodType(SHA256_URI, null),
-                digestValue = sha256(signedElementFragment))))
+                digestMethod = I2DigestMethodType(suite.digestMethod, null),
+                digestValue = suite.digest(signedElementFragment))))
 
         return I2SignatureType(
             id = null,
             signedInfo = signedInfo,
-            signatureValue = I2SignatureValueType(null, signRaw(standaloneOctets(signedInfo), contractKey)),
+            signatureValue = I2SignatureValueType(null, contractKey.signature(standaloneOctets(signedInfo), suite.hash)),
             keyInfo = null,
             `object` = null)
     }
 
     /** The -20 CommonMessages counterpart. Five near-identical copies of this exist in the C# side,
      *  one per message set, for the reason the class comment gives — this port needs one so far. */
-    fun sign20(referenceId: String, signedElementFragment: ByteArray, contractKey: V2GSigner): CSignatureType {
+    fun sign20(referenceId: String, signedElementFragment: ByteArray, contractKey: V2GSigner,
+               suite: XmlDsigSuite): CSignatureType {
 
         val signedInfo = CSignedInfoType(
             id = null,
             canonicalizationMethod = CCanonicalizationMethodType(CANONICALIZATION_EXI, null),
-            signatureMethod = CSignatureMethodType(ECDSA_SHA256, null, null),
+            signatureMethod = CSignatureMethodType(suite.signatureMethod, null, null),
             reference = listOf(CReferenceType(
                 id = null, type = null, uRI = "#$referenceId",
                 transforms = CTransformsType(listOf(CTransformType(CANONICALIZATION_EXI, null, null))),
-                digestMethod = CDigestMethodType(SHA256_URI, null),
-                digestValue = sha256(signedElementFragment))))
+                digestMethod = CDigestMethodType(suite.digestMethod, null),
+                digestValue = suite.digest(signedElementFragment))))
 
         return CSignatureType(
             id = null,
             signedInfo = signedInfo,
-            signatureValue = CSignatureValueType(null, signRaw(standaloneOctets(signedInfo), contractKey)),
+            signatureValue = CSignatureValueType(null, contractKey.signature(standaloneOctets(signedInfo), suite.hash)),
             keyInfo = null,
             `object` = null)
     }
@@ -144,19 +147,49 @@ internal object XmlDsigInterop {
                     r.digestValue)
             }))
 
-    fun verify(octets: ByteArray, signatureValue: ByteArray, publicKey: PublicKey): Boolean =
-        runCatching {
-            Signature.getInstance(JCA_P1363).apply {
+    /**
+     * Verifies raw `r‖s` over [octets] under the hash that [signatureMethod] declares. An algorithm
+     * this form does not know is `false`, not an exception and not a guess. The hash comes from the
+     * declaration because a verifier with its own fixed hash would refuse every signature made
+     * under the other suite.
+     */
+    fun verify(octets: ByteArray, signatureValue: ByteArray, publicKey: PublicKey,
+               signatureMethod: String): Boolean {
+        val hash = XmlDsigSuite.entries.firstOrNull { it.signatureMethod == signatureMethod }?.hash
+            ?: return false
+        return runCatching {
+            Signature.getInstance(hash.jcaP1363).apply {
                 initVerify(publicKey)
                 update(octets)
             }.verify(signatureValue)
         }.getOrDefault(false)
+    }
+}
 
-    private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
 
-    /** Which key does the work, and whether its bytes exist at all, is the signer's business and
-     *  not this file's — see `V2GSigner` on why that shape is what leaves hardware backing possible. */
-    private fun signRaw(octets: ByteArray, key: V2GSigner) = key.signature(octets)
+/**
+ * Which algorithms a -20 header signature declares and uses. A port of C# `XmlDsigSuite`.
+ *
+ * The grammar is the same for both: the `SignedInfo` is signed in its standalone xmldsig encoding,
+ * the entry point [V2G20-1449] names. Josev and EVerest 2026.10.0 both verify those octets.
+ *
+ * - [Iso20] is `ecdsa-sha512` over a SHA-512 digest ([V2G20-2473], [V2G20-2475]). It is the default.
+ *   Our car signed SHA-256 until 2026-11-27, and EVerest refused it with `FAILED_SignatureError`.
+ * - [JosevSha256] is `ecdsa-sha256` over SHA-256, which is all Josev verifies. -2 always uses it.
+ */
+enum class XmlDsigSuite(
+    val signatureMethod: String,
+    val digestMethod: String,
+    val hash: V2GSignatureHash,
+    private val digestName: String,
+) {
+    Iso20("http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512", "http://www.w3.org/2001/04/xmlenc#sha512",
+          V2GSignatureHash.SHA512, "SHA-512"),
+    JosevSha256("http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256", "http://www.w3.org/2001/04/xmlenc#sha256",
+                V2GSignatureHash.SHA256, "SHA-256");
+
+    /** The `DigestValue` of a reference under this suite. */
+    fun digest(bytes: ByteArray): ByteArray = MessageDigest.getInstance(digestName).digest(bytes)
 }
 
 
@@ -166,13 +199,16 @@ internal object XmlDsigInterop {
  *
  * @param contractCertificate the contract leaf certificate, DER
  * @param subCertificates the MO sub-CA certificates, DER, leaf-issuer first
- * @param contractKey a signer for the contract leaf — P-256, since the interop form's raw `r‖s`
- *   field is 64 bytes. A [V2GSigner] rather than a `PrivateKey` because a secure-element key **has
- *   no bytes to hand over** (`docs/CONCEPT.md` §3.4); taking a key here would have ruled out
- *   hardware backing for every credential, whatever its curve.
+ * @param contractKey a signer for the contract leaf — P-256 for -2, whose raw `r‖s` field is 64
+ *   bytes. A [V2GSigner] rather than a `PrivateKey` because a secure-element key **has no bytes to
+ *   hand over** (`docs/CONCEPT.md` §3.4); taking a key here would have ruled out hardware backing
+ *   for every credential, whatever its curve.
+ * @param suite the algorithms of a -20 `AuthorizationReq` signature; [XmlDsigSuite.Iso20] unless a
+ *   Josev station is on the other end. -2 ignores it.
  */
 class PncEvccOptions(
     val contractCertificate: ByteArray,
     val subCertificates: List<ByteArray>,
     val contractKey: V2GSigner,
+    val suite: XmlDsigSuite = XmlDsigSuite.Iso20,
 )

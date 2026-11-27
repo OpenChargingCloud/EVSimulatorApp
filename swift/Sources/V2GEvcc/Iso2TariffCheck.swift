@@ -81,7 +81,8 @@ public enum Iso2TariffCheck {
                                               signatureOk: true, signatureGrammar: "iso2-msgdef")
         }
 
-        if XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(signature.signedInfo), value, key) {
+        if XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(signature.signedInfo), value, key,
+                                 signatureMethod: signature.signedInfo.signatureMethod.algorithm) {
             return Iso2TariffSignatureVerdict(signaturePresent: true, digestOk: digestOk,
                                               signatureOk: true, signatureGrammar: "xmldsig-standalone")
         }

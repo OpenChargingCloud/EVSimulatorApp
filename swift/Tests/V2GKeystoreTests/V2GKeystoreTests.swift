@@ -155,9 +155,26 @@ final class V2GKeystoreTests: XCTestCase {
     func testASignerProducesRawRsWithoutRevealingTheKey() throws {
 
         let signer = try InMemoryP256Signer(P256.Signing.PrivateKey())
-        let signature = try signer.signature(over: Array("hello".utf8))
+        let signature = try signer.signature(over: Array("hello".utf8), hash: .sha256)
 
         XCTAssertEqual(signature.count, 64, "P-256 raw r‖s; a DER signature would be longer and vary")
         XCTAssertFalse(signer.publicKeyDer.isEmpty)
+    }
+
+    /// The hash the caller names is the hash signed over: a SHA-512 signature verifies under SHA-512
+    /// and not under SHA-256, whatever the curve's natural pairing. -20 needs this for a P-256 key as
+    /// much as for a P-521 one.
+    func testTheNamedHashIsTheOneSignedOver() throws {
+
+        let key    = P256.Signing.PrivateKey()
+        let signer = try InMemoryP256Signer(key)
+        let octets = Array("SignedInfo".utf8)
+
+        let raw = try signer.signature(over: octets, hash: .sha512)
+        let signature = try P256.Signing.ECDSASignature(rawRepresentation: Data(raw))
+
+        XCTAssertTrue(key.publicKey.isValidSignature(signature, for: SHA512.hash(data: Data(octets))))
+        XCTAssertFalse(key.publicKey.isValidSignature(signature, for: SHA256.hash(data: Data(octets))),
+                       "a SHA-512 signature verified under SHA-256")
     }
 }

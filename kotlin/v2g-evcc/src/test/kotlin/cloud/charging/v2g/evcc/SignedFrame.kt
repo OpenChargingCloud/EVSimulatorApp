@@ -54,12 +54,12 @@ internal object SignedFrame {
         return when (message) {
             is V2G_Message -> message.header.signature?.let {
                 XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(it.signedInfo),
-                                      it.signatureValue.value, publicKey)
+                                      it.signatureValue.value, publicKey, it.signedInfo.signatureMethod.algorithm)
             } ?: false
 
             is AuthorizationReq -> message.header.signature?.let {
                 XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(it.signedInfo),
-                                      it.signatureValue.value, publicKey)
+                                      it.signatureValue.value, publicKey, it.signedInfo.signatureMethod.algorithm)
             } ?: false
 
             // The other signed request a -20 EV sends, and the only one it sends *before*
@@ -68,7 +68,7 @@ internal object SignedFrame {
             // curve, which is what `publicKey`'s parameter is for.
             is CertificateInstallationReq -> message.header.signature?.let {
                 XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(it.signedInfo),
-                                      it.signatureValue.value, publicKey)
+                                      it.signatureValue.value, publicKey, it.signedInfo.signatureMethod.algorithm)
             } ?: false
 
             else -> false

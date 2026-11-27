@@ -91,7 +91,7 @@ class V2GCsrTest {
             override val curve = V2GKeyCurve.P521
             override val protection = V2GKeyProtection.SoftwareInMemory
             override val publicKeyDer = ByteArray(0)
-            override fun signature(octets: ByteArray) = ByteArray(132)
+            override fun signature(octets: ByteArray, hash: V2GSignatureHash) = ByteArray(132)
         }
 
         val refused = assertFailsWith<IllegalArgumentException> {

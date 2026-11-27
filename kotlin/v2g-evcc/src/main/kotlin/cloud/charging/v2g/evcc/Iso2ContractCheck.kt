@@ -150,7 +150,8 @@ object Iso2ContractCheck {
         if (V2GSignature.verify(headerSignature.signedInfo, value, verifyKey))
             return Iso2ContractVerdict(true, references, digestOk, true, "iso2-msgdef")
 
-        if (XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(headerSignature.signedInfo), value, verifyKey))
+        if (XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(headerSignature.signedInfo), value, verifyKey,
+                                  headerSignature.signedInfo.signatureMethod.algorithm))
             return Iso2ContractVerdict(true, references, digestOk, true, "xmldsig-standalone")
 
         return Iso2ContractVerdict(true, references, digestOk, false, "none")
