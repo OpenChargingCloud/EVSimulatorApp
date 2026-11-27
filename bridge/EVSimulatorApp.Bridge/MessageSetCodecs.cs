@@ -74,6 +74,11 @@ public static class MessageSetCodecs
             ("0x8004", _)     => cloud.charging.open.protocols.ISO15118_20.DC.Generated.DcCodecJson.ToJSON(
                                      cloud.charging.open.protocols.ISO15118_20.DC.Generated.DcCodec.DecodeAny(payload, out _)),
 
+            // The -20 metering-confirmation side stream ([V2G20-1084]): not a message set of its own,
+            // but a second payload type for CommonMessages' MeteringConfirmationReq/Res.
+            ("0x8102", _)     => cloud.charging.open.protocols.ISO15118_20.CommonMessages.Generated.CommonMessagesCodecJson.ToJSON(
+                                     cloud.charging.open.protocols.ISO15118_20.CommonMessages.Generated.CommonMessagesCodec.DecodeAny(payload, out _)),
+
             _ => throw new NotSupportedException(
                      $"payload type '{payloadType}' is not a message set this build carries."),
         };

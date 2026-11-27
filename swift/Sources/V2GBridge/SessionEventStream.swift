@@ -52,6 +52,10 @@ public enum MessageSetCodecs {
             return try ACCodecJson.toJSON(ACCodec.decodeAny(payload))
         case ("0x8004", _):
             return try DCCodecJson.toJSON(DCCodec.decodeAny(payload))
+        // The -20 metering-confirmation side stream ([V2G20-1084]): not a message set of its own,
+        // but a second payload type for CommonMessages' MeteringConfirmationReq/Res.
+        case ("0x8102", _):
+            return try CommonMessagesCodecJson.toJSON(CommonMessagesCodec.decodeAny(payload))
         default:
             throw JsonLdError("payload type '\(payloadType)' is not a message set this build carries.")
         }

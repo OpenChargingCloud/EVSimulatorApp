@@ -226,6 +226,9 @@ const PAYLOAD_TYPES = {
     0x8004: "ISO 15118-20 DC",
     0x8005: "ISO 15118-20 ACDP",
     0x8006: "ISO 15118-20 WPT",
+    // Not a message set: the side stream a -20 car confirms a meter reading on ([V2G20-1084]),
+    // carrying CommonMessages' MeteringConfirmationReq/Res. The bridges route it since 2026-11-27.
+    0x8102: "ISO 15118-20 metering confirmation (side stream)",
 };
 
 /**
