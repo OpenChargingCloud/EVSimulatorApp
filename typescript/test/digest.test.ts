@@ -138,6 +138,10 @@ test("the digest of every signed -2 message re-derives from its own frame", asyn
 
     /** @see the assertion at the end for why this list is spelled out rather than counted. */
     const expected = ["AuthorizationReqType", "MeteringReceiptReqType",
+                      // iso2-ac-pnc-meter: the same two, with the meter's SigMeterReading inside the
+                      // receipt's signed fragment. That makes it the only -2 digest here over a second
+                      // party's signature.
+                      "AuthorizationReqType", "MeteringReceiptReqType",
                       "ChargeParameterDiscoveryResType",
                       "CertificateInstallationReqType", "CertificateUpdateReqType",
                       "CertificateInstallationResType", "CertificateUpdateResType"];
