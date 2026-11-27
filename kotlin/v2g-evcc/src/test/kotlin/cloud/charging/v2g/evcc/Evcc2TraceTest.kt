@@ -181,7 +181,10 @@ class Evcc2TraceTest {
     @Test
     fun theRecordedSignatureVerifiesUnderThisPortsOwnEncoder() {
 
-        for (name in listOf("iso2-ac-pnc", "iso20-dc-pnc",
+        // iso20-dc-pnc-meterconfirm adds the MeteringConfirmationReq, whose check here includes the
+        // digest: C# digested its own fragment encoding, so this also holds the two fragment encoders
+        // to each other.
+        for (name in listOf("iso2-ac-pnc", "iso20-dc-pnc", "iso20-dc-pnc-meterconfirm",
                             "iso2-ac-eim-certinstall", "iso2-ac-eim-certupdate",
                             "iso20-dc-eim-certinstall")) {
 

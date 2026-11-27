@@ -201,16 +201,15 @@ class TraceReplay(private val trace: SessionTrace) {
 
             val exchange = trace.exchanges[replayed]
 
-            // A meter signature in a *request* would need the same substitution one field along, and
-            // this harness does not do it. No recorded request carries one — the EV only ever echoes
-            // a reading inside a signed MeteringReceiptReq, which the C# corpus refuses to record for
-            // a separate reason (the echoed bytes sit inside the digested fragment). Refusing beats
-            // comparing bytes that cannot match.
-            if (exchange.request.carriesMeterSignature)
+            // A meter signature in a *request* is the station's reading echoed back. In a replay that
+            // reading comes out of the recorded response, so its bytes — and the digest over them —
+            // are the recorded ones and need no substitution. That holds for the -20
+            // MeteringConfirmationReq, the one such request the corpus records; any other is refused
+            // rather than compared on an assumption nobody has checked for it.
+            if (exchange.request.carriesMeterSignature && exchange.request.message != "MeteringConfirmationReq")
                 throw TraceMismatch(
                     "exchange $replayed (${exchange.request.message}) carries a meter signature in a " +
-                    "request. This harness can only substitute the header signature, so it would " +
-                    "compare 64 random bytes and fail for the wrong reason.")
+                    "request, and only the -20 MeteringConfirmationReq is known to echo it unchanged.")
 
             // A signed frame cannot be compared as bytes — ECDSA's nonce is random. SignedFrame
             // explains the substitution; the short of it is that the signature value is the only

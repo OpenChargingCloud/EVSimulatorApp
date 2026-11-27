@@ -89,6 +89,10 @@ public class Evcc20Dc: Evcc20Base {
         // would be a *request* rather than a measurement, and does not exist in Dynamic mode at all.
         meter.sample(volts:   Self.amount(request.eVPresentVoltage),
                      amperes: Self.amount(response.eVSEPresentCurrent))
+
+        // [V2G20-1083]: the station may ask the car to sign what this response carried. After the
+        // sample, so the station's reading is paired with the car's count of the same iteration.
+        try confirmMeteringIfAsked(response)
     }
 
     /// A RationalNumber as a plain number: value x 10^exponent.

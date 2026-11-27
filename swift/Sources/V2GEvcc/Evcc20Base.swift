@@ -92,6 +92,105 @@ open class Evcc20Base {
         if requested { renegotiationRequested = true }
     }
 
+    // ── metering confirmation ─────────────────────────────────────────────
+
+    /// Whether this car answers a station's `MeteringConfirmation` notification with a signed
+    /// `MeteringConfirmationReq` — which [V2G20-1621] says it shall. True by default; false is the
+    /// fault switch for a station that has to cope with a car that stays silent.
+    public var confirmMetering = true
+
+    /// Every `MeteringConfirmationReq` this car signed and sent, with the station's answer.
+    public private(set) var meteringConfirmations: [MeteringConfirmationSent] = []
+
+    /// How often a station asked for a confirmation this car could not give: without a contract key,
+    /// because the session was authorised by EIM ([V2G20-2704] says a station shall not ask then), or
+    /// without the `MeterInfo` [V2G20-1083] makes part of asking.
+    public private(set) var meteringConfirmationsImpossible = 0
+
+    /// Called for each confirmation once the station has answered it.
+    public var onMeteringConfirmation: ((MeteringConfirmationSent) -> Void)?
+
+    /// The schedule tuple PowerDelivery(Start) selected, or nil in Dynamic control mode.
+    fileprivate var selectedScheduleTupleId: UInt32?
+
+    /// Called by the DC loop after every response: answers it if it asked ([V2G20-1083]). Here
+    /// rather than in ``Evcc20Dc`` because that file imports the DC message set only, and the
+    /// confirmation is a CommonMessages document.
+    func confirmMeteringIfAsked(_ response: ExiIso20DC.DC_ChargeLoopRes) throws {
+        guard response.eVSEStatus?.eVSENotification == ExiIso20DC.EvseNotification.MeteringConfirmation
+        else { return }
+        try sendMeteringConfirmation(response.meterInfo.map { MeteringConfirmation.toCommon($0) },
+                                      response.receipt.map { MeteringConfirmation.toCommon($0) })
+    }
+
+    /// The AC counterpart of the DC hook above.
+    func confirmMeteringIfAsked(_ response: ExiIso20AC.AC_ChargeLoopRes) throws {
+        guard response.eVSEStatus?.eVSENotification == ExiIso20AC.EvseNotification.MeteringConfirmation
+        else { return }
+        try sendMeteringConfirmation(response.meterInfo.map { MeteringConfirmation.toCommon($0) },
+                                      response.receipt.map { MeteringConfirmation.toCommon($0) })
+    }
+
+    /// Answers a station's `MeteringConfirmation` notification: signs what the charge-loop response
+    /// just carried and sends it on the side stream.
+    ///
+    /// Sent at once, after the iteration that asked and before the next charge-loop request. What is
+    /// signed is what the response carried: the SessionID, the reading, the receipt if there was one
+    /// ([V2G20-2236]) and the schedule tuple this car selected ([V2G20-776]). The signature
+    /// acknowledges receipt; it does not say the reading is right. A `FAILED` answer ends the session
+    /// through ``refuseOnFailure(_:)``, like any other response. The C# counterpart is
+    /// `Evcc20Base.ConfirmMeteringAsync`.
+    internal func sendMeteringConfirmation(_ reading: ExiIso20Common.MeterInfoType?,
+                                           _ receipt: ExiIso20Common.ReceiptType?) throws {
+
+        guard confirmMetering else { return }
+
+        guard let reading, let credentials = pnc, authorizationMode == "pnc-signed" else {
+            meteringConfirmationsImpossible += 1
+            return
+        }
+
+        let data = SignedMeteringDataType(
+            id: MeteringConfirmation.referenceId, sessionID: sessionCtx.sessionId,
+            meterInfo: reading, receipt: receipt,
+            dynamic_SMDTControlMode:   selectedScheduleTupleId == nil ? Dynamic_SMDTControlModeType() : nil,
+            scheduled_SMDTControlMode: selectedScheduleTupleId.map { Scheduled_SMDTControlModeType(selectedScheduleTupleID: $0) })
+
+        let request = try MeteringConfirmation.sign(sessionCtx.toCommonHeader(), data,
+                                                    credentials.contractKey, credentials.suite)
+
+        guard let response = try exchangeSideStream(MeteringConfirmation.payloadType,
+                                                    CommonMessagesCodec.encode(request)) as? MeteringConfirmationRes
+        else {
+            throw SessionAborted("expected a MeteringConfirmationRes on the side stream.")
+        }
+
+        let sent = MeteringConfirmationSent(meterId: reading.meterID, chargedWh: reading.chargedEnergyReadingWh,
+                                            vehicleWh: meter.energy, withReceipt: receipt != nil,
+                                            responseCode: response.responseCode)
+        meteringConfirmations.append(sent)
+        onMeteringConfirmation?(sent)
+    }
+
+    /// One exchange on a side stream ([V2G20-1084]): a CommonMessages document framed with
+    /// `payloadType` rather than with its message set's, answered on the same type ([V2G20-1085]). The
+    /// dispatcher does not route side-stream payload types, so the answer is decoded here; one on any
+    /// other payload type is the station answering on the wrong stream, and ends the session.
+    private func exchangeSideStream(_ payloadType: UInt16, _ payload: [UInt8]) throws -> Any {
+        try stream.writeRawFrame(payloadType: payloadType, payload)
+        let (frame, answeredOn) = try stream.readRawFrame()
+        guard answeredOn == payloadType else {
+            throw SessionAborted(
+                "the station answered a side-stream request (payload type 0x\(String(payloadType, radix: 16))) "
+              + "on payload type 0x\(String(answeredOn, radix: 16)).")
+        }
+        let reply = try CommonMessagesCodec.decodeAny(Array(frame[MeteringConfirmation.v2gtpHeaderSize...]))
+        try refuseOnFailure(reply)
+        if let seccTime = Self.timeStamp(of: reply) { seccTimeStamp = seccTime }
+        exchanges += 1
+        return reply
+    }
+
     /// The eMSP's public key, when the app has one. Without it the digest half is still checked and
     /// reported; the ECDSA half is not attempted.
     public var tariffVerifyKey: P521.Signing.PublicKey?
@@ -396,10 +495,12 @@ open class Evcc20Base {
 
         // PowerDelivery(Start) must carry an EVPowerProfile referencing a schedule tuple the station
         // offered (§7.9.2.4). A live Josev run rejected the earlier absent profile; ours did not.
+        let evPowerProfile = buildEvPowerProfile(scheduleRes)
+        selectedScheduleTupleId = evPowerProfile.scheduled_EVPPTControlMode?.selectedScheduleTupleID
         let _: PowerDeliveryRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(PowerDeliveryReq(
                 header: sessionCtx.toCommonHeader(), eVProcessing: .Finished,
-                chargeProgress: .Start, eVPowerProfile: buildEvPowerProfile(scheduleRes))))
+                chargeProgress: .Start, eVPowerProfile: evPowerProfile)))
 
         for _ in 0 ..< Self.chargeCycles {
             try runChargeLoopIteration()

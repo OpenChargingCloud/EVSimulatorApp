@@ -10,6 +10,7 @@ import java.security.spec.ECPoint
 import java.security.spec.ECPublicKeySpec
 
 import cloud.charging.v2g.tp.MessageSet
+import cloud.charging.v2g.tp.V2GTP
 import cloud.charging.v2g.tp.V2GTPDecodeResult
 import cloud.charging.v2g.tp.V2GTPDispatcher
 
@@ -20,6 +21,7 @@ import cloud.charging.v2g.iso2.V2G_Message
 import cloud.charging.v2g.iso20.common.AuthorizationReq
 import cloud.charging.v2g.iso20.common.CertificateInstallationReq
 import cloud.charging.v2g.iso20.common.CommonMessagesCodec
+import cloud.charging.v2g.iso20.common.MeteringConfirmationReq
 import cloud.charging.v2g.iso20.common.SignatureValueType as CSignatureValueType
 
 /**
@@ -42,7 +44,32 @@ internal object SignedFrame {
     /** Re-encodes [frame] with [signatureValue] in place of whatever signature it carried. */
     fun withSignatureValue(frame: ByteArray, signatureValue: ByteArray): ByteArray {
         val (set, message) = decode(frame)
-        return V2GTPDispatcher.encode(set, encode(substitute(message, signatureValue)))
+        val payload = encode(substitute(message, signatureValue))
+        // A side-stream frame keeps the payload type it came with: the dispatcher frames by message
+        // set, and would put a CommonMessages document back on 0x8002.
+        if (set == null) {
+            val out = ByteArray(V2GTP.HEADER_SIZE + payload.size)
+            V2GTP.writeHeader(out, MeteringConfirmation.PAYLOAD_TYPE, payload.size.toUInt())
+            payload.copyInto(out, V2GTP.HEADER_SIZE)
+            return out
+        }
+        return V2GTPDispatcher.encode(set, payload)
+    }
+
+    /**
+     * Whether a signed `MeteringConfirmationReq`'s reference digest is the digest of its own request
+     * fragment — the half of the check that verifying `SignedInfo` does not do. The C# side needs it
+     * because a re-recording takes the recorded `SignedInfo` whole; a replay compares it as bytes, so
+     * here it is belt and braces, and kept so the two harnesses check the same things.
+     */
+    fun digestHolds(message: MeteringConfirmationReq): Boolean {
+        val signature = message.header.signature ?: return false
+        val reference = signature.signedInfo.reference.singleOrNull() ?: return false
+        if (reference.uRI != "#${message.signedMeteringData.id}") return false
+        val suite = XmlDsigSuite.entries.firstOrNull { it.digestMethod == reference.digestMethod.algorithm }
+            ?: return false
+        return suite.digest(MeteringConfirmation.signedOctets(message.header, message.signedMeteringData))
+                    .contentEquals(reference.digestValue)
     }
 
     /**
@@ -67,6 +94,13 @@ internal object SignedFrame {
             // OEM key needs no separate arm here — only its public key has to be built on the right
             // curve, which is what `publicKey`'s parameter is for.
             is CertificateInstallationReq -> message.header.signature?.let {
+                XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(it.signedInfo),
+                                      it.signatureValue.value, publicKey, it.signedInfo.signatureMethod.algorithm)
+            } ?: false
+
+            // The digest as well, as on the C# side — see digestHolds.
+            is MeteringConfirmationReq -> message.header.signature?.let {
+                digestHolds(message) &&
                 XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(it.signedInfo),
                                       it.signatureValue.value, publicKey, it.signedInfo.signatureMethod.algorithm)
             } ?: false
@@ -128,6 +162,15 @@ internal object SignedFrame {
                 message.prioritizedEMAIDs)
         }
 
+        is MeteringConfirmationReq -> {
+            val signature = message.header.signature
+                ?: error("substituting a signature into an unsigned MeteringConfirmationReq")
+            MeteringConfirmationReq(
+                message.header.copy(signature = signature.copy(
+                    signatureValue = CSignatureValueType(null, signatureValue))),
+                message.signedMeteringData)
+        }
+
         else -> throw UnsupportedOperationException(
             "the trace corpus does not model a signature on ${message::class.simpleName}. " +
             "Add it here rather than letting the comparison skip it.")
@@ -137,14 +180,21 @@ internal object SignedFrame {
         is V2G_Message                -> Iso15118_2Codec.encode(message)
         is AuthorizationReq           -> CommonMessagesCodec.encode(message)
         is CertificateInstallationReq -> CommonMessagesCodec.encode(message)
+        is MeteringConfirmationReq    -> CommonMessagesCodec.encode(message)
         else -> throw UnsupportedOperationException("cannot re-encode a ${message::class.simpleName}.")
     }
 
-    private fun decode(frame: ByteArray): Pair<MessageSet, Any> =
-        when (val result = V2GTPDispatcher.decode(frame)) {
+    /** One frame, decoded. The message set is null for the metering-confirmation side stream
+     *  (0x8102, [V2G20-1084]), which the dispatcher does not route: it is read here as the
+     *  CommonMessages document it carries, the way the car reads its answer. */
+    private fun decode(frame: ByteArray): Pair<MessageSet?, Any> {
+        if (V2GTP.tryReadHeader(frame)?.payloadType == MeteringConfirmation.PAYLOAD_TYPE)
+            return null to CommonMessagesCodec.decodeAny(frame.copyOfRange(V2GTP.HEADER_SIZE, frame.size))
+        return when (val result = V2GTPDispatcher.decode(frame)) {
             is V2GTPDecodeResult.Decoded -> result.set to result.message
             is V2GTPDecodeResult.Failed  -> throw TraceMismatch("trace: ${result.error}")
         }
+    }
 
     private fun hex(s: String) = ByteArray(s.length / 2) {
         s.substring(it * 2, it * 2 + 2).toInt(16).toByte()
