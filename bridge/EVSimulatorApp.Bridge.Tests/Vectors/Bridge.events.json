@@ -12432,7 +12432,7 @@
         "direction": "in",
         "payloadType": "0x8002",
         "messageName": "ScheduleExchangeRes",
-        "exi": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a",
+        "exi": "01fe8002000000338070040505860687078808880f2d6ca06200001002080d0eab6b73342407020019092a020206c613a6440c009008240700008a",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "ScheduleExchangeRes",
@@ -12454,7 +12454,7 @@
                   "@type": "ChargingScheduleType",
                   "powerSchedule": {
                     "@type": "PowerScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000",
                     "powerScheduleEntries": {
                       "@type": "PowerScheduleEntryListType",
                       "powerScheduleEntry": [
@@ -12472,7 +12472,7 @@
                   },
                   "priceLevelSchedule": {
                     "@type": "PriceLevelScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000000",
                     "priceScheduleID": 1,
                     "numberOfPriceLevels": 1,
                     "priceLevelScheduleEntries": {
@@ -12499,7 +12499,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "PowerDeliveryReq",
-        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040000124",
+        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040032124",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "PowerDeliveryReq",
@@ -12527,7 +12527,7 @@
                   "power": {
                     "@type": "RationalNumberType",
                     "exponent": 0,
-                    "value": 0
+                    "value": 100
                   }
                 }
               ]
@@ -13436,7 +13436,7 @@
         "direction": "in",
         "payloadType": "0x8002",
         "messageName": "ScheduleExchangeRes",
-        "exi": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a",
+        "exi": "01fe8002000000338070040505860687078808880f2d6ca06200001002080d0eab6b73342407020019092a020206c613a6440c009008240700008a",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "ScheduleExchangeRes",
@@ -13458,7 +13458,7 @@
                   "@type": "ChargingScheduleType",
                   "powerSchedule": {
                     "@type": "PowerScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000",
                     "powerScheduleEntries": {
                       "@type": "PowerScheduleEntryListType",
                       "powerScheduleEntry": [
@@ -13476,7 +13476,7 @@
                   },
                   "priceLevelSchedule": {
                     "@type": "PriceLevelScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000000",
                     "priceScheduleID": 1,
                     "numberOfPriceLevels": 1,
                     "priceLevelScheduleEntries": {
@@ -13594,7 +13594,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "PowerDeliveryReq",
-        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040000124",
+        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040032124",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "PowerDeliveryReq",
@@ -13622,7 +13622,7 @@
                   "power": {
                     "@type": "RationalNumberType",
                     "exponent": 0,
-                    "value": 0
+                    "value": 100
                   }
                 }
               ]
@@ -15677,7 +15677,7 @@
         "direction": "in",
         "payloadType": "0x8002",
         "messageName": "ScheduleExchangeRes",
-        "exi": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a",
+        "exi": "01fe8002000000338070040505860687078808880f2d6ca06200001002080d0eab6b73342407020019092a020206c613a6440c009008240700008a",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "ScheduleExchangeRes",
@@ -15699,7 +15699,7 @@
                   "@type": "ChargingScheduleType",
                   "powerSchedule": {
                     "@type": "PowerScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000",
                     "powerScheduleEntries": {
                       "@type": "PowerScheduleEntryListType",
                       "powerScheduleEntry": [
@@ -15717,7 +15717,7 @@
                   },
                   "priceLevelSchedule": {
                     "@type": "PriceLevelScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000000",
                     "priceScheduleID": 1,
                     "numberOfPriceLevels": 1,
                     "priceLevelScheduleEntries": {
@@ -15835,7 +15835,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "PowerDeliveryReq",
-        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040000124",
+        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040032124",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "PowerDeliveryReq",
@@ -15863,7 +15863,7 @@
                   "power": {
                     "@type": "RationalNumberType",
                     "exponent": 0,
-                    "value": 0
+                    "value": 100
                   }
                 }
               ]
@@ -16753,7 +16753,7 @@
         "direction": "in",
         "payloadType": "0x8002",
         "messageName": "ScheduleExchangeRes",
-        "exi": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a",
+        "exi": "01fe8002000000338070040505860687078808880f2d6ca06200001002080d0eab6b73342407020019092a020206c613a6440c009008240700008a",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "ScheduleExchangeRes",
@@ -16775,7 +16775,7 @@
                   "@type": "ChargingScheduleType",
                   "powerSchedule": {
                     "@type": "PowerScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000",
                     "powerScheduleEntries": {
                       "@type": "PowerScheduleEntryListType",
                       "powerScheduleEntry": [
@@ -16793,7 +16793,7 @@
                   },
                   "priceLevelSchedule": {
                     "@type": "PriceLevelScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000000",
                     "priceScheduleID": 1,
                     "numberOfPriceLevels": 1,
                     "priceLevelScheduleEntries": {
@@ -16911,7 +16911,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "PowerDeliveryReq",
-        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040000124",
+        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040032124",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "PowerDeliveryReq",
@@ -16939,7 +16939,7 @@
                   "power": {
                     "@type": "RationalNumberType",
                     "exponent": 0,
-                    "value": 0
+                    "value": 100
                   }
                 }
               ]
@@ -17808,7 +17808,7 @@
         "direction": "in",
         "payloadType": "0x8002",
         "messageName": "ScheduleExchangeRes",
-        "exi": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a",
+        "exi": "01fe8002000000338070040505860687078808880f2d6ca06200001002080d0eab6b73342407020019092a020206c613a6440c009008240700008a",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "ScheduleExchangeRes",
@@ -17830,7 +17830,7 @@
                   "@type": "ChargingScheduleType",
                   "powerSchedule": {
                     "@type": "PowerScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000",
                     "powerScheduleEntries": {
                       "@type": "PowerScheduleEntryListType",
                       "powerScheduleEntry": [
@@ -17848,7 +17848,7 @@
                   },
                   "priceLevelSchedule": {
                     "@type": "PriceLevelScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000000",
                     "priceScheduleID": 1,
                     "numberOfPriceLevels": 1,
                     "priceLevelScheduleEntries": {
@@ -17966,7 +17966,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "PowerDeliveryReq",
-        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040000124",
+        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040032124",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "PowerDeliveryReq",
@@ -17994,7 +17994,7 @@
                   "power": {
                     "@type": "RationalNumberType",
                     "exponent": 0,
-                    "value": 0
+                    "value": 100
                   }
                 }
               ]
@@ -18643,7 +18643,7 @@
         "direction": "in",
         "payloadType": "0x8002",
         "messageName": "ScheduleExchangeRes",
-        "exi": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a",
+        "exi": "01fe8002000000338070040505860687078808880f2d6ca06200001002080d0eab6b73342407020019092a020206c613a6440c009008240700008a",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "ScheduleExchangeRes",
@@ -18665,7 +18665,7 @@
                   "@type": "ChargingScheduleType",
                   "powerSchedule": {
                     "@type": "PowerScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000",
                     "powerScheduleEntries": {
                       "@type": "PowerScheduleEntryListType",
                       "powerScheduleEntry": [
@@ -18683,7 +18683,7 @@
                   },
                   "priceLevelSchedule": {
                     "@type": "PriceLevelScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000000",
                     "priceScheduleID": 1,
                     "numberOfPriceLevels": 1,
                     "priceLevelScheduleEntries": {
@@ -18801,7 +18801,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "PowerDeliveryReq",
-        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040000124",
+        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040032124",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "PowerDeliveryReq",
@@ -18829,7 +18829,7 @@
                   "power": {
                     "@type": "RationalNumberType",
                     "exponent": 0,
-                    "value": 0
+                    "value": 100
                   }
                 }
               ]
@@ -19698,7 +19698,7 @@
         "direction": "in",
         "payloadType": "0x8002",
         "messageName": "ScheduleExchangeRes",
-        "exi": "01fe8002000000278070040d0d8e0e8f0f9010880f2d6ca0620000100200042407020019092800009008240700008a",
+        "exi": "01fe8002000000338070040d0d8e0e8f0f9010880f2d6ca06200001002080d0eab6b73342407020019092a020206c613a6440c009008240700008a",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "ScheduleExchangeRes",
@@ -19720,7 +19720,7 @@
                   "@type": "ChargingScheduleType",
                   "powerSchedule": {
                     "@type": "PowerScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000",
                     "powerScheduleEntries": {
                       "@type": "PowerScheduleEntryListType",
                       "powerScheduleEntry": [
@@ -19738,7 +19738,7 @@
                   },
                   "priceLevelSchedule": {
                     "@type": "PriceLevelScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000000",
                     "priceScheduleID": 1,
                     "numberOfPriceLevels": 1,
                     "priceLevelScheduleEntries": {
@@ -19856,7 +19856,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "PowerDeliveryReq",
-        "exi": "01fe8002000000248054040d0d8e0e8f0f9010880f2d6ca062000404040d8c274c881900420480e040000124",
+        "exi": "01fe8002000000248054040d0d8e0e8f0f9010880f2d6ca062000404040d8c274c881900420480e040032124",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "PowerDeliveryReq",
@@ -19884,7 +19884,7 @@
                   "power": {
                     "@type": "RationalNumberType",
                     "exponent": 0,
-                    "value": 0
+                    "value": 100
                   }
                 }
               ]
@@ -20474,7 +20474,7 @@
         "direction": "in",
         "payloadType": "0x8002",
         "messageName": "ScheduleExchangeRes",
-        "exi": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a",
+        "exi": "01fe8002000000338070040505860687078808880f2d6ca06200001002080d0eab6b73342407020019092a020206c613a6440c009008240700008a",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "ScheduleExchangeRes",
@@ -20496,7 +20496,7 @@
                   "@type": "ChargingScheduleType",
                   "powerSchedule": {
                     "@type": "PowerScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000",
                     "powerScheduleEntries": {
                       "@type": "PowerScheduleEntryListType",
                       "powerScheduleEntry": [
@@ -20514,7 +20514,7 @@
                   },
                   "priceLevelSchedule": {
                     "@type": "PriceLevelScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000000",
                     "priceScheduleID": 1,
                     "numberOfPriceLevels": 1,
                     "priceLevelScheduleEntries": {
@@ -20632,7 +20632,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "PowerDeliveryReq",
-        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040000124",
+        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040032124",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "PowerDeliveryReq",
@@ -20660,7 +20660,7 @@
                   "power": {
                     "@type": "RationalNumberType",
                     "exponent": 0,
-                    "value": 0
+                    "value": 100
                   }
                 }
               ]
@@ -21537,7 +21537,7 @@
         "direction": "in",
         "payloadType": "0x8002",
         "messageName": "ScheduleExchangeRes",
-        "exi": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a",
+        "exi": "01fe8002000000338070040505860687078808880f2d6ca06200001002080d0eab6b73342407020019092a020206c613a6440c009008240700008a",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "ScheduleExchangeRes",
@@ -21559,7 +21559,7 @@
                   "@type": "ChargingScheduleType",
                   "powerSchedule": {
                     "@type": "PowerScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000",
                     "powerScheduleEntries": {
                       "@type": "PowerScheduleEntryListType",
                       "powerScheduleEntry": [
@@ -21577,7 +21577,7 @@
                   },
                   "priceLevelSchedule": {
                     "@type": "PriceLevelScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000000",
                     "priceScheduleID": 1,
                     "numberOfPriceLevels": 1,
                     "priceLevelScheduleEntries": {
@@ -21695,7 +21695,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "PowerDeliveryReq",
-        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040000124",
+        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040032124",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "PowerDeliveryReq",
@@ -21723,7 +21723,7 @@
                   "power": {
                     "@type": "RationalNumberType",
                     "exponent": 0,
-                    "value": 0
+                    "value": 100
                   }
                 }
               ]
@@ -22592,7 +22592,7 @@
         "direction": "in",
         "payloadType": "0x8002",
         "messageName": "ScheduleExchangeRes",
-        "exi": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a",
+        "exi": "01fe8002000000338070040505860687078808880f2d6ca06200001002080d0eab6b73342407020019092a020206c613a6440c009008240700008a",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "ScheduleExchangeRes",
@@ -22614,7 +22614,7 @@
                   "@type": "ChargingScheduleType",
                   "powerSchedule": {
                     "@type": "PowerScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000",
                     "powerScheduleEntries": {
                       "@type": "PowerScheduleEntryListType",
                       "powerScheduleEntry": [
@@ -22632,7 +22632,7 @@
                   },
                   "priceLevelSchedule": {
                     "@type": "PriceLevelScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000000",
                     "priceScheduleID": 1,
                     "numberOfPriceLevels": 1,
                     "priceLevelScheduleEntries": {
@@ -22750,7 +22750,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "PowerDeliveryReq",
-        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040000124",
+        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040032124",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "PowerDeliveryReq",
@@ -22778,7 +22778,7 @@
                   "power": {
                     "@type": "RationalNumberType",
                     "exponent": 0,
-                    "value": 0
+                    "value": 100
                   }
                 }
               ]
@@ -23697,7 +23697,7 @@
         "direction": "in",
         "payloadType": "0x8002",
         "messageName": "ScheduleExchangeRes",
-        "exi": "01fe8002000000278070040505860687078808880f2d6ca0620000100200042407020019092800009008240700008a",
+        "exi": "01fe8002000000338070040505860687078808880f2d6ca06200001002080d0eab6b73342407020019092a020206c613a6440c009008240700008a",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "ScheduleExchangeRes",
@@ -23719,7 +23719,7 @@
                   "@type": "ChargingScheduleType",
                   "powerSchedule": {
                     "@type": "PowerScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000",
                     "powerScheduleEntries": {
                       "@type": "PowerScheduleEntryListType",
                       "powerScheduleEntry": [
@@ -23737,7 +23737,7 @@
                   },
                   "priceLevelSchedule": {
                     "@type": "PriceLevelScheduleType",
-                    "timeAnchor": "0",
+                    "timeAnchor": "1767225600000000",
                     "priceScheduleID": 1,
                     "numberOfPriceLevels": 1,
                     "priceLevelScheduleEntries": {
@@ -23855,7 +23855,7 @@
         "direction": "out",
         "payloadType": "0x8002",
         "messageName": "PowerDeliveryReq",
-        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040000124",
+        "exi": "01fe8002000000248054040505860687078808880f2d6ca062000404040d8c274c881900420480e040032124",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:CommonMessages",
           "@type": "PowerDeliveryReq",
@@ -23883,7 +23883,7 @@
                   "power": {
                     "@type": "RationalNumberType",
                     "exponent": 0,
-                    "value": 0
+                    "value": 100
                   }
                 }
               ]
