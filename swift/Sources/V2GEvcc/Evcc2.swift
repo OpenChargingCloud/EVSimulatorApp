@@ -127,6 +127,14 @@ public final class Evcc2 {
     /// asks, so a non-zero count is also the clearest single sign that PnC really ran.
     public private(set) var meteringReceiptsSent = 0
 
+    /// How many of those signed the previous `MeterInfo`, because the response that asked for the
+    /// receipt carried none (see `answerReceiptRequest`).
+    public private(set) var receiptsOverPreviousMeterInfo = 0
+
+    /// The last `MeterInfo` the station sent in this session: what a receipt signs when the response
+    /// asking for it carries none.
+    private var lastMeterInfo: MeterInfoType?
+
     /// The station's SessionSetup verdict.
     public private(set) var sessionSetupCode: ResponseCode?
 
@@ -273,7 +281,8 @@ public final class Evcc2 {
             let energyBefore = meter.energy
 
             // A Contract station may demand a receipt in its status response — answer with a signed
-            // MeteringReceiptReq echoing its MeterInfo, as a real EV does.
+            // MeteringReceiptReq echoing its MeterInfo, as a real EV does, or the last one it sent when
+            // this response carries none (answerReceiptRequest).
             let notification: EVSENotification
             if mode == .dc {
                 let demand = currentDemand()
@@ -285,8 +294,10 @@ public final class Evcc2 {
                 // very number it exists to be compared against.
                 meter.sample(volts:   Self.amount(demand.eVTargetVoltage),
                              amperes: Self.amount(demand.eVTargetCurrent))
-                if res.receiptRequired == true, let meterInfo = res.meterInfo {
-                    try sendMeteringReceipt(meterInfo, res.sAScheduleTupleID)
+                if res.receiptRequired == true {
+                    try answerReceiptRequest(res.meterInfo, res.sAScheduleTupleID, "CurrentDemandRes")
+                } else if let meterInfo = res.meterInfo {
+                    lastMeterInfo = meterInfo
                 }
                 notification = res.dC_EVSEStatus.eVSENotification
             } else {
@@ -297,8 +308,10 @@ public final class Evcc2 {
                 // chose, and validated by the station against its own PMax.
                 meter.sample(committedPowerW())
 
-                if res.receiptRequired == true, let meterInfo = res.meterInfo {
-                    try sendMeteringReceipt(meterInfo, res.sAScheduleTupleID)
+                if res.receiptRequired == true {
+                    try answerReceiptRequest(res.meterInfo, res.sAScheduleTupleID, "ChargingStatusRes")
+                } else if let meterInfo = res.meterInfo {
+                    lastMeterInfo = meterInfo
                 }
                 notification = res.aC_EVSEStatus.eVSENotification
             }
@@ -505,6 +518,44 @@ public final class Evcc2 {
         }
 
         installedContractKey = recovered
+    }
+
+    /// Answer a status response that set `ReceiptRequired = true`: `[V2G2-790]` (DC) and `[V2G2-408]`
+    /// (AC) make the `MeteringReceiptReq` unconditional from then on. A port of the C#
+    /// `Evcc2.AnswerReceiptRequest` (stack `8e6fd3e`); the Kotlin twin is `Evcc2.answerReceiptRequest`.
+    ///
+    /// **The receipt is owed even when the response carries no `MeterInfo`.** Neither requirement
+    /// conditions it on one, and EVerest 2026.10.0 asks without a fresh record (its
+    /// `meter_info_is_used` flag is one-shot). A car that skips the receipt then is answered
+    /// `FAILED_SequenceError` at its next `PowerDeliveryReq`, and the standard sides with the station.
+    /// What the car signs then is the last `MeterInfo` it received in this session: the latest reading
+    /// the station has stated.
+    ///
+    /// Two cases are a session the car cannot continue correctly, and it says so rather than skipping:
+    /// no `MeterInfo` at all yet (the request's `MeterInfo` is mandatory), and `ReceiptRequired = true`
+    /// in an EIM session, which `[V2G2-1024]` forbids and which leaves the car without a key.
+    private func answerReceiptRequest(_ fresh: MeterInfoType?, _ saScheduleTupleId: UInt8?,
+                                      _ response: String) throws {
+
+        guard pnc != nil else {
+            throw SessionAborted(
+                "\(response): ReceiptRequired = true in an EIM session. [V2G2-1024] requires FALSE there, " +
+                "and without a contract key this car has nothing to sign a MeteringReceiptReq with.")
+        }
+
+        guard let meterInfo = fresh ?? lastMeterInfo else {
+            throw SessionAborted(
+                "\(response): ReceiptRequired = true, but the station has sent no MeterInfo in this " +
+                "session. [V2G2-790]/[V2G2-408] require a MeteringReceiptReq, whose MeterInfo is " +
+                "mandatory, and there is no record to sign.")
+        }
+
+        if fresh == nil {
+            receiptsOverPreviousMeterInfo += 1
+        }
+
+        lastMeterInfo = meterInfo
+        try sendMeteringReceipt(meterInfo, saScheduleTupleId)
     }
 
     /// Signs and sends one MeteringReceiptReq for the station's MeterInfo.
