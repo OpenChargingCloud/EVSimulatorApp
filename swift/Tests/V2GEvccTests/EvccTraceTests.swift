@@ -248,6 +248,85 @@ final class EvccTraceTests: XCTestCase {
             "no metering receipt was sent, so the second signed message type never ran")
     }
 
+    /// The same session at a station with a signing meter, recorded 2026-11-27: the `ChargingStatusRes`
+    /// that asks for the receipt carries the meter's `SigMeterReading`, and the receipt this car signs
+    /// echoes it. Two signers in one -2 message, the meter's bytes inside the fragment the car digests.
+    /// In a replay the echoed reading is the recorded one, so the digest is too, and only the car's own
+    /// signature value is substituted.
+    func testTheMeteredAcIso2PncSessionMatchesTheRecording() throws {
+
+        let trace  = try SessionTrace.load("iso2-ac-pnc-meter")
+        let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_2, .ac)
+        let evcc = Evcc2(stream, .ac)
+        evcc.pnc = try PncMaterial.options
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+        XCTAssertEqual(evcc.authorizationMode, "pnc-signed")
+        XCTAssertEqual(evcc.meteringReceiptsSent,
+                       trace.exchanges.filter { $0.request.message == "MeteringReceiptReqType" }.count,
+                       "one signed receipt for every one the recording holds")
+    }
+
+    /// **The receipt C# recorded signs the reading the station showed it**, read out of the recording
+    /// under this port's own decoder, digest and meter layout — the -2 twin of the -20 confirmation.
+    ///
+    /// Three things a replay alone would not say out loud: the `MeterInfo` in the receipt is field for
+    /// field the one in the `ChargingStatusRes` before it, meter signature included; that meter signature
+    /// verifies here under the receipt's own session id; and the car's digest covers it, so a reading
+    /// swapped after signing leaves a digest that no longer holds.
+    func testTheCarsReceiptSignsTheReadingItWasShown() throws {
+
+        let trace    = try SessionTrace.load("iso2-ac-pnc-meter")
+        let meterKey = try SignedFrame.publicKey(x: XCTUnwrap(trace.meterKey).x, y: XCTUnwrap(trace.meterKey).y)
+        let receipts = trace.exchanges.filter { $0.request.message == "MeteringReceiptReqType" }
+
+        XCTAssertFalse(receipts.isEmpty, "the recording holds no MeteringReceiptReq")
+
+        for exchange in receipts {
+
+            guard let shownMessage = try SignedFrame.messageOf(trace.exchanges[exchange.index - 1].response.bytes) as? V2G_Message,
+                  let shown = shownMessage.body.bodyElement as? ChargingStatusResType,
+                  let asked = shown.meterInfo,
+                  let message = try SignedFrame.messageOf(exchange.request.bytes) as? V2G_Message,
+                  let receipt = message.body.bodyElement as? MeteringReceiptReqType
+            else { return XCTFail("exchange \(exchange.index) is not a receipt after a metered ChargingStatusRes") }
+
+            XCTAssertEqual(shown.receiptRequired, true, "exchange \(exchange.index - 1) did not ask for a receipt")
+
+            let got = receipt.meterInfo
+            XCTAssertEqual(asked.meterID,         got.meterID)
+            XCTAssertEqual(asked.meterReading,    got.meterReading)
+            XCTAssertEqual(asked.meterStatus,     got.meterStatus)
+            XCTAssertEqual(asked.tMeter,          got.tMeter)
+            XCTAssertEqual(asked.sigMeterReading, got.sigMeterReading,
+                "exchange \(exchange.index): the receipt does not carry the meter signature it was shown")
+
+            XCTAssertTrue(try MeterSignature.verify(XCTUnwrap(got.sigMeterReading), protocol: 2,
+                                                    sessionId: message.header.sessionID,
+                                                    meterId: got.meterID,
+                                                    reading: XCTUnwrap(got.meterReading),
+                                                    timestamp: got.tMeter, publicKey: meterKey),
+                "exchange \(exchange.index): the echoed reading does not verify under this port's layout")
+
+            XCTAssertTrue(SignedFrame.digestHolds(message),
+                "exchange \(exchange.index): the recorded digest is not over this port's receipt fragment")
+
+            // Swap the reading the car signed, in a second decoding of the same frame: the meter's
+            // signature can stay, the car's digest cannot.
+            guard let swapped = try SignedFrame.messageOf(exchange.request.bytes) as? V2G_Message,
+                  let swappedReceipt = swapped.body.bodyElement as? MeteringReceiptReqType
+            else { return XCTFail("exchange \(exchange.index) did not decode twice") }
+            swappedReceipt.meterInfo.meterReading = try XCTUnwrap(got.meterReading) + 1
+
+            XCTAssertFalse(SignedFrame.digestHolds(swapped),
+                "a receipt whose reading was changed after signing still has a digest that holds")
+        }
+    }
+
     /// Plug & Charge, -20: the signed AuthorizationReq, whose signature covers the
     /// PnC_AReqAuthorizationMode fragment rather than the request body.
     func testDcIso20PncSessionMatchesTheRecording() throws {
@@ -891,10 +970,10 @@ final class EvccTraceTests: XCTestCase {
     /// separate `ExiXmlDsig` target, checked rather than assumed.
     func testTheRecordedSignatureVerifiesUnderThisPortsOwnEncoder() throws {
 
-        // iso20-dc-pnc-meterconfirm adds the MeteringConfirmationReq, whose check here includes the
-        // digest: C# digested its own fragment encoding, so this also holds the two fragment encoders
-        // to each other.
-        for name in ["iso2-ac-pnc", "iso20-dc-pnc", "iso20-dc-pnc-meterconfirm",
+        // iso20-dc-pnc-meterconfirm adds the MeteringConfirmationReq, and iso2-ac-pnc-meter the metered
+        // -2 receipt; both checks here include the digest: C# digested its own fragment encoding, so
+        // this also holds the two fragment encoders to each other.
+        for name in ["iso2-ac-pnc", "iso2-ac-pnc-meter", "iso20-dc-pnc", "iso20-dc-pnc-meterconfirm",
                      "iso2-ac-eim-certinstall", "iso2-ac-eim-certupdate", "iso20-dc-eim-certinstall"] {
 
             let trace   = try SessionTrace.load(name)

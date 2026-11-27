@@ -10,6 +10,7 @@ import kotlin.test.assertFalse
 
 import cloud.charging.v2g.iso2.ChargingStatusResType
 import cloud.charging.v2g.iso2.ChargingSession
+import cloud.charging.v2g.iso2.MeteringReceiptReqType
 import cloud.charging.v2g.iso2.ResponseCode
 import cloud.charging.v2g.iso2.V2G_Message
 import cloud.charging.v2g.metering.MeterSignature
@@ -165,6 +166,85 @@ class Evcc2TraceTest {
     }
 
     /**
+     * The same session at a station with a signing meter, recorded 2026-11-27: the `ChargingStatusRes`
+     * that asks for the receipt carries the meter's `SigMeterReading`, and the receipt this car signs
+     * echoes it. Two signers in one -2 message, the meter's bytes inside the fragment the car digests.
+     * In a replay the echoed reading is the recorded one, so the digest is too, and only the car's own
+     * signature value is substituted.
+     */
+    @Test
+    fun theMeteredAcPncSessionMatchesTheRecording() {
+
+        val trace  = SessionTrace.load("iso2-ac-pnc-meter")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_2, PowerMode.Ac)
+        val evcc = Evcc2(stream, PowerMode.Ac, pollDelay = { }).apply { pnc = PncMaterial.options }
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+        assertEquals("pnc-signed", evcc.authorizationMode)
+        assertEquals(trace.exchanges.count { it.request.message == "MeteringReceiptReqType" },
+                     evcc.meteringReceiptsSent,
+                     "one signed receipt for every one the recording holds")
+    }
+
+    /**
+     * **The receipt C# recorded signs the reading the station showed it**, read out of the recording
+     * under this port's own decoder, digest and meter layout — the -2 twin of the -20 confirmation
+     * check in [Evcc20TraceTest].
+     *
+     * Three things, each of which a replay alone would not say out loud: the `MeterInfo` in the receipt
+     * is field for field the one in the `ChargingStatusRes` before it, meter signature included; that
+     * meter signature verifies here under the receipt's own session id; and the car's digest covers it,
+     * so a reading swapped after signing leaves a digest that no longer holds.
+     */
+    @Test
+    fun theCarsReceiptSignsTheReadingItWasShown() {
+
+        val trace    = SessionTrace.load("iso2-ac-pnc-meter")
+        val meterKey = SignedFrame.publicKey(trace.meterKey!!.x, trace.meterKey.y)
+        val receipts = trace.exchanges.filter { it.request.message == "MeteringReceiptReqType" }
+
+        assertTrue(receipts.isNotEmpty(), "the recording holds no MeteringReceiptReq")
+
+        for (exchange in receipts) {
+
+            val shown   = (SignedFrame.messageOf(trace.exchanges[exchange.index - 1].response.bytes) as V2G_Message)
+                              .body.bodyElement as ChargingStatusResType
+            val message = SignedFrame.messageOf(exchange.request.bytes) as V2G_Message
+            val receipt = message.body.bodyElement as MeteringReceiptReqType
+
+            assertEquals(true, shown.receiptRequired, "exchange ${exchange.index - 1} did not ask for a receipt")
+            val asked = shown.meterInfo!!
+            val got   = receipt.meterInfo
+
+            // MeterInfoType is a data class over a ByteArray, whose equals compares references.
+            assertEquals(asked.meterID,      got.meterID)
+            assertEquals(asked.meterReading, got.meterReading)
+            assertEquals(asked.meterStatus,  got.meterStatus)
+            assertEquals(asked.tMeter,       got.tMeter)
+            assertContentEquals(asked.sigMeterReading, got.sigMeterReading,
+                "exchange ${exchange.index}: the receipt does not carry the meter signature it was shown")
+
+            assertTrue(MeterSignature.verify(got.sigMeterReading!!, 2, message.header.sessionID, got.meterID,
+                                             got.meterReading!!, got.tMeter, meterKey),
+                "exchange ${exchange.index}: the echoed reading does not verify under this port's layout")
+
+            assertTrue(SignedFrame.digestHolds(message),
+                "exchange ${exchange.index}: the recorded digest is not over this port's receipt fragment")
+
+            // Swap the reading the car signed; the meter's signature can stay, the car's digest cannot.
+            val swapped = message.copy(body = message.body.copy(bodyElement =
+                              MeteringReceiptReqType(receipt.id, receipt.sessionID, receipt.sAScheduleTupleID,
+                                                     got.copy(meterReading = got.meterReading!! + 1uL))))
+            assertFalse(SignedFrame.digestHolds(swapped),
+                "a receipt whose reading was changed after signing still has a digest that holds")
+        }
+    }
+
+    /**
      * **The signature C# produced verifies under this port's own verification path.**
      *
      * This closes a blind spot the two tests above cannot, and it is worth spelling out because the
@@ -181,10 +261,10 @@ class Evcc2TraceTest {
     @Test
     fun theRecordedSignatureVerifiesUnderThisPortsOwnEncoder() {
 
-        // iso20-dc-pnc-meterconfirm adds the MeteringConfirmationReq, whose check here includes the
-        // digest: C# digested its own fragment encoding, so this also holds the two fragment encoders
-        // to each other.
-        for (name in listOf("iso2-ac-pnc", "iso20-dc-pnc", "iso20-dc-pnc-meterconfirm",
+        // iso20-dc-pnc-meterconfirm adds the MeteringConfirmationReq, and iso2-ac-pnc-meter the metered
+        // -2 receipt; both checks here include the digest: C# digested its own fragment encoding, so
+        // this also holds the two fragment encoders to each other.
+        for (name in listOf("iso2-ac-pnc", "iso2-ac-pnc-meter", "iso20-dc-pnc", "iso20-dc-pnc-meterconfirm",
                             "iso2-ac-eim-certinstall", "iso2-ac-eim-certupdate",
                             "iso20-dc-eim-certinstall")) {
 
