@@ -45,7 +45,7 @@ kotlin {
 
 dependencies {
 
-    compileOnly("com.capacitorjs:core:8.5.0")
+    compileOnly("com.capacitorjs:core:8.6.0")
 
     // The session, the events and the configuration — four back ends agree on all three, and this
     // module adds nothing to them. It is transport.
@@ -62,7 +62,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.1.0")
 
-    testImplementation("com.capacitorjs:core:8.5.0")
+    testImplementation("com.capacitorjs:core:8.6.0")
 
     // The real org.json, because the mockable android.jar's is a stub that throws. Android's own
     // org.json is a fork of this one; the difference is documented where it matters, in
