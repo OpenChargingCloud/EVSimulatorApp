@@ -53,6 +53,18 @@ enum SignedFrame {
             signature.signatureValue = ExiIso20Common.SignatureValueType(value: signatureValue)
             return V2GTPDispatcher.encode(set, CommonMessagesCodec.encode(r))
 
+        // The one signed request on a side stream (0x8102). It keeps that payload type: the
+        // dispatcher frames by message set, and would put a CommonMessages document back on 0x8002.
+        case let r as ExiIso20Common.MeteringConfirmationReq:
+            guard let signature = r.header.signature else {
+                throw TraceMismatch(description:
+                    "substituting a signature into an unsigned MeteringConfirmationReq")
+            }
+            signature.signatureValue = ExiIso20Common.SignatureValueType(value: signatureValue)
+            let payload = CommonMessagesCodec.encode(r)
+            return V2GTP.header(payloadType: MeteringConfirmation.payloadType,
+                                payloadLength: UInt32(payload.count)) + payload
+
         default:
             // Deliberately closed, and loud. A trace whose signed message this does not model must
             // fail rather than have the comparison silently skipped for exactly the message it was
@@ -105,9 +117,31 @@ enum SignedFrame {
             return (XmlDsigInterop.standaloneOctets(s.signedInfo), s.signatureValue.value,
                     s.signedInfo.signatureMethod.algorithm)
 
+        // The digest as well, as on the C# side: a frame whose digest does not describe its own body
+        // has nothing to verify. See digestHolds.
+        case let r as ExiIso20Common.MeteringConfirmationReq:
+            guard let s = r.header.signature, digestHolds(r) else { return nil }
+            return (XmlDsigInterop.standaloneOctets(s.signedInfo), s.signatureValue.value,
+                    s.signedInfo.signatureMethod.algorithm)
+
         default:
             return nil
         }
+    }
+
+    /// Whether a signed `MeteringConfirmationReq`'s reference digest is the digest of its own request
+    /// fragment — the half of the check that verifying `SignedInfo` does not do. The C# side needs it
+    /// because a re-recording takes the recorded `SignedInfo` whole; a replay compares it as bytes, so
+    /// here it is belt and braces, kept so the harnesses check the same things.
+    static func digestHolds(_ message: ExiIso20Common.MeteringConfirmationReq) -> Bool {
+        guard let signature = message.header.signature,
+              signature.signedInfo.reference.count == 1,
+              let reference = signature.signedInfo.reference.first,
+              reference.uRI == "#" + message.signedMeteringData.id,
+              let suite = XmlDsigSuite.allCases.first(where: { $0.digestMethod == reference.digestMethod.algorithm })
+        else { return false }
+        return suite.digest(MeteringConfirmation.signedOctets(message.header, message.signedMeteringData))
+                   == reference.digestValue
     }
 
     /// A P-256 public key from the two field elements the trace records. CryptoKit takes them
@@ -121,7 +155,14 @@ enum SignedFrame {
         try P521.Signing.PublicKey(rawRepresentation: Data(hex(x) + hex(y)))
     }
 
+    /// One frame, decoded. The metering-confirmation side stream (0x8102, [V2G20-1084]) is not the
+    /// dispatcher's, so it is read here as the CommonMessages document it carries — the way the car
+    /// reads its answer. Its message set is reported as CommonMessages, which is what it carries.
     private static func decode(_ frame: [UInt8]) throws -> (MessageSet, Any) {
+        if V2GTP.readHeader(frame)?.payloadType == MeteringConfirmation.payloadType {
+            return (.iso20CommonMessages,
+                    try CommonMessagesCodec.decodeAny(Array(frame[V2GTP.headerSize...])))
+        }
         switch try V2GTPDispatcher.decode(frame) {
         case .decoded(let set, let message): return (set, message)
         case .failed(let error):             throw TraceMismatch(description: "trace: \(error)")

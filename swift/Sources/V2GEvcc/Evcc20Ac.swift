@@ -56,6 +56,10 @@ public final class Evcc20Ac: Evcc20Base {
         // has EVPresentActivePower in the request, so the vehicle's view needs no deriving and
         // nothing borrowed from the station.
         meter.sample(Self.presentActivePowerW)
+
+        // [V2G20-1083]: the station may ask the car to sign what this response carried. After the
+        // sample, so the station's reading is paired with the car's count of the same iteration.
+        try confirmMeteringIfAsked(response)
     }
 
     /// The EV's present active power, 22 kW. One constant rather than the same literal in two

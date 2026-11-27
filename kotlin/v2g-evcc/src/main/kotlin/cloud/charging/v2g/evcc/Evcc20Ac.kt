@@ -84,6 +84,12 @@ class Evcc20Ac(
         // has EVPresentActivePower in the request, so the vehicle's view needs no deriving and
         // nothing borrowed from the station.
         meter.sample(PRESENT_ACTIVE_POWER_W)
+
+        // [V2G20-1083]: the station asks the car to sign what this response carried. After the
+        // sample, so the station's reading is paired with the car's count of the same iteration.
+        if (response.eVSEStatus?.eVSENotification == cloud.charging.v2g.iso20.ac.EvseNotification.MeteringConfirmation)
+            confirmMetering(response.meterInfo?.let(MeteringConfirmation::toCommon),
+                            response.receipt?.let(MeteringConfirmation::toCommon))
     }
 
     override fun runPostChargeSequence() = Unit   // AC: not applicable

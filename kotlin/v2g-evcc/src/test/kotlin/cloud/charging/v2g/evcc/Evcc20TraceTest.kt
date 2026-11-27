@@ -269,6 +269,56 @@ class Evcc20TraceTest {
             "the session completed but authorized via EIM — then nothing signed was compared")
     }
 
+    /**
+     * -20 DC Plug & Charge at a station that asks for metering confirmations: after every charge-loop
+     * response with `EVSENotification = MeteringConfirmation` the car signs the reading it was shown
+     * with its contract key and sends it on the 0x8102 side stream ([V2G20-1083], [V2G20-1084]).
+     *
+     * The replay holds the request to the recorded bytes — the meter's signature included, since the
+     * car echoes it from the recorded response — and the produced signature, digest and all, to the
+     * corpus key. A port that answered on 0x8002, skipped the confirmation, or signed a different
+     * fragment diverges at the first one.
+     */
+    @Test
+    fun `the -20 metering-confirmation session matches the recording`() {
+
+        val trace  = SessionTrace.load("iso20-dc-pnc-meterconfirm")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_20, PowerMode.Dc)
+        val heard = mutableListOf<MeteringConfirmationSent>()
+        val evcc  = Evcc20Dc(stream, recordedAt, pollDelay = { }).apply {
+            pnc = PncMaterial.options
+            onMeteringConfirmation = { heard += it }
+        }
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+
+        val asked = trace.exchanges.count { it.request.message == "MeteringConfirmationReq" }
+        assertEquals(2, asked, "the recording should hold two confirmations")
+        assertEquals(asked, evcc.meteringConfirmations.size)
+        assertEquals(evcc.meteringConfirmations, heard, "every confirmation reaches the callback")
+        assertEquals(0, evcc.meteringConfirmationsImpossible)
+        assertTrue(evcc.meteringConfirmations.all { it.responseCode == ResponseCode.OK && !it.withReceipt })
+    }
+
+    /** An EIM car cannot sign, and says so rather than sending something unsigned ([V2G20-2704]). */
+    @Test
+    fun `an EIM car counts the confirmations it could not give`() {
+
+        val evcc = object : Evcc20Dc(V2GTPStream(java.io.ByteArrayInputStream(ByteArray(0)),
+                                                 java.io.ByteArrayOutputStream()), recordedAt, pollDelay = { }) {
+            fun ask() = confirmMetering(
+                cloud.charging.v2g.iso20.common.MeterInfoType("M1", 100uL, null, null, null, null, null, null), null)
+        }
+        evcc.ask()
+
+        assertEquals(1, evcc.meteringConfirmationsImpossible)
+        assertTrue(evcc.meteringConfirmations.isEmpty())
+    }
+
     // ── pause and resume ──────────────────────────────────────────────────
 
     /** -20: the pause. Its successor is the shortest complete -20 session in the corpus. */

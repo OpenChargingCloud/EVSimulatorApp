@@ -265,6 +265,48 @@ final class EvccTraceTests: XCTestCase {
         XCTAssertEqual(evcc.authorizationMode, "pnc-signed")
     }
 
+    /// -20 DC Plug & Charge at a station that asks for metering confirmations: after every charge-loop
+    /// response with `EVSENotification = MeteringConfirmation` the car signs the reading it was shown
+    /// with its contract key and sends it on the 0x8102 side stream ([V2G20-1083], [V2G20-1084]).
+    ///
+    /// The replay holds the request to the recorded bytes — the meter's signature included, since the
+    /// car echoes it from the recorded response — and the produced signature, digest and all, to the
+    /// corpus key. A port that answered on 0x8002, skipped the confirmation, or signed a different
+    /// fragment diverges at the first one.
+    func testTheIso20MeteringConfirmationSessionMatchesTheRecording() throws {
+
+        let trace  = try SessionTrace.load("iso20-dc-pnc-meterconfirm")
+        let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_20, .dc)
+        let evcc = Evcc20Dc(stream, clock: recordedAt)
+        evcc.pnc = try PncMaterial.options
+        var heard: [MeteringConfirmationSent] = []
+        evcc.onMeteringConfirmation = { heard.append($0) }
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+
+        let asked = trace.exchanges.filter { $0.request.message == "MeteringConfirmationReq" }.count
+        XCTAssertEqual(asked, 2, "the recording should hold two confirmations")
+        XCTAssertEqual(evcc.meteringConfirmations.count, asked)
+        XCTAssertEqual(evcc.meteringConfirmations, heard, "every confirmation reaches the callback")
+        XCTAssertEqual(evcc.meteringConfirmationsImpossible, 0)
+        XCTAssertTrue(evcc.meteringConfirmations.allSatisfy { $0.responseCode == .OK && !$0.withReceipt })
+    }
+
+    /// An EIM car cannot sign, and says so rather than sending something unsigned ([V2G20-2704]).
+    func testAnEimCarCountsTheConfirmationsItCouldNotGive() throws {
+
+        let evcc = Evcc20Dc(V2GTPStream(SilentTransport()), clock: recordedAt)
+        try evcc.sendMeteringConfirmation(
+            ExiIso20Common.MeterInfoType(meterID: "M1", chargedEnergyReadingWh: 100), nil)
+
+        XCTAssertEqual(evcc.meteringConfirmationsImpossible, 1)
+        XCTAssertTrue(evcc.meteringConfirmations.isEmpty)
+    }
+
     // ── contract provisioning ─────────────────────────────────────────────
     //
     // What these three add over `Contract.provisioning.vectors.json`, which already pins the verdict
@@ -849,7 +891,10 @@ final class EvccTraceTests: XCTestCase {
     /// separate `ExiXmlDsig` target, checked rather than assumed.
     func testTheRecordedSignatureVerifiesUnderThisPortsOwnEncoder() throws {
 
-        for name in ["iso2-ac-pnc", "iso20-dc-pnc",
+        // iso20-dc-pnc-meterconfirm adds the MeteringConfirmationReq, whose check here includes the
+        // digest: C# digested its own fragment encoding, so this also holds the two fragment encoders
+        // to each other.
+        for name in ["iso2-ac-pnc", "iso20-dc-pnc", "iso20-dc-pnc-meterconfirm",
                      "iso2-ac-eim-certinstall", "iso2-ac-eim-certupdate", "iso20-dc-eim-certinstall"] {
 
             let trace   = try SessionTrace.load(name)

@@ -365,6 +365,72 @@ abstract class Evcc20Base(
         if (requested) renegotiationRequested = true
     }
 
+    /**
+     * Whether this car answers a station's `MeteringConfirmation` notification with a signed
+     * `MeteringConfirmationReq` — which [V2G20-1621] says it shall. True by default; false is the
+     * fault switch for a station that has to cope with a car that stays silent.
+     */
+    var confirmMetering: Boolean = true
+
+    private val _meteringConfirmations = mutableListOf<MeteringConfirmationSent>()
+
+    /** Every `MeteringConfirmationReq` this car signed and sent, with the station's answer. */
+    val meteringConfirmations: List<MeteringConfirmationSent> get() = _meteringConfirmations
+
+    /**
+     * How often a station asked for a confirmation this car could not give: without a contract key,
+     * because the session was authorised by EIM ([V2G20-2704] says a station shall not ask then), or
+     * without the `MeterInfo` [V2G20-1083] makes part of asking.
+     */
+    var meteringConfirmationsImpossible: Int = 0
+        private set
+
+    /** Called for each confirmation once the station has answered it. */
+    var onMeteringConfirmation: ((MeteringConfirmationSent) -> Unit)? = null
+
+    /** The schedule tuple PowerDelivery(Start) selected, or null in Dynamic control mode. */
+    private var selectedScheduleTupleId: UInt? = null
+
+    /**
+     * Answers a station's `MeteringConfirmation` notification: signs what the charge-loop response just
+     * carried and sends it on the side stream. Called by the AC and DC loops, which see the reading in
+     * their own generated types and translate it ([MeteringConfirmation.toCommon]).
+     *
+     * Sent at once, after the iteration that asked and before the next charge-loop request. What is
+     * signed is what the response carried: the SessionID, the reading, the receipt if there was one
+     * ([V2G20-2236]) and the schedule tuple this car selected ([V2G20-776]). The signature acknowledges
+     * receipt; it does not say the reading is right. A `FAILED` answer ends the session through
+     * [refuseOnFailure], like any other response. The C# counterpart is `Evcc20Base.ConfirmMeteringAsync`.
+     */
+    protected fun confirmMetering(reading: MeterInfoType?, receipt: ReceiptType?) {
+
+        if (!confirmMetering) return
+
+        val credentials = pnc
+        if (reading == null || credentials == null || authorizationMode != "pnc-signed") {
+            meteringConfirmationsImpossible++
+            return
+        }
+
+        val tuple = selectedScheduleTupleId
+        val data  = SignedMeteringDataType(
+            MeteringConfirmation.REFERENCE_ID, sessionCtx.sessionId, reading, receipt,
+            dynamic_SMDTControlMode   = if (tuple == null) Dynamic_SMDTControlModeType() else null,
+            scheduled_SMDTControlMode = tuple?.let { Scheduled_SMDTControlModeType(it) })
+
+        val request = MeteringConfirmation.sign(
+            sessionCtx.toCommonHeader(), data, credentials.contractKey, credentials.suite)
+
+        val response = exchangeSideStream(MeteringConfirmation.PAYLOAD_TYPE, CommonMessagesCodec.encode(request))
+                           as? MeteringConfirmationRes
+            ?: throw SessionAborted("expected a MeteringConfirmationRes on the side stream.")
+
+        val sent = MeteringConfirmationSent(reading.meterID, reading.chargedEnergyReadingWh, meter.energy,
+                                            receipt != null, response.responseCode)
+        _meteringConfirmations += sent
+        onMeteringConfirmation?.invoke(sent)
+    }
+
     protected abstract fun runChargeParameterDiscovery()
 
     /** DC: CableCheck + PreCharge. AC: nothing. */
@@ -541,6 +607,7 @@ abstract class Evcc20Base(
         // offered (§7.9.2.4). A live Josev run rejected the earlier absent profile; ours did not. EVerest
         // 2026.10.0 rejected one anchored at 1970 — see Iso20EvPowerProfile.
         val evPowerProfile = buildEvPowerProfile(scheduleRes)
+        selectedScheduleTupleId = evPowerProfile.scheduled_EVPPTControlMode?.selectedScheduleTupleID
         exchange<PowerDeliveryRes>(MessageSet.Iso20CommonMessages,
             CommonMessagesCodec.encode(PowerDeliveryReq(sessionCtx.toCommonHeader(),
                 Processing.Finished, ChargeProgress.Start, evPowerProfile, null)))
@@ -587,6 +654,26 @@ abstract class Evcc20Base(
         val reply = stream.readFrame()
         refuseOnFailure(reply.second)
         timeStampOf(reply.second)?.let { seccTimeStamp = it }
+        exchanges++
+        return reply
+    }
+
+    /**
+     * One exchange on a side stream ([V2G20-1084]): a CommonMessages document framed with
+     * [payloadType] rather than with its message set's, answered on the same type ([V2G20-1085]). The
+     * dispatcher does not route side-stream payload types, so the answer is decoded here; one on any
+     * other payload type is the station answering on the wrong stream, and ends the session.
+     */
+    private fun exchangeSideStream(payloadType: UShort, payload: ByteArray): Any {
+        stream.writeRawFrame(payloadType, payload)
+        val (frame, answeredOn) = stream.readRawFrame()
+        if (answeredOn != payloadType)
+            throw SessionAborted(
+                "the station answered a side-stream request (payload type 0x%04x) on payload type 0x%04x."
+                    .format(payloadType.toInt(), answeredOn.toInt()))
+        val reply = CommonMessagesCodec.decodeAny(frame.copyOfRange(cloud.charging.v2g.tp.V2GTP.HEADER_SIZE, frame.size))
+        refuseOnFailure(reply)
+        timeStampOf(reply)?.let { seccTimeStamp = it }
         exchanges++
         return reply
     }
