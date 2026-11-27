@@ -15,6 +15,7 @@ import cloud.charging.v2g.tp.V2GTPDecodeResult
 import cloud.charging.v2g.tp.V2GTPDispatcher
 
 import cloud.charging.v2g.iso2.Iso15118_2Codec
+import cloud.charging.v2g.iso2.MeteringReceiptReqType
 import cloud.charging.v2g.iso2.SignatureValueType as I2SignatureValueType
 import cloud.charging.v2g.iso2.V2G_Message
 
@@ -73,13 +74,35 @@ internal object SignedFrame {
     }
 
     /**
+     * The -2 twin of the above: whether a signed `MeteringReceiptReq`'s reference digest is the digest
+     * of its own body-element fragment. -2 names the element by its `Id` attribute, and with a signing
+     * meter fitted that fragment carries the meter's `SigMeterReading`, the same two-signer shape.
+     */
+    fun digestHolds(message: V2G_Message): Boolean {
+        val receipt   = message.body.bodyElement as? MeteringReceiptReqType ?: return false
+        val signature = message.header.signature ?: return false
+        val reference = signature.signedInfo.reference.singleOrNull() ?: return false
+        if (reference.uRI != "#${receipt.id}") return false
+        val suite = XmlDsigSuite.entries.firstOrNull { it.digestMethod == reference.digestMethod.algorithm }
+            ?: return false
+        return suite.digest(Iso15118_2Codec.encodeFragment_MeteringReceiptReq(receipt))
+                    .contentEquals(reference.digestValue)
+    }
+
+    /** One frame's decoded message, for a test that reads what a recorded frame says. */
+    fun messageOf(frame: ByteArray): Any = decode(frame).second
+
+    /**
      * Verifies a frame's own signature against its own `SignedInfo`. The half the substitution throws
      * away — without it a port could emit any 64 bytes it liked and still compare equal.
      */
     fun verifiesWith(frame: ByteArray, publicKey: PublicKey): Boolean {
         val (_, message) = decode(frame)
         return when (message) {
+            // A receipt has its digest checked as well, as on the C# side: it is the -2 message signed
+            // over a meter signature, like MeteringConfirmationReq below.
             is V2G_Message -> message.header.signature?.let {
+                (message.body.bodyElement !is MeteringReceiptReqType || digestHolds(message)) &&
                 XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(it.signedInfo),
                                       it.signatureValue.value, publicKey, it.signedInfo.signatureMethod.algorithm)
             } ?: false

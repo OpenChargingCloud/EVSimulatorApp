@@ -200,13 +200,14 @@ final class TraceReplay: V2GByteStream {
             // A meter signature in a *request* is the station's reading echoed back. In a replay that
             // reading comes out of the recorded response, so its bytes — and the digest over them —
             // are the recorded ones and need no substitution. That holds for the -20
-            // MeteringConfirmationReq, the one such request the corpus records; any other is refused
-            // rather than compared on an assumption nobody has checked for it.
+            // MeteringConfirmationReq and the -2 MeteringReceiptReq, the two such requests the corpus
+            // records; any other is refused rather than compared on an assumption nobody has checked.
             guard !exchange.request.carriesMeterSignature
-                  || exchange.request.message == "MeteringConfirmationReq" else {
+                  || ["MeteringConfirmationReq", "MeteringReceiptReqType"].contains(exchange.request.message) else {
                 throw TraceMismatch(description:
                     "exchange \(replayed) (\(exchange.request.message)) carries a meter signature in " +
-                    "a request, and only the -20 MeteringConfirmationReq is known to echo it unchanged.")
+                    "a request, and only the -20 MeteringConfirmationReq and the -2 MeteringReceiptReq " +
+                    "are known to echo it unchanged.")
             }
 
             // A signed frame cannot be compared as bytes — ECDSA's nonce is random. SignedFrame

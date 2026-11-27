@@ -102,8 +102,11 @@ enum SignedFrame {
         guard let (_, message) = try? decode(frame) else { return nil }
 
         switch message {
+        // A receipt has its digest checked as well, as on the C# side: it is the -2 message signed over
+        // a meter signature, like MeteringConfirmationReq below.
         case let m as ExiIso2.V2G_Message:
-            guard let s = m.header.signature else { return nil }
+            guard let s = m.header.signature,
+                  !(m.body.bodyElement is ExiIso2.MeteringReceiptReqType) || digestHolds(m) else { return nil }
             return (XmlDsigInterop.standaloneOctets(s.signedInfo), s.signatureValue.value,
                     s.signedInfo.signatureMethod.algorithm)
 
@@ -142,6 +145,26 @@ enum SignedFrame {
         else { return false }
         return suite.digest(MeteringConfirmation.signedOctets(message.header, message.signedMeteringData))
                    == reference.digestValue
+    }
+
+    /// The -2 twin: whether a signed `MeteringReceiptReq`'s reference digest is the digest of its own
+    /// body-element fragment. -2 names the element by its `Id` attribute, and with a signing meter
+    /// fitted that fragment carries the meter's `SigMeterReading`, the same two-signer shape.
+    static func digestHolds(_ message: ExiIso2.V2G_Message) -> Bool {
+        guard let receipt = message.body.bodyElement as? ExiIso2.MeteringReceiptReqType,
+              let signature = message.header.signature,
+              signature.signedInfo.reference.count == 1,
+              let reference = signature.signedInfo.reference.first,
+              let id = receipt.id, reference.uRI == "#" + id,
+              let suite = XmlDsigSuite.allCases.first(where: { $0.digestMethod == reference.digestMethod.algorithm })
+        else { return false }
+        return suite.digest(Iso15118_2Codec.encodeFragment_MeteringReceiptReq(receipt)) == reference.digestValue
+    }
+
+    /// One frame's decoded message, for a test that reads what a recorded frame says. Each call decodes
+    /// afresh, so a test may change the result without touching anything else.
+    static func messageOf(_ frame: [UInt8]) throws -> Any {
+        try decode(frame).1
     }
 
     /// A P-256 public key from the two field elements the trace records. CryptoKit takes them
