@@ -142,6 +142,9 @@ test("the digest of every signed -2 message re-derives from its own frame", asyn
                       // receipt's signed fragment. That makes it the only -2 digest here over a second
                       // party's signature.
                       "AuthorizationReqType", "MeteringReceiptReqType",
+                      // iso2-ac-pnc-norecord: two receipts, the second asked for without a MeterInfo
+                      // and signed over the last one the station sent.
+                      "AuthorizationReqType", "MeteringReceiptReqType", "MeteringReceiptReqType",
                       "ChargeParameterDiscoveryResType",
                       "CertificateInstallationReqType", "CertificateUpdateReqType",
                       "CertificateInstallationResType", "CertificateUpdateResType"];

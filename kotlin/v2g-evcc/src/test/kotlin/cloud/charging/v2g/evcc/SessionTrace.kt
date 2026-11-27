@@ -218,8 +218,16 @@ class TraceReplay(private val trace: SessionTrace) {
             // random part, so putting the recorded one back makes everything else comparable
             // exactly, and the produced one is checked on its own below.
             val recordedSignature = exchange.request.signatureBytes
+            // A port that sends an unsigned request where a signed one was recorded — a skipped
+            // receipt, say — has nothing to substitute into; that is a divergence, and named as one.
             val comparable = if (recordedSignature != null)
-                                 SignedFrame.withSignatureValue(frame, recordedSignature)
+                                 try { SignedFrame.withSignatureValue(frame, recordedSignature) }
+                                 catch (e: IllegalStateException) {
+                                     throw TraceMismatch(
+                                         "exchange $replayed: the trace '${trace.name}' records a signed " +
+                                         "${exchange.request.message} here, and this port sent something it " +
+                                         "cannot substitute a signature into (${e.message}).")
+                                 }
                              else frame
 
             if (!comparable.contentEquals(exchange.request.bytes))

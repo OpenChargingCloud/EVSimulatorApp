@@ -146,8 +146,6 @@ class Evcc2(
     var authorizationMode: String = "eim"
         private set
 
-    /** How many signed MeteringReceiptReq this session sent. Contract only — an EIM station never
-     *  asks, so a non-zero count here is also the clearest single sign that PnC really ran. */
     /**
      * The vehicle's own energy counter — what this EV thinks it took, kept independently of what the
      * station reports (`docs/CONCEPT.md` §4.2/§4.3).
@@ -165,8 +163,19 @@ class Evcc2(
     var batteryStop: ChargeStop? = null
         private set
 
+    /** How many signed MeteringReceiptReq this session sent. Contract only — an EIM station never
+     *  asks, so a non-zero count here is also the clearest single sign that PnC really ran. */
     var meteringReceiptsSent: Int = 0
         private set
+
+    /** How many of those signed the previous `MeterInfo`, because the response that asked for the
+     *  receipt carried none (see [answerReceiptRequest]). */
+    var receiptsOverPreviousMeterInfo: Int = 0
+        private set
+
+    /** The last `MeterInfo` the station sent in this session: what a receipt signs when the response
+     *  asking for it carries none. */
+    private var lastMeterInfo: MeterInfoType? = null
 
     /** The station's SessionSetup verdict. */
     var sessionSetupCode: ResponseCode? = null
@@ -293,7 +302,8 @@ class Evcc2(
             val energyBefore = meter.energy
 
             // A Contract station may demand a receipt in its status response — answer with a signed
-            // MeteringReceiptReq echoing its MeterInfo, as a real EV does.
+            // MeteringReceiptReq echoing its MeterInfo, as a real EV does, or the last one it sent when
+            // this response carries none (answerReceiptRequest).
             val notification =
                 if (mode == PowerMode.Dc) {
                     val demand = currentDemand()
@@ -305,8 +315,10 @@ class Evcc2(
                     // the very number it exists to be compared against.
                     meter.sample(watts(demand.eVTargetVoltage, demand.eVTargetCurrent))
 
-                    if (res.receiptRequired == true && res.meterInfo != null)
-                        sendMeteringReceipt(res.meterInfo!!, res.sAScheduleTupleID)
+                    if (res.receiptRequired == true)
+                        answerReceiptRequest(res.meterInfo, res.sAScheduleTupleID, "CurrentDemandRes")
+                    else if (res.meterInfo != null)
+                        lastMeterInfo = res.meterInfo
                     res.dC_EVSEStatus.eVSENotification
                 } else {
                     val res = send<ChargingStatusResType>(ChargingStatusReqType())
@@ -316,8 +328,10 @@ class Evcc2(
                     // chose, and validated by the station against its own PMax.
                     meter.sample(committedPowerW())
 
-                    if (res.receiptRequired == true && res.meterInfo != null)
-                        sendMeteringReceipt(res.meterInfo!!, res.sAScheduleTupleID)
+                    if (res.receiptRequired == true)
+                        answerReceiptRequest(res.meterInfo, res.sAScheduleTupleID, "ChargingStatusRes")
+                    else if (res.meterInfo != null)
+                        lastMeterInfo = res.meterInfo
                     res.aC_EVSEStatus.eVSENotification
                 }
 
@@ -430,6 +444,42 @@ class Evcc2(
                 "contract provisioning: the unwrapped key does not belong to the issued certificate.")
 
         installedContractKey = recovered
+    }
+
+    /**
+     * Answer a status response that set `ReceiptRequired = true`: `[V2G2-790]` (DC) and `[V2G2-408]`
+     * (AC) make the `MeteringReceiptReq` unconditional from then on. A port of the C#
+     * `Evcc2.AnswerReceiptRequest` (stack `8e6fd3e`).
+     *
+     * **The receipt is owed even when the response carries no `MeterInfo`.** Neither requirement
+     * conditions it on one, and EVerest 2026.10.0 asks without a fresh record (its
+     * `meter_info_is_used` flag is one-shot). A car that skips the receipt then is answered
+     * `FAILED_SequenceError` at its next `PowerDeliveryReq`, and the standard sides with the station.
+     * What the car signs then is the last `MeterInfo` it received in this session: the latest reading
+     * the station has stated.
+     *
+     * Two cases are a session the car cannot continue correctly, and it says so rather than skipping:
+     * no `MeterInfo` at all yet (the request's `MeterInfo` is mandatory), and `ReceiptRequired = true`
+     * in an EIM session, which `[V2G2-1024]` forbids and which leaves the car without a key.
+     */
+    private fun answerReceiptRequest(fresh: MeterInfoType?, saScheduleTupleId: UByte?, response: String) {
+
+        if (pnc == null)
+            throw SessionAborted(
+                "$response: ReceiptRequired = true in an EIM session. [V2G2-1024] requires FALSE there, and " +
+                "without a contract key this car has nothing to sign a MeteringReceiptReq with.")
+
+        val meterInfo = fresh ?: lastMeterInfo
+            ?: throw SessionAborted(
+                "$response: ReceiptRequired = true, but the station has sent no MeterInfo in this session. " +
+                "[V2G2-790]/[V2G2-408] require a MeteringReceiptReq, whose MeterInfo is mandatory, and " +
+                "there is no record to sign.")
+
+        if (fresh == null)
+            receiptsOverPreviousMeterInfo++
+
+        lastMeterInfo = meterInfo
+        sendMeteringReceipt(meterInfo, saScheduleTupleId)
     }
 
     /** Signs and sends one MeteringReceiptReq for the station's MeterInfo. */

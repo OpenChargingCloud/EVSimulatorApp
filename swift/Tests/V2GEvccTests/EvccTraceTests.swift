@@ -271,6 +271,27 @@ final class EvccTraceTests: XCTestCase {
                        "one signed receipt for every one the recording holds")
     }
 
+    /// **A receipt asked for without a `MeterInfo` is still sent**, over the last one the station sent —
+    /// `[V2G2-408]` makes it unconditional, and EVerest 2026.10.0 asks that way. Recorded 2026-11-28 with
+    /// the C# car after its fix (stack `8e6fd3e`); before this port had the fix it stopped one receipt
+    /// short and went on to `PowerDeliveryReq`, so the replay diverged at exchange 11.
+    func testAReceiptAskedForWithoutAMeterInfoIsSignedOverTheLastOne() throws {
+
+        let trace  = try SessionTrace.load("iso2-ac-pnc-norecord")
+        let replay = TraceReplay(trace)
+        let stream = V2GTPStream(replay)
+
+        try SapHandshake.runEvccSide(stream, .iso15118_2, .ac)
+        let evcc = Evcc2(stream, .ac)
+        evcc.pnc = try PncMaterial.options
+        try evcc.run()
+
+        XCTAssertTrue(replay.complete, "replayed \(replay.replayed) of \(trace.exchanges.count) exchanges")
+        XCTAssertEqual(evcc.meteringReceiptsSent, 2, "one receipt over a fresh MeterInfo, one without")
+        XCTAssertEqual(evcc.receiptsOverPreviousMeterInfo, 1,
+                       "the second receipt was not signed over the previous MeterInfo")
+    }
+
     /// **The receipt C# recorded signs the reading the station showed it**, read out of the recording
     /// under this port's own decoder, digest and meter layout — the -2 twin of the -20 confirmation.
     ///
@@ -973,7 +994,8 @@ final class EvccTraceTests: XCTestCase {
         // iso20-dc-pnc-meterconfirm adds the MeteringConfirmationReq, and iso2-ac-pnc-meter the metered
         // -2 receipt; both checks here include the digest: C# digested its own fragment encoding, so
         // this also holds the two fragment encoders to each other.
-        for name in ["iso2-ac-pnc", "iso2-ac-pnc-meter", "iso20-dc-pnc", "iso20-dc-pnc-meterconfirm",
+        for name in ["iso2-ac-pnc", "iso2-ac-pnc-meter", "iso2-ac-pnc-norecord", "iso20-dc-pnc",
+                     "iso20-dc-pnc-meterconfirm",
                      "iso2-ac-eim-certinstall", "iso2-ac-eim-certupdate", "iso20-dc-eim-certinstall"] {
 
             let trace   = try SessionTrace.load(name)
