@@ -94,14 +94,20 @@ public struct CertInstallEvccOptions {
     /// The same key as a key-agreement handle, for unwrapping the contract key.
     public let oemKeyAgreement: P521.KeyAgreement.PrivateKey
 
+    /// The algorithms of the request's signature, as ``PncEvccOptions/suite`` is for
+    /// `AuthorizationReq`.
+    public let suite: XmlDsigSuite
+
     public init(oemCertificate: [UInt8],
                 oemSubCertificates: [[UInt8]],
                 oemSignKey: any V2GSigner,
-                oemKeyAgreement: P521.KeyAgreement.PrivateKey) {
+                oemKeyAgreement: P521.KeyAgreement.PrivateKey,
+                suite: XmlDsigSuite = .iso20) {
 
         self.oemCertificate     = oemCertificate
         self.oemSubCertificates = oemSubCertificates
         self.oemSignKey         = oemSignKey
         self.oemKeyAgreement    = oemKeyAgreement
+        self.suite              = suite
     }
 }

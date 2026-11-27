@@ -57,7 +57,7 @@ public enum V2GCsr {
         let info = try firstElement(ofSequence: serializer.serializedBytes)
 
         // Round two: the real signature, over exactly those bytes.
-        let raw = try signer.signature(over: info)
+        let raw = try signer.signature(over: info, hash: .sha256)   // what .ecdsaWithSHA256 declares
         let der = try P256.Signing.ECDSASignature(rawRepresentation: Data(raw)).derRepresentation
 
         let signature = try Certificate.Signature(

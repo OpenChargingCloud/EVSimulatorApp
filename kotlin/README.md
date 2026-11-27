@@ -385,6 +385,14 @@ curve. Signing now goes through a `V2GSigner` — "give me a signature", not "gi
 is the part §3.4 means by designing around the asymmetry "from the start rather than discovering it
 at the first keygen": the curve table can be added later, this interface cannot.
 
+**The signer takes the hash as well as the octets.** Each signature form names its own digest: -2,
+Josev's -20 form and a CSR are SHA-256, and -20's own header signature is `ecdsa-sha512`
+([V2G20-2473]). Until 2026-11-27 the interface fixed SHA-256, and EVerest 2026.10.0 refused the -20
+result with `FAILED_SignatureError`. Leaving the choice to the curve would be just as wrong, because
+the curve's default contradicts one form or the other. `XmlDsigSuite` picks the -20 pair: `Iso20` by
+default, `JosevSha256` for a Josev station. Verifiers read the hash from the declared
+`SignatureMethod`.
+
 Protection is a value rather than an implementation detail, so it can be displayed, asserted, and got
 wrong loudly. What the tests pin:
 

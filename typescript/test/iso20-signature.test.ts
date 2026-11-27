@@ -128,6 +128,34 @@ function toStandalone(s: Iso20SignedInfo): SignedInfoType {
 const signedEvent = (sessions["iso20-dc-pnc"] ?? [])
     .find(e => e?.json?.header?.signature && e.payloadType === "0x8002");
 
+/** WebCrypto's name for the hash a declared algorithm URI names. Read from the recording, because
+ *  -20's own suite is SHA-512 and Josev's is SHA-256, and a fixed choice gets one of them wrong. */
+const hashOf = (uri: string): string => {
+    const name = ({
+        "http://www.w3.org/2001/04/xmlenc#sha256":             "SHA-256",
+        "http://www.w3.org/2001/04/xmlenc#sha512":             "SHA-512",
+        "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256": "SHA-256",
+        "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512": "SHA-512",
+    } as Record<string, string>)[uri];
+    assert.notEqual(name, undefined, `an algorithm this test does not know: ${uri}`);
+    return name!;
+};
+
+
+/**
+ * The recording is -20's own suite: `ecdsa-sha512` over a SHA-512 digest ([V2G20-2473],
+ * [V2G20-2475]). It was Josev's SHA-256 pair until 2026-11-27, when EVerest 2026.10.0 refused that
+ * pair with `FAILED_SignatureError` and every car of ours moved to SHA-512.
+ */
+test("the -20 recording declares ecdsa-sha512 over a SHA-512 digest", () => {
+
+    const signedInfo = requestOf(signedEvent.exi).header.signature!.signedInfo;
+
+    assert.equal(signedInfo.signatureMethod.algorithm, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512");
+    assert.equal(signedInfo.reference[0].digestMethod.algorithm, "http://www.w3.org/2001/04/xmlenc#sha512");
+    assert.equal(signedInfo.reference[0].digestValue.length, 64);
+});
+
 
 test("the -20 signature covers PnC_AReqAuthorizationMode, and this back end reproduces its digest", async () => {
 
@@ -140,10 +168,11 @@ test("the -20 signature covers PnC_AReqAuthorizationMode, and this back end repr
     const fragment = CommonMessagesCodec.encodeFragment_PnC_AReqAuthorizationMode(
                          request.pnC_AReqAuthorizationMode!);
 
-    const derived = [...new Uint8Array(await webcrypto.subtle.digest("SHA-256", fragment as BufferSource))]
+    const reference = request.header.signature!.signedInfo.reference[0];
+    const derived = [...new Uint8Array(await webcrypto.subtle.digest(
+                        hashOf(reference.digestMethod.algorithm), fragment as BufferSource))]
                     .map(b => b.toString(16).padStart(2, "0")).join("");
 
-    const reference = request.header.signature!.signedInfo.reference[0];
     const claimed   = [...reference.digestValue].map(b => b.toString(16).padStart(2, "0")).join("");
 
     assert.equal(derived, claimed,
@@ -167,12 +196,12 @@ test("the recorded -20 signature verifies against the chain inside the message i
     const key = await webcrypto.subtle.importKey(
         "spki", spki! as BufferSource, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
 
-    // Raw r‖s, as in -2. -20's mandatory suite is stronger in general, and this contract key is
-    // P-256 — a P-521 one would want SHA-512 and 132 bytes.
+    // Raw r‖s, as in -2: 64 bytes, because this contract key is P-256. A P-521 one gives 132. The
+    // hash is the suite's, not the curve's: SHA-512 here, over a P-256 key.
     assert.equal(signature.signatureValue.value.length, 64);
 
     assert.equal(await webcrypto.subtle.verify(
-                     { name: "ECDSA", hash: "SHA-256" }, key,
+                     { name: "ECDSA", hash: hashOf(signature.signedInfo.signatureMethod.algorithm) }, key,
                      signature.signatureValue.value as BufferSource,
                      XmlDsigCodec.encodeFragment_SignedInfo(toStandalone(signature.signedInfo)) as BufferSource),
                  true,
@@ -198,7 +227,7 @@ test("the -20 set's own SignedInfo grammar does not verify, which is why the sta
                   + "them apart");
 
     assert.equal(await webcrypto.subtle.verify(
-                     { name: "ECDSA", hash: "SHA-256" }, key,
+                     { name: "ECDSA", hash: hashOf(signature.signedInfo.signatureMethod.algorithm) }, key,
                      signature.signatureValue.value as BufferSource, own as BufferSource),
                  false,
                  "the -20 set's own SignedInfo fragment verified too, so the grammars are no longer "
@@ -219,7 +248,8 @@ test("a tampered -20 signature does not verify", async () => {
     tampered[tampered.length - 1] ^= 0x01;
 
     assert.equal(await webcrypto.subtle.verify(
-                     { name: "ECDSA", hash: "SHA-256" }, key, tampered as BufferSource,
+                     { name: "ECDSA", hash: hashOf(signature.signedInfo.signatureMethod.algorithm) }, key,
+                     tampered as BufferSource,
                      XmlDsigCodec.encodeFragment_SignedInfo(toStandalone(signature.signedInfo)) as BufferSource),
                  false);
 });

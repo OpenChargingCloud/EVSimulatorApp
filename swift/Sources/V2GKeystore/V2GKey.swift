@@ -23,6 +23,18 @@ public enum V2GKeyCurve: String, Sendable, CaseIterable {
 }
 
 
+/// The digest an ECDSA signature is computed over. **The caller names it**, never the curve: the
+/// signature form that declares the algorithm in its `SignedInfo` is what decides, and a signer that
+/// picked the curve's natural pairing would contradict that declaration.
+///
+/// Both are needed. ISO 15118-2, Josev's -20 interop form, and a PKCS#10 request are SHA-256. The
+/// -20 header signature is `ecdsa-sha512` ([V2G20-2473]), and EVerest 2026.10.0 refuses anything else.
+public enum V2GSignatureHash: Sendable, CaseIterable {
+    case sha256
+    case sha512
+}
+
+
 /// Where a private key actually lives, and therefore what can be claimed about it.
 ///
 /// The point of naming this rather than assuming it: §3.4 asks for the asymmetry to be **explicit in
@@ -90,27 +102,24 @@ public protocol V2GSigner: Sendable {
     /// The public key, DER-encoded as SubjectPublicKeyInfo.
     var publicKeyDer: [UInt8] { get }
 
-    /// Signs `octets` **with ECDSA over their SHA-256 digest**, returning the raw `r‖s` pair
+    /// Signs `octets` **with ECDSA over their `hash` digest**, returning the raw `r‖s` pair
     /// ISO 15118 puts on the wire — never DER. The field is sized to the curve, so a DER signature
     /// does not fit and the usual mistake fails loudly rather than silently.
     ///
-    /// ## Why the hash is named here rather than left to the curve
+    /// ## Why the caller names the hash, not the curve
     ///
-    /// This protocol serves one caller: the Josev interop signature form, which hard-codes
-    /// `ecdsa-sha256` in the `SignedInfo` it produces — on both protocols and whatever the key. C#
-    /// passes `HashAlgorithmName.SHA256` explicitly and Kotlin asks for `SHA256withECDSA`, so both
-    /// have always meant this; Swift did not have to say it while every credential was P-256, because
-    /// CryptoKit's default for a P-256 key *is* SHA-256.
+    /// CryptoKit pairs each curve with a default digest: SHA-256 for P-256, SHA-512 for P-521. Either
+    /// default contradicts some declaration. A P-521 OEM key that simply forwarded the octets once
+    /// produced a signature declaring SHA-256 and computed over SHA-512. It verified against itself
+    /// and against nothing else, and the recorded provisioning session caught it.
     ///
-    /// It stopped being invisible with the -20 OEM provisioning key, which is P-521: CryptoKit's
-    /// default there is SHA-512, so a signer that simply forwarded the octets produced a signature
-    /// declaring SHA-256 and computed over SHA-512. It verified against itself perfectly and against
-    /// nothing else — caught by the recorded provisioning session, which is the only check in this
-    /// package that verifies a signature *another implementation* made.
+    /// The hash used to be fixed at SHA-256, because the only form signed through here was Josev's,
+    /// which declares `ecdsa-sha256` on both protocols and whatever the key. -20 asks for
+    /// `ecdsa-sha512`, and EVerest 2026.10.0 refused the SHA-256 form with `FAILED_SignatureError`
+    /// (2026-11-27). So the form decides, and says so here.
     ///
-    /// The nominal -20 suite (P-521/SHA-512 over the combined grammar) does not come through here at
-    /// all: `V2GSignature.sign(_:with:)` takes a `P521.Signing.PrivateKey` directly.
-    func signature(over octets: [UInt8]) throws -> [UInt8]
+    /// A Secure Enclave key keeps working under both: it signs whatever digest it is handed.
+    func signature(over octets: [UInt8], hash: V2GSignatureHash) throws -> [UInt8]
 }
 
 
@@ -171,8 +180,11 @@ public struct InMemoryP256Signer: V2GSigner {
         self.protection = protection
     }
 
-    public func signature(over octets: [UInt8]) throws -> [UInt8] {
-        Array(try key.signature(for: Data(octets)).rawRepresentation)
+    public func signature(over octets: [UInt8], hash: V2GSignatureHash) throws -> [UInt8] {
+        switch hash {
+        case .sha256: return Array(try key.signature(for: SHA256.hash(data: Data(octets))).rawRepresentation)
+        case .sha512: return Array(try key.signature(for: SHA512.hash(data: Data(octets))).rawRepresentation)
+        }
     }
 }
 
@@ -203,10 +215,12 @@ public struct InMemoryP521Signer: V2GSigner {
         self.protection = protection
     }
 
-    /// SHA-256, explicitly — see ``V2GSigner/signature(over:)``. Handing the octets to CryptoKit
-    /// would hash them with SHA-512, because that is P-521's natural pairing, and produce a signature
-    /// that contradicts the `ecdsa-sha256` its own `SignedInfo` declares.
-    public func signature(over octets: [UInt8]) throws -> [UInt8] {
-        Array(try key.signature(for: SHA256.hash(data: Data(octets))).rawRepresentation)
+    /// The digest named, explicitly — see ``V2GSigner/signature(over:hash:)``. Handing the octets to
+    /// CryptoKit would hash them with SHA-512 whatever the declaration says.
+    public func signature(over octets: [UInt8], hash: V2GSignatureHash) throws -> [UInt8] {
+        switch hash {
+        case .sha256: return Array(try key.signature(for: SHA256.hash(data: Data(octets))).rawRepresentation)
+        case .sha512: return Array(try key.signature(for: SHA512.hash(data: Data(octets))).rawRepresentation)
+        }
     }
 }

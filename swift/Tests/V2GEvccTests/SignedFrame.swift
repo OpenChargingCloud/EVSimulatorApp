@@ -66,37 +66,44 @@ enum SignedFrame {
     /// Verifies a frame's own signature against its own `SignedInfo` — the half the substitution
     /// throws away. Without it a port could emit any 64 bytes it liked and still compare equal.
     static func verifies(_ frame: [UInt8], with publicKey: P256.Signing.PublicKey) -> Bool {
-        octetsAndValue(frame).map { XmlDsigInterop.verify($0.octets, $0.value, publicKey) } ?? false
+        octetsAndValue(frame).map {
+            XmlDsigInterop.verify($0.octets, $0.value, publicKey, signatureMethod: $0.method)
+        } ?? false
     }
 
     /// The P-521 half. A contract key is P-256 and a -20 OEM provisioning key is P-521, so which
     /// overload a caller wants follows the curve the trace names — see the corpus's `signingKey`.
     static func verifies(_ frame: [UInt8], with publicKey: P521.Signing.PublicKey) -> Bool {
-        octetsAndValue(frame).map { XmlDsigInterop.verify($0.octets, $0.value, publicKey) } ?? false
+        octetsAndValue(frame).map {
+            XmlDsigInterop.verify($0.octets, $0.value, publicKey, signatureMethod: $0.method)
+        } ?? false
     }
 
     /// The octets that were actually signed — the standalone xmldsig encoding of this frame's
-    /// `SignedInfo` — and the signature over them.
+    /// `SignedInfo` — the signature over them, and the `SignatureMethod` it declares.
     ///
     /// The -2 and -20 `SignedInfo` are different generated types, so each arm calls its own
     /// `standaloneOctets`. They agree on the answer by construction: the standalone grammar belongs
     /// to neither message set, which is what `ExiXmlDsig` exists to provide.
-    private static func octetsAndValue(_ frame: [UInt8]) -> (octets: [UInt8], value: [UInt8])? {
+    private static func octetsAndValue(_ frame: [UInt8]) -> (octets: [UInt8], value: [UInt8], method: String)? {
 
         guard let (_, message) = try? decode(frame) else { return nil }
 
         switch message {
         case let m as ExiIso2.V2G_Message:
             guard let s = m.header.signature else { return nil }
-            return (XmlDsigInterop.standaloneOctets(s.signedInfo), s.signatureValue.value)
+            return (XmlDsigInterop.standaloneOctets(s.signedInfo), s.signatureValue.value,
+                    s.signedInfo.signatureMethod.algorithm)
 
         case let r as ExiIso20Common.AuthorizationReq:
             guard let s = r.header.signature else { return nil }
-            return (XmlDsigInterop.standaloneOctets(s.signedInfo), s.signatureValue.value)
+            return (XmlDsigInterop.standaloneOctets(s.signedInfo), s.signatureValue.value,
+                    s.signedInfo.signatureMethod.algorithm)
 
         case let r as ExiIso20Common.CertificateInstallationReq:
             guard let s = r.header.signature else { return nil }
-            return (XmlDsigInterop.standaloneOctets(s.signedInfo), s.signatureValue.value)
+            return (XmlDsigInterop.standaloneOctets(s.signedInfo), s.signatureValue.value,
+                    s.signedInfo.signatureMethod.algorithm)
 
         default:
             return nil

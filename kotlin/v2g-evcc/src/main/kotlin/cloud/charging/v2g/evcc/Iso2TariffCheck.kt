@@ -83,7 +83,8 @@ object Iso2TariffCheck {
         if (V2GSignature.verify(headerSignature.signedInfo, value, verifyKey))
             return Iso2TariffSignatureVerdict(true, digestOk, true, "iso2-msgdef")
 
-        if (XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(headerSignature.signedInfo), value, verifyKey))
+        if (XmlDsigInterop.verify(XmlDsigInterop.standaloneOctets(headerSignature.signedInfo), value, verifyKey,
+                                  headerSignature.signedInfo.signatureMethod.algorithm))
             return Iso2TariffSignatureVerdict(true, digestOk, true, "xmldsig-standalone")
 
         return Iso2TariffSignatureVerdict(true, digestOk, false, "none")

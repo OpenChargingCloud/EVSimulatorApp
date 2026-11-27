@@ -68,7 +68,9 @@ object V2GCsr {
 
         override fun getOutputStream(): OutputStream = buffer
 
-        override fun getSignature(): ByteArray = derFromRawRs(signer.signature(buffer.toByteArray()))
+        // SHA-256, because that is what getAlgorithmIdentifier() declares.
+        override fun getSignature(): ByteArray =
+            derFromRawRs(signer.signature(buffer.toByteArray(), V2GSignatureHash.SHA256))
     }
 
     /**

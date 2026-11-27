@@ -61,10 +61,14 @@ class Iso2CertInstallOptions(
  * The OEM key must be **P-521** to take part in the -20 secp521r1 key agreement at all. A P-256
  * provisioning certificate — a -2-era one, which is what a Josev EVCC carries — reaches the station,
  * is answered, and cannot open the answer: there is no shared curve to agree on.
+ *
+ * [suite] sets the algorithms of the request's signature, as [PncEvccOptions.suite] does for
+ * `AuthorizationReq`.
  */
 class CertInstallEvccOptions(
     val oemCertificate: ByteArray,
     val oemSubCertificates: List<ByteArray>,
     val oemSignKey: V2GSigner,
     val oemKeyAgreement: PrivateKey,
+    val suite: XmlDsigSuite = XmlDsigSuite.Iso20,
 )

@@ -92,7 +92,9 @@ final class V2GCsrTests: XCTestCase {
             let curve = V2GKeyCurve.p521
             let protection = V2GKeyProtection.softwareInMemory
             let publicKeyDer: [UInt8] = []
-            func signature(over octets: [UInt8]) throws -> [UInt8] { [UInt8](repeating: 0, count: 132) }
+            func signature(over octets: [UInt8], hash: V2GSignatureHash) throws -> [UInt8] {
+                [UInt8](repeating: 0, count: 132)
+            }
         }
 
         XCTAssertThrowsError(try V2GCsr.build(subject: try subject(), signer: P521Signer())) {
