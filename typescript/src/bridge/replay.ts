@@ -97,6 +97,11 @@ export function toJSONLD(frame: Uint8Array, payloadType: string, messageName: st
     if (payloadType === "0x8004")
         return DCCodecJson.toJSON(DCCodec.decodeAny(payload));
 
+    // The -20 metering-confirmation side stream ([V2G20-1084]): not a message set of its own, but a
+    // second payload type for CommonMessages' MeteringConfirmationReq/Res.
+    if (payloadType === "0x8102")
+        return CommonMessagesCodecJson.toJSON(CommonMessagesCodec.decodeAny(payload));
+
     // The wording is C#'s, character for character: a consumer reading this in an event stream should
     // not be able to tell which back end produced the session.
     throw new Error(`payload type '${payloadType}' is not a message set this build carries.`);

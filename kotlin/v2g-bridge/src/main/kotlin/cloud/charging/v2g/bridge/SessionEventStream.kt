@@ -61,6 +61,12 @@ object MessageSetCodecs {
                 cloud.charging.v2g.iso20.dc.DCCodecJson.toJson(
                     cloud.charging.v2g.iso20.dc.DCCodec.decodeAny(payload))
 
+            // The -20 metering-confirmation side stream ([V2G20-1084]): not a message set of its own,
+            // but a second payload type for CommonMessages' MeteringConfirmationReq/Res.
+            payloadType == "0x8102" ->
+                cloud.charging.v2g.iso20.common.CommonMessagesCodecJson.toJson(
+                    cloud.charging.v2g.iso20.common.CommonMessagesCodec.decodeAny(payload))
+
             else -> throw IllegalArgumentException(
                 "payload type '$payloadType' is not a message set this build carries.")
         }

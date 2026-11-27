@@ -50,6 +50,14 @@ const sessions = JSON.parse(readFileSync(
     join(repositoryRoot, "bridge/EVSimulatorApp.Bridge.Tests/Vectors/Bridge.events.json"),
     "utf8")).sessions;
 
+/**
+ * Whether a recorded station had a signing meter fitted — read off the stream's own head, which
+ * names the meter key exactly when one is. Not off the session's name: `iso20-dc-pnc-meterconfirm`
+ * is metered and is not a "-meter", and the suffix rule missed it the day it was recorded.
+ * @param {any[]} events
+ */
+const metered = events => events.some(e => e?.kind === "sessionStarted" && e.meterKey);
+
 
 test("every recorded session renders one row per event, and no gaps", () => {
 
@@ -636,7 +644,7 @@ test("an unsigned reading is named as unsigned, and no key is not a fault of the
 test("a session with no meter reports none, rather than reporting nothing", async () => {
 
     for (const [name, events] of Object.entries(sessions)) {
-        if (name.endsWith("-meter")) continue;
+        if (metered(events)) continue;
         for (const event of events)
             assert.equal(meterReadingFor(event).signature, null,
                          `${name}/${event.seq}: a station with no meter signed a reading`);
@@ -674,7 +682,7 @@ test("the car counts on its own at a station with no meter, which is the ordinar
     // Every unmetered session in the corpus: the vehicle still has a number, the station does not.
     for (const [name, events] of Object.entries(sessions)) {
 
-        if (name.endsWith("-meter")) continue;
+        if (metered(events)) continue;
 
         const energy = energyFor(events);
         assert.notEqual(energy.verdict, "differ", `${name}: ${energy.explanation}`);
