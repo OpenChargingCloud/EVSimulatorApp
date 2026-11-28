@@ -55,7 +55,7 @@ gates with one definition of what "the gates" are:
 bash tools/port-gates.sh kotlin
 ```
 
-**Use the wrapper, not a `gradle` on the PATH.** The build pins the Kotlin plugin at 2.1.0, which
+**Use the wrapper, not a `gradle` on the PATH.** The build pins the Kotlin plugin at 2.4.21, which
 needs a Gradle far newer than several still in circulation, and until 2026-08-16 nothing here said
 which — a machine carrying 7.0.2 got a plugin-isolation error naming neither version. The wrapper is
 the same 8.14.3 one `capacitor/android` and `shell/android` already carried, byte for byte.

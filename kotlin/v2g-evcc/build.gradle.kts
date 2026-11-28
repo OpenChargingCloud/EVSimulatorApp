@@ -19,5 +19,5 @@ dependencies {
 
     testImplementation(kotlin("test"))
     // Reads the session-trace corpus the C# side records, verbatim, so the two cannot drift.
-    testImplementation("com.google.code.gson:gson:2.11.0")
+    testImplementation("com.google.code.gson:gson:2.15.0")
 }

@@ -5,7 +5,7 @@
 // Kotlin plugins are already on the buildscript classpath: declaring a version there is an error,
 // because Gradle cannot check a version against a plugin it did not resolve.
 //
-// Both contexts therefore use the app's toolchain — AGP 8.13, Kotlin 2.1.0, Gradle 8.14.3 — rather
+// Both contexts therefore use the app's toolchain — AGP 8.13, Kotlin 2.4.21, Gradle 8.14.3 — rather
 // than agreeing by coincidence. The wrapper in this directory is the same one `shell/android` uses.
 plugins {
     id("com.android.library")
@@ -60,7 +60,7 @@ dependencies {
     // plugin's own coordinates, which the consumed build resolves differently from the standalone
     // one, and a coordinate with no version resolves to nothing at all.
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.1.0")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.21")
 
     testImplementation("com.capacitorjs:core:8.6.3")
 
