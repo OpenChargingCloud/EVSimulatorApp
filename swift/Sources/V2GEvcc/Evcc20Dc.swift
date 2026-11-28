@@ -137,6 +137,9 @@ public class Evcc20Dc: Evcc20Base {
         // would be a *request* rather than a measurement, and does not exist in Dynamic mode at all.
         meter.sample(volts:   Self.amount(request.eVPresentVoltage),
                      amperes: Self.amount(response.eVSEPresentCurrent))
+        if let info = response.meterInfo {
+            noteStationReading(chargedWh: info.chargedEnergyReadingWh, dischargedWh: info.bPT_DischargedEnergyReadingWh)
+        }
 
         // [V2G20-1083]: the station may ask the car to sign what this response carried. After the
         // sample, so the station's reading is paired with the car's count of the same iteration.

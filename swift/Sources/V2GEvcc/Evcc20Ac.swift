@@ -99,6 +99,9 @@ public final class Evcc20Ac: Evcc20Base {
         // has EVPresentActivePower in the request, so the vehicle's view needs no deriving and
         // nothing borrowed from the station. Read back off the rational it just sent.
         meter.sample(Self.amount(sent))
+        if let info = response.meterInfo {
+            noteStationReading(chargedWh: info.chargedEnergyReadingWh, dischargedWh: info.bPT_DischargedEnergyReadingWh)
+        }
 
         // [V2G20-1083]: the station may ask the car to sign what this response carried. After the
         // sample, so the station's reading is paired with the car's count of the same iteration.

@@ -951,6 +951,36 @@ final class EvccTraceTests: XCTestCase {
             "which sends no wrong bytes and would otherwise pass")
     }
 
+    /// **A car that finds the meter wrong ends the charging and says why**, byte for byte as the C#
+    /// car did. The station's meter reads 10 % high and the car is set to 5 % (never under 10 Wh), so
+    /// the first reading, 880 Wh against its own 800, ends the session. Its `SessionStopReq` carries
+    /// `EVTerminationCode` and an explanation whose every character the replay compares: that text is
+    /// the contract between the three languages, rounding included.
+    func testACarThatFindsTheMeterWrongStopsAndSaysWhyByteForByte() throws {
+        let (replay, evcc) = try replay20("iso20-dc-eim-meter-deviation", .dc) {
+            $0.stopOnMeteringDeviation = MeteringDeviationLimit(fraction: 0.05, floorWh: 10)
+        }
+        XCTAssertTrue(replay.complete, "the session stopped after \(replay.replayed) recorded exchanges")
+        let deviation = try XCTUnwrap(evcc.meteringDeviation, "the car did not stop over the meter")
+        XCTAssertEqual(deviation.explanation, "meter 880 Wh, vehicle 800 Wh, difference 80 Wh, beyond 44 Wh")
+        XCTAssertEqual(MeteringDeviation.terminationCode, "urn:openchargingcloud:EVTerminationCode:MeteringDeviation")
+    }
+
+    /// The same station without the limit: the car charges on, and the recording no longer fits.
+    func testWithoutALimitTheCarChargesOnAndTheRecordingNoLongerFits() {
+        XCTAssertThrowsError(try replay20("iso20-dc-eim-meter-deviation", .dc))
+    }
+
+    /// The rounding every port has to share: whole watt-hours, half away from zero.
+    func testTheExplanationRoundsAsTheCSharpCarDoes() {
+        XCTAssertEqual(MeteringDeviation.wh(2.5), 3)
+        XCTAssertEqual(MeteringDeviation.wh(-2.5), -3)
+        XCTAssertEqual(MeteringDeviation.wh(2.4999), 2)
+        XCTAssertEqual(MeteringDeviation.wh(-0.4), 0)
+        XCTAssertEqual(MeteringDeviation.explain(-2001, -1900.5, 10),
+                       "meter -2001 Wh, vehicle -1901 Wh, difference -101 Wh, beyond 10 Wh")
+    }
+
     /// **The vehicle's own counter lands where the station's signed reading does**, in both protocols.
     ///
     /// Two counters, two state machines, and neither looks at the other's total. In -2 AC both sides
