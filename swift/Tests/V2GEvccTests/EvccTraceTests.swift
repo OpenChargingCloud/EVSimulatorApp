@@ -115,7 +115,8 @@ final class EvccTraceTests: XCTestCase {
     // ── ISO 15118-20 ──────────────────────────────────────────────────────
 
     private func replay20(_ name: String, _ mode: PowerMode,
-                          preferDynamic: Bool = false) throws -> (TraceReplay, Evcc20Base) {
+                          preferDynamic: Bool = false,
+                          configure: (Evcc20Base) -> Void = { _ in }) throws -> (TraceReplay, Evcc20Base) {
         let replay = TraceReplay(try SessionTrace.load(name))
         let stream = V2GTPStream(replay)
         try SapHandshake.runEvccSide(stream, .iso15118_20, mode)
@@ -123,6 +124,7 @@ final class EvccTraceTests: XCTestCase {
             ? Evcc20Dc(stream, clock: recordedAt)
             : Evcc20Ac(stream, clock: recordedAt)
         evcc.preferDynamicControlMode = preferDynamic
+        configure(evcc)
         try evcc.run()
         return (replay, evcc)
     }
@@ -164,6 +166,62 @@ final class EvccTraceTests: XCTestCase {
     func testWithoutTheFlagTheDynamicTraceDiverges() throws {
         XCTAssertThrowsError(try replay20("iso20-dc-eim-dynamic", .dc)) { error in
             XCTAssertTrue(String(describing: error).contains("ServiceSelectionReq"),
+                          String(describing: error))
+        }
+    }
+
+    // ── Bidirectional services, and the service filter ────────────────────
+    //
+    // Recorded 2026-11-28 with the C# EVCC's PreferBidirectionalService and SupportedServiceIds,
+    // for this port: until then it could select 5 or 6 and still send the charge-only types, which
+    // a station refuses, and it could not send the filter at all. Each of the four BPT traces pairs
+    // one message set with one control mode, so each reaches its own arm in Evcc20Ac / Evcc20Dc.
+
+    private func assertBidirectionalReplay(_ name: String, _ mode: PowerMode, preferDynamic: Bool,
+                                           service: UInt16) throws {
+        let (replay, evcc) = try replay20(name, mode, preferDynamic: preferDynamic) {
+            $0.preferBidirectionalService = true
+        }
+        XCTAssertTrue(replay.complete,
+            "the session stopped after \(replay.replayed) of the recorded exchanges")
+        XCTAssertEqual(evcc.selectedEnergyServiceId, service, "the bidirectional service was not selected")
+    }
+
+    func testTheDcBidirectionalSessionMatchesTheRecordingByteForByte() throws {
+        try assertBidirectionalReplay("iso20-dc-eim-bpt", .dc, preferDynamic: false, service: 6)
+    }
+
+    func testTheDcBidirectionalDynamicSessionMatchesTheRecordingByteForByte() throws {
+        try assertBidirectionalReplay("iso20-dc-eim-bpt-dynamic", .dc, preferDynamic: true, service: 6)
+    }
+
+    func testTheAcBidirectionalSessionMatchesTheRecordingByteForByte() throws {
+        try assertBidirectionalReplay("iso20-ac-eim-bpt", .ac, preferDynamic: false, service: 5)
+    }
+
+    func testTheAcBidirectionalDynamicSessionMatchesTheRecordingByteForByte() throws {
+        try assertBidirectionalReplay("iso20-ac-eim-bpt-dynamic", .ac, preferDynamic: true, service: 5)
+    }
+
+    /// The negative: without the flag this car keeps the charge-only service, and the trace
+    /// diverges at ServiceDetailReq, the first request that names the service it chose.
+    func testWithoutTheFlagTheBidirectionalTraceDiverges() throws {
+        XCTAssertThrowsError(try replay20("iso20-dc-eim-bpt", .dc)) { error in
+            XCTAssertTrue(String(describing: error).contains("ServiceDetailReq"),
+                          String(describing: error))
+        }
+    }
+
+    func testTheFilteredDcSessionMatchesTheRecordingByteForByte() throws {
+        let (replay, _) = try replay20("iso20-dc-eim-filter", .dc) { $0.supportedServiceIds = [2, 6] }
+        XCTAssertTrue(replay.complete,
+            "the session stopped after \(replay.replayed) of the recorded exchanges")
+    }
+
+    /// Without the filter the first ServiceDiscoveryReq already differs: the element is absent.
+    func testWithoutTheFilterTheFilteredTraceDiverges() throws {
+        XCTAssertThrowsError(try replay20("iso20-dc-eim-filter", .dc)) { error in
+            XCTAssertTrue(String(describing: error).contains("ServiceDiscoveryReq"),
                           String(describing: error))
         }
     }

@@ -14,16 +14,34 @@ public class Evcc20Dc: Evcc20Base {
 
     public override func runChargeParameterDiscovery() throws {
 
+        // Asking in kind on the direction axis (see ``Evcc20Base/bidirectionalService``): under a BPT
+        // service the EV declares what it can take *and* what it can give back, in the BPT_ subtype.
+        // The discharge envelope mirrors the charge one, as in the C# EVCC: this vehicle is symmetric.
+        let transferMode: DC_CPDReqEnergyTransferModeType = bidirectionalService
+            ? BPT_DC_CPDReqEnergyTransferModeType(
+                  eVMaximumChargePower:      Self.rat(5_000, 1),
+                  eVMinimumChargePower:      Self.rat(0),
+                  eVMaximumChargeCurrent:    Self.rat(200),
+                  eVMinimumChargeCurrent:    Self.rat(0),
+                  eVMaximumVoltage:          Self.rat(500),
+                  eVMinimumVoltage:          Self.rat(50),
+                  targetSOC: 80,
+                  eVMaximumDischargePower:   Self.rat(5_000, 1),
+                  eVMinimumDischargePower:   Self.rat(0),
+                  eVMaximumDischargeCurrent: Self.rat(200),
+                  eVMinimumDischargeCurrent: Self.rat(0))
+            : DC_CPDReqEnergyTransferModeType(
+                  eVMaximumChargePower:   Self.rat(5_000, 1),
+                  eVMinimumChargePower:   Self.rat(0),
+                  eVMaximumChargeCurrent: Self.rat(200),
+                  eVMinimumChargeCurrent: Self.rat(0),
+                  eVMaximumVoltage:       Self.rat(500),
+                  eVMinimumVoltage:       Self.rat(50),
+                  targetSOC: 80)
+
         let request = DC_ChargeParameterDiscoveryReq(
             header: sessionCtx.toDcHeader(),
-            dC_CPDReqEnergyTransferMode: DC_CPDReqEnergyTransferModeType(
-                eVMaximumChargePower:   Self.rat(5_000, 1),
-                eVMinimumChargePower:   Self.rat(0),
-                eVMaximumChargeCurrent: Self.rat(200),
-                eVMinimumChargeCurrent: Self.rat(0),
-                eVMaximumVoltage:       Self.rat(500),
-                eVMinimumVoltage:       Self.rat(50),
-                targetSOC: 80))
+            dC_CPDReqEnergyTransferMode: transferMode)
 
         let (set, message) = try exchangeRaw(.iso20DC, DCCodec.encode(request))
         let _: DC_ChargeParameterDiscoveryRes = try expect(set, message, .iso20DC)
@@ -51,23 +69,53 @@ public class Evcc20Dc: Evcc20Base {
 
     public override func runChargeLoopIteration() throws {
 
-        // Asking in kind, the mirror of [V2G20-1600]: the request's control mode must be the one
-        // the session negotiated. Dynamic states what the battery needs and what the car can take,
-        // and lets the station choose the setpoint; Scheduled names the setpoint itself.
-        let controlMode: CLReqControlModeType = preferDynamicControlMode
-            ? Dynamic_DC_CLReqControlModeType(
-                  departureTime:          departureTime,
-                  eVTargetEnergyRequest:  Self.rat(30, 3),    // 30 kWh
-                  eVMaximumEnergyRequest: Self.rat(60, 3),    // 60 kWh
-                  eVMinimumEnergyRequest: Self.rat(10, 3),    // 10 kWh
-                  eVMaximumChargePower:   Self.rat(50, 3),    // 50 kW
-                  eVMinimumChargePower:   Self.rat(1,  3),    //  1 kW
-                  eVMaximumChargeCurrent: Self.rat(125),
-                  eVMaximumVoltage:       Self.rat(500),
-                  eVMinimumVoltage:       Self.rat(200))
-            : Scheduled_DC_CLReqControlModeType(
-                  eVTargetCurrent: Self.rat(120),
-                  eVTargetVoltage: Self.rat(400))
+        // Asking in kind, the mirror of [V2G20-1600], on both axes at once: the request's control
+        // mode must be the one the session negotiated (Dynamic states what the battery needs and
+        // what the car can take, and lets the station choose the setpoint; Scheduled names the
+        // setpoint itself), and its direction must be the one the selected service carries.
+        let controlMode: CLReqControlModeType
+        switch (preferDynamicControlMode, bidirectionalService) {
+        case (true, true):
+            // The Dynamic discharge triple is *mandatory* in the BPT subtype: a station asked to
+            // steer a bidirectional session cannot do it without knowing how far either way.
+            controlMode = BPT_Dynamic_DC_CLReqControlModeType(
+                departureTime:             departureTime,
+                eVTargetEnergyRequest:     Self.rat(30, 3),    // 30 kWh
+                eVMaximumEnergyRequest:    Self.rat(60, 3),    // 60 kWh
+                eVMinimumEnergyRequest:    Self.rat(10, 3),    // 10 kWh
+                eVMaximumChargePower:      Self.rat(50, 3),    // 50 kW
+                eVMinimumChargePower:      Self.rat(1,  3),    //  1 kW
+                eVMaximumChargeCurrent:    Self.rat(125),
+                eVMaximumVoltage:          Self.rat(500),
+                eVMinimumVoltage:          Self.rat(200),
+                eVMaximumDischargePower:   Self.rat(50, 3),    // the charge request mirrored
+                eVMinimumDischargePower:   Self.rat(1,  3),
+                eVMaximumDischargeCurrent: Self.rat(125))
+        case (true, false):
+            controlMode = Dynamic_DC_CLReqControlModeType(
+                departureTime:          departureTime,
+                eVTargetEnergyRequest:  Self.rat(30, 3),    // 30 kWh
+                eVMaximumEnergyRequest: Self.rat(60, 3),    // 60 kWh
+                eVMinimumEnergyRequest: Self.rat(10, 3),    // 10 kWh
+                eVMaximumChargePower:   Self.rat(50, 3),    // 50 kW
+                eVMinimumChargePower:   Self.rat(1,  3),    //  1 kW
+                eVMaximumChargeCurrent: Self.rat(125),
+                eVMaximumVoltage:       Self.rat(500),
+                eVMinimumVoltage:       Self.rat(200))
+        case (false, true):
+            // Scheduled's limits are all optional, so these two arms differ only in the discharge
+            // envelope, which is the whole of what makes the request bidirectional, hence stated.
+            controlMode = BPT_Scheduled_DC_CLReqControlModeType(
+                eVTargetCurrent:           Self.rat(120),
+                eVTargetVoltage:           Self.rat(400),
+                eVMaximumDischargePower:   Self.rat(5_000, 1),   // 50 kW, the declared envelope
+                eVMinimumDischargePower:   Self.rat(0),
+                eVMaximumDischargeCurrent: Self.rat(200))
+        case (false, false):
+            controlMode = Scheduled_DC_CLReqControlModeType(
+                eVTargetCurrent: Self.rat(120),
+                eVTargetVoltage: Self.rat(400))
+        }
 
         let request = DC_ChargeLoopReq(
             header: sessionCtx.toDcHeader(),
