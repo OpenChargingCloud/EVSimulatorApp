@@ -12,7 +12,7 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.0'
-        classpath 'com.google.gms:google-services:4.4.4'
+        classpath 'com.google.gms:google-services:4.6.0'
 
         // The EvSimulator plugin's Android half is Kotlin, and AGP 8 has no Kotlin of its own — so
         // the compiler has to be on the buildscript classpath of whichever build compiles it. The

@@ -17,5 +17,5 @@ dependencies {
     testImplementation(kotlin("test"))
     // Reads the shared vector corpus verbatim: the dispatcher is fed real cbV2G payloads rather
     // than hand-built ones, so a wrong payload-type mapping surfaces as a decode failure.
-    testImplementation("com.google.code.gson:gson:2.11.0")
+    testImplementation("com.google.code.gson:gson:2.15.0")
 }
