@@ -67,5 +67,5 @@ dependencies {
     // The real org.json, because the mockable android.jar's is a stub that throws. Android's own
     // org.json is a fork of this one; the difference is documented where it matters, in
     // EvSimulatorPluginTest.
-    testImplementation("org.json:json:20250517")
+    testImplementation("org.json:json:20260814")
 }
