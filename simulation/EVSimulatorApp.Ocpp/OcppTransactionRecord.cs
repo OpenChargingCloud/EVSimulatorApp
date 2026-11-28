@@ -159,24 +159,42 @@ public sealed class OcppTransactionRecorder(string transactionId, string evseId,
 
     /// <summary>Books one reading. <paramref name="signature"/> must be the very bytes that went out
     /// on the wire, or the one comparison this record enables is quietly worthless.</summary>
+    /// <remarks>
+    /// In a bidirectional session the discharge register follows as a second sampled value,
+    /// <c>Energy.Active.Export.Register</c>. The signature stays on the import value and says
+    /// <c>V2G-METER-2</c>, because it covers both registers: one signature per reading, as on the wire,
+    /// rather than the same 64 bytes attached twice.
+    /// </remarks>
     public void Sample(ulong wattHours, long unixSeconds,
-                       string? signature = null, string? meterPublicKey = null)
+                       string? signature = null, string? meterPublicKey = null,
+                       ulong? dischargedWattHours = null)
     {
+        var import = new OcppSampledValue(
+            wattHours.ToString(CultureInfo.InvariantCulture),
+            Context:       "Sample.Periodic",
+            Measurand:     "Energy.Active.Import.Register",
+            UnitOfMeasure: new OcppUnitOfMeasure("Wh"),
+            Location:      "Outlet",
+            SignedMeterValue: signature is null || meterPublicKey is null
+                                  ? null
+                                  : new OcppSignedMeterValue(signature,
+                                                             SigningMethod:  "ECDSA-secp256r1-SHA256",
+                                                             EncodingMethod: dischargedWattHours is null
+                                                                                 ? "V2G-METER-1"
+                                                                                 : "V2G-METER-2",
+                                                             PublicKey:      meterPublicKey));
+
         values.Add(new OcppMeterValue(
             DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime
                           .ToString("yyyy-MM-ddTHH:mm:ss'Z'", CultureInfo.InvariantCulture),
-            [new OcppSampledValue(
-                wattHours.ToString(CultureInfo.InvariantCulture),
-                Context:       "Sample.Periodic",
-                Measurand:     "Energy.Active.Import.Register",
-                UnitOfMeasure: new OcppUnitOfMeasure("Wh"),
-                Location:      "Outlet",
-                SignedMeterValue: signature is null || meterPublicKey is null
-                                      ? null
-                                      : new OcppSignedMeterValue(signature,
-                                                                 SigningMethod:  "ECDSA-secp256r1-SHA256",
-                                                                 EncodingMethod: "V2G-METER-1",
-                                                                 PublicKey:      meterPublicKey))]));
+            dischargedWattHours is { } discharged
+                ? [import, new OcppSampledValue(
+                               discharged.ToString(CultureInfo.InvariantCulture),
+                               Context:       "Sample.Periodic",
+                               Measurand:     "Energy.Active.Export.Register",
+                               UnitOfMeasure: new OcppUnitOfMeasure("Wh"),
+                               Location:      "Outlet")]
+                : [import]));
     }
 
     /// <summary>The record, with the last reading marked as the transaction's final one.</summary>

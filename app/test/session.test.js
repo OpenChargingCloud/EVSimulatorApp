@@ -774,6 +774,37 @@ const transactions = JSON.parse(readFileSync(
     "utf8")).transactions;
 
 
+test("a bidirectional station's readings are signed over both registers, and stripping one fails", async () => {
+
+    // Since 2026-11-28 a station of ours discharges the vehicle, and its meter then signs the charged
+    // and the discharged register together (V2G-METER-2). A verifier that rebuilt the layout-1 payload
+    // would fail every such reading; one that ignored the register would call an unsigned figure signed.
+    for (const name of ["iso20-dc-eim-bpt-discharge", "iso20-ac-eim-bpt-discharge"]) {
+
+        const events   = sessions[name] ?? [];
+        const readings = events.filter((/** @type {any} */ e) => meterReadingFor(e).present);
+        assert.equal(readings.length, 3, `${name}: ${readings.length} readings`);
+
+        for (const event of readings) {
+            assert.notEqual(meterReadingFor(event).dischargedWh, null, `${name} seq ${event.seq}: no discharge register`);
+            const check = await meterCheckFor(event, events);
+            assert.equal(check.verdict, "signed-by-meter", `${name} seq ${event.seq}: ${check.explanation}`);
+
+            const stripped = structuredClone(event);
+            delete stripped.json.meterInfo.bpt_DischargedEnergyReadingWh;
+            const refused = await meterCheckFor(stripped, events);
+            assert.notEqual(refused.verdict, "signed-by-meter",
+                            `${name} seq ${event.seq}: a reading verified with its discharge register stripped`);
+        }
+
+        // The backend's billed figure is the import register, not the export one beside it.
+        const check = backendCheckFor(events, transactions[name]);
+        assert.equal(check.verdict, "consistent", `${name}: ${check.explanation}`);
+        assert.equal(check.backendWh, energyFor(events).stationWh, name);
+    }
+});
+
+
 test("the signed readings the backend got are the ones this car saw", async () => {
 
     for (const name of ["iso2-ac-eim-meter", "iso20-dc-eim-meter"]) {

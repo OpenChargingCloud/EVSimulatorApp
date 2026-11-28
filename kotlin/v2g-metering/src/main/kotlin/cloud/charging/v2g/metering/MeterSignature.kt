@@ -36,6 +36,13 @@ import java.security.Signature
  * The domain separator stops a signature over the same numbers elsewhere being replayed in as a
  * meter reading; the session id makes a reading provably *yours* rather than merely genuine; and the
  * length prefix stops meter `"A1"` reading 23 and meter `"A"` reading 123 producing the same octets.
+ *
+ * ## Layout 2, for a bidirectional meter (since 2026-11-28)
+ *
+ * When the reading carries `BPT_DischargedEnergyReadingWh` (-20 only), the meter signs both
+ * registers: separator `"V2G-METER-2\0"`, then the same fields with the 8-byte discharge register
+ * right after the charged one. Layout 1 is unchanged for every other reading, and the separator keeps
+ * the two from ever being read as each other.
  */
 object MeterSignature {
 
@@ -62,22 +69,25 @@ object MeterSignature {
         meterId: String,
         reading: ULong,
         timestamp: Long?,
+        discharged: ULong? = null,
     ): ByteArray {
         require(protocol == 2 || protocol == 20) { "protocol must be 2 or 20, was $protocol" }
+        require(discharged == null || protocol == 20) { "only -20 has a discharged-energy register" }
 
         val id = meterId.toByteArray(Charsets.UTF_8)
         require(id.size <= 255) { "meter id is ${id.size} bytes; the layout allows 255" }
 
-        val out = ByteArray(12 + 1 + sessionId.size + 1 + id.size + 16)
+        val out = ByteArray(12 + 1 + sessionId.size + 1 + id.size + 16 + (if (discharged == null) 0 else 8))
         var at = 0
 
-        "V2G-METER-1".toByteArray(Charsets.US_ASCII).copyInto(out, at); at += 11
+        (if (discharged == null) "V2G-METER-1" else "V2G-METER-2").toByteArray(Charsets.US_ASCII).copyInto(out, at); at += 11
         out[at++] = 0
         out[at++] = protocol.toByte()
         sessionId.copyInto(out, at); at += sessionId.size
         out[at++] = id.size.toByte()
         id.copyInto(out, at); at += id.size
         writeBigEndian(out, at, reading.toLong()); at += 8
+        if (discharged != null) { writeBigEndian(out, at, discharged.toLong()); at += 8 }
         // Absent encodes as zero rather than being omitted, so the payload's length never depends on
         // which optional fields are present.
         writeBigEndian(out, at, timestamp ?: 0L)
@@ -97,10 +107,11 @@ object MeterSignature {
         reading: ULong,
         timestamp: Long?,
         publicKey: PublicKey,
+        discharged: ULong? = null,
     ): Boolean {
         if (signature.size != SIGNATURE_LENGTH) return false
 
-        val message = payload(protocol, sessionId, meterId, reading, timestamp)
+        val message = payload(protocol, sessionId, meterId, reading, timestamp, discharged)
         return Signature.getInstance(JCA_P1363).apply {
             initVerify(publicKey)
             update(message)

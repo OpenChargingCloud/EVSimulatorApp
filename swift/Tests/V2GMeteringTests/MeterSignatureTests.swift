@@ -20,6 +20,7 @@ final class MeterSignatureTests: XCTestCase {
         let sessionId: [UInt8]
         let reading: UInt64
         let timestamp: Int64?
+        let discharged: UInt64?
         let payload: [UInt8]
         let signature: [UInt8]
     }
@@ -54,6 +55,7 @@ final class MeterSignatureTests: XCTestCase {
                    sessionId: hex($0["sessionId"] as! String),
                    reading:   UInt64($0["reading"] as! String)!,
                    timestamp: ($0["timestamp"] as? String).flatMap { Int64($0) },
+                   discharged: ($0["discharged"] as? String).flatMap { UInt64($0) },
                    payload:   hex($0["payload"] as! String),
                    signature: hex($0["signature"] as! String))
         })
@@ -77,7 +79,7 @@ final class MeterSignatureTests: XCTestCase {
         for v in vectors {
             let built = try MeterSignature.payload(protocol: v.proto, sessionId: v.sessionId,
                                                    meterId: v.meterId, reading: v.reading,
-                                                   timestamp: v.timestamp)
+                                                   timestamp: v.timestamp, discharged: v.discharged)
             XCTAssertEqual(built, v.payload, "meterId \(v.meterId), protocol \(v.proto)")
         }
     }
@@ -89,9 +91,28 @@ final class MeterSignatureTests: XCTestCase {
             XCTAssertTrue(try MeterSignature.verify(v.signature, protocol: v.proto,
                                                     sessionId: v.sessionId, meterId: v.meterId,
                                                     reading: v.reading, timestamp: v.timestamp,
-                                                    publicKey: key),
+                                                    discharged: v.discharged, publicKey: key),
                           "meterId \(v.meterId), protocol \(v.proto)")
         }
+    }
+
+    /// Layout 2: a bidirectional meter's signature covers the discharge register too. Stripping the
+    /// register, or changing it, must leave a reading that does not verify; otherwise the discharged
+    /// figure beside the signature would be an unsigned number that looks signed.
+    func testADischargeRegisterIsSignedAndCannotBeStrippedOrChanged() throws {
+        let (key, vectors) = try Self.corpus()
+        let v = try XCTUnwrap(vectors.first { ($0.discharged ?? 0) > 0 })
+
+        XCTAssertFalse(try MeterSignature.verify(v.signature, protocol: v.proto,
+                                                 sessionId: v.sessionId, meterId: v.meterId,
+                                                 reading: v.reading, timestamp: v.timestamp,
+                                                 publicKey: key),
+                       "a layout-2 signature verified with the discharge register stripped")
+        XCTAssertFalse(try MeterSignature.verify(v.signature, protocol: v.proto,
+                                                 sessionId: v.sessionId, meterId: v.meterId,
+                                                 reading: v.reading, timestamp: v.timestamp,
+                                                 discharged: v.discharged! - 1, publicKey: key),
+                       "a layout-2 signature verified over another discharged figure")
     }
 
     /// A shaved reading must not verify — the whole reason the field is signed.

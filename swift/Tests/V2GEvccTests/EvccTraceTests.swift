@@ -3,6 +3,7 @@ import Foundation
 import XCTest
 import ExiIso2
 import ExiIso20Common
+import ExiIso20AC
 import ExiIso20DC
 import V2GDispatch
 import V2GMetering
@@ -224,6 +225,70 @@ final class EvccTraceTests: XCTestCase {
             XCTAssertTrue(String(describing: error).contains("ServiceDiscoveryReq"),
                           String(describing: error))
         }
+    }
+
+    // ── Energy that flows back ────────────────────────────────────────────
+    //
+    // Recorded 2026-11-28, the first sessions in which a station of ours discharges the vehicle, and
+    // the meter signs both registers (V2G-METER-2). DC: the station serves a negative current, which
+    // this car already counted correctly. AC: the station asks with a negative EVSETargetActivePower,
+    // and this car follows from the next loop on ([V2G20-1825]).
+
+    /// One charge-loop reading as both -20 sets carry it.
+    private struct Reading20 {
+        let sessionId: [UInt8]; let meterId: String; let charged: UInt64; let discharged: UInt64?
+        let signature: [UInt8]?; let timestamp: Int64?
+    }
+
+    private func reading20(_ frame: [UInt8]) throws -> Reading20? {
+        guard case let .decoded(_, message) = try V2GTPDispatcher.decode(frame) else { return nil }
+        if let dc = message as? DC_ChargeLoopRes, let m = dc.meterInfo {
+            return Reading20(sessionId: dc.header.sessionID, meterId: m.meterID, charged: m.chargedEnergyReadingWh,
+                             discharged: m.bPT_DischargedEnergyReadingWh, signature: m.meterSignature,
+                             timestamp: m.meterTimestamp.map { Int64($0) })
+        }
+        if let ac = message as? ExiIso20AC.AC_ChargeLoopRes, let m = ac.meterInfo {
+            return Reading20(sessionId: ac.header.sessionID, meterId: m.meterID, charged: m.chargedEnergyReadingWh,
+                             discharged: m.bPT_DischargedEnergyReadingWh, signature: m.meterSignature,
+                             timestamp: m.meterTimestamp.map { Int64($0) })
+        }
+        return nil
+    }
+
+    /// The car's own count lands where the station's two registers do: charged minus discharged.
+    private func assertDischargeReplay(_ name: String, _ mode: PowerMode, expectedWh: Double) throws {
+
+        let (replay, evcc) = try replay20(name, mode, preferDynamic: true) { $0.preferBidirectionalService = true }
+        XCTAssertTrue(replay.complete, "the session stopped after \(replay.replayed) of the recorded exchanges")
+        XCTAssertEqual(evcc.meter.energy, expectedWh, "the car's own count, signed")
+
+        let trace = try SessionTrace.load(name)
+        let key   = try SignedFrame.publicKey(x: XCTUnwrap(trace.meterKey).x, y: XCTUnwrap(trace.meterKey).y)
+        let readings = try trace.exchanges.filter { $0.response.carriesMeterSignature }
+                                          .compactMap { try reading20($0.response.bytes) }
+        let last = try XCTUnwrap(readings.last)
+
+        XCTAssertEqual(Double(last.charged) - Double(try XCTUnwrap(last.discharged)), evcc.meter.energy,
+                       "the car's count and the station's two registers disagree")
+
+        for r in readings {
+            XCTAssertTrue(try MeterSignature.verify(XCTUnwrap(r.signature), protocol: 20, sessionId: r.sessionId,
+                                                    meterId: r.meterId, reading: r.charged, timestamp: r.timestamp,
+                                                    discharged: r.discharged, publicKey: key),
+                          "a reading C# recorded does not verify over both registers here")
+            XCTAssertFalse(try MeterSignature.verify(XCTUnwrap(r.signature), protocol: 20, sessionId: r.sessionId,
+                                                     meterId: r.meterId, reading: r.charged, timestamp: r.timestamp,
+                                                     publicKey: key),
+                           "a reading verifies with the discharge register stripped")
+        }
+    }
+
+    func testTheDcStationDischargesTheCarAndTheMeterSignsWhatWentBack() throws {
+        try assertDischargeReplay("iso20-dc-eim-bpt-discharge", .dc, expectedWh: -2_001)
+    }
+
+    func testTheAcStationAsksForEnergyBackAndTheCarFollows() throws {
+        try assertDischargeReplay("iso20-ac-eim-bpt-discharge", .ac, expectedWh: 1)
     }
 
     /// Which energy-transfer service the negotiation settled on: DC=2, AC=1 (Table 204). The wire
