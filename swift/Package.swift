@@ -65,7 +65,7 @@ let package = Package(
         // package from the same vendor as the toolchain, and it parses. If the release cadence ever
         // becomes a problem, it can be vendored the same way — the V2GCertificates seam exists so
         // that swap costs one target.
-        .package(url: "https://github.com/apple/swift-certificates.git", .upToNextMinor(from: "1.19.4")),
+        .package(url: "https://github.com/apple/swift-certificates.git", .upToNextMinor(from: "1.21.1")),
     ],
     targets: [
         .target(name: "ExiRuntime"),
