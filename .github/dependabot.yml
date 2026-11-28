@@ -83,14 +83,22 @@ updates:
         update-types: ["minor", "patch"]
         patterns: ["*"]
 
-  # swift/ is the V2G package; capacitor/ pins the same transitive packages in its own
-  # Package.resolved (it depends on ../swift), so group-by keeps the two lockfiles in step.
+  # swift/ is the V2G package, tools/tls-nio-probe a probe with its own dependencies.
+  #
+  # capacitor/ is not listed, and it still needs a hand: Dependabot bumps a manifest's *direct*
+  # dependencies, and capacitor/Package.swift has only two — capacitor-swift-pm (ignored above)
+  # and the path dependency ../swift. Yet its Package.resolved pins everything ../swift brings
+  # along: swift-certificates, swift-asn1, swift-crypto. So a pull request that moves one of those
+  # in swift/Package.resolved leaves capacitor/Package.resolved behind; copy the new pin into it
+  # (same identity, version, revision) before merging. Listing capacitor/ here would not change
+  # that — it was listed at first, and the first swift-certificates pull request (#56) still
+  # touched swift/ alone.
+  #
   # shell/ios/App/CapApp-SPM is left out: the Capacitor CLI writes it, and it pins nothing but
   # Capacitor and the plugin.
   - package-ecosystem: "swift"
     directories:
       - "/swift"
-      - "/capacitor"
       - "/tools/tls-nio-probe"
     schedule:
       interval: "weekly"
@@ -102,9 +110,9 @@ updates:
     ignore:
       - dependency-name: "github.com/ionic-team/capacitor-swift-pm"
     groups:
-      swift-packages:
+      swift-minor-and-patch:
+        update-types: ["minor", "patch"]
         patterns: ["*"]
-        group-by: "dependency-name"
 
   # Only this repository's own projects. Everything under libs/ is a submodule with its own
   # repository and its own updates.
