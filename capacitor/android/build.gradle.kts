@@ -5,7 +5,7 @@
 // Kotlin plugins are already on the buildscript classpath: declaring a version there is an error,
 // because Gradle cannot check a version against a plugin it did not resolve.
 //
-// Both contexts therefore use the app's toolchain — AGP 8.13, Kotlin 2.4.21, Gradle 8.14.3 — rather
+// Both contexts therefore use the app's toolchain — AGP 8.13, Kotlin 2.4.21, Gradle 8.14.8 — rather
 // than agreeing by coincidence. The wrapper in this directory is the same one `shell/android` uses.
 plugins {
     id("com.android.library")
