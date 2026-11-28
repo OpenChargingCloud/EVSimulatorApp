@@ -1,6 +1,9 @@
 package cloud.charging.v2g.evcc
 
 import cloud.charging.v2g.iso20.ac.AC_CPDReqEnergyTransferModeType
+import cloud.charging.v2g.iso20.ac.BPT_AC_CPDReqEnergyTransferModeType
+import cloud.charging.v2g.iso20.ac.BPT_Dynamic_AC_CLReqControlModeType
+import cloud.charging.v2g.iso20.ac.BPT_Scheduled_AC_CLReqControlModeType
 import cloud.charging.v2g.iso20.ac.AC_ChargeLoopReq
 import cloud.charging.v2g.iso20.ac.AC_ChargeLoopRes
 import cloud.charging.v2g.iso20.ac.AC_ChargeParameterDiscoveryReq
@@ -28,14 +31,34 @@ class Evcc20Ac(
 
     override fun runChargeParameterDiscovery() {
 
-        val request = AC_ChargeParameterDiscoveryReq(sessionCtx.toAcHeader(),
-            AC_CPDReqEnergyTransferModeType(
-                eVMaximumChargePower    = rat(2_200, 1),
-                eVMaximumChargePower_L2 = null,
-                eVMaximumChargePower_L3 = null,
-                eVMinimumChargePower    = rat(0),
-                eVMinimumChargePower_L2 = null,
-                eVMinimumChargePower_L3 = null))
+        // Asking in kind on the direction axis, see [Evcc20Dc]. AC's BPT subtype is the charge-only
+        // one plus a discharge power per phase; this EV is single-phase and symmetric, so L2/L3 stay
+        // null on both halves and the discharge envelope mirrors the charge one.
+        val transferMode =
+            if (bidirectionalService)
+                BPT_AC_CPDReqEnergyTransferModeType(
+                    eVMaximumChargePower       = rat(2_200, 1),
+                    eVMaximumChargePower_L2    = null,
+                    eVMaximumChargePower_L3    = null,
+                    eVMinimumChargePower       = rat(0),
+                    eVMinimumChargePower_L2    = null,
+                    eVMinimumChargePower_L3    = null,
+                    eVMaximumDischargePower    = rat(2_200, 1),
+                    eVMaximumDischargePower_L2 = null,
+                    eVMaximumDischargePower_L3 = null,
+                    eVMinimumDischargePower    = rat(0),
+                    eVMinimumDischargePower_L2 = null,
+                    eVMinimumDischargePower_L3 = null)
+            else
+                AC_CPDReqEnergyTransferModeType(
+                    eVMaximumChargePower    = rat(2_200, 1),
+                    eVMaximumChargePower_L2 = null,
+                    eVMaximumChargePower_L3 = null,
+                    eVMinimumChargePower    = rat(0),
+                    eVMinimumChargePower_L2 = null,
+                    eVMinimumChargePower_L3 = null)
+
+        val request = AC_ChargeParameterDiscoveryReq(sessionCtx.toAcHeader(), transferMode)
 
         val (set, message) = exchangeRaw(MessageSet.Iso20AC, ACCodec.encode(request))
         expect<AC_ChargeParameterDiscoveryRes>(set, message, MessageSet.Iso20AC)
@@ -45,27 +68,62 @@ class Evcc20Ac(
 
     override fun runChargeLoopIteration() {
 
-        // Asking in kind, the mirror of [V2G20-1600] — see [Evcc20Dc] for the same split and why.
+        // Asking in kind, the mirror of [V2G20-1600], on both axes — see [Evcc20Dc] for the same
+        // split and why.
         val controlMode =
-            if (preferDynamicControlMode)
-                Dynamic_AC_CLReqControlModeType(
-                    departureTime             = departureTime,
-                    eVTargetEnergyRequest     = rat(30, 3),     // 30 kWh
-                    eVMaximumEnergyRequest    = rat(60, 3),     // 60 kWh
-                    eVMinimumEnergyRequest    = rat(10, 3),     // 10 kWh
-                    eVMaximumChargePower      = rat(11, 3),     // 11 kW
-                    eVMaximumChargePower_L2   = null, eVMaximumChargePower_L3 = null,
-                    eVMinimumChargePower      = rat(1, 3),
-                    eVMinimumChargePower_L2   = null, eVMinimumChargePower_L3 = null,
-                    eVPresentActivePower      = PRESENT_ACTIVE_POWER,
-                    eVPresentActivePower_L2   = null, eVPresentActivePower_L3 = null,
-                    eVPresentReactivePower    = rat(0),
-                    eVPresentReactivePower_L2 = null, eVPresentReactivePower_L3 = null)
-            else
-                Scheduled_AC_CLReqControlModeType(
-                    null, null, null, null, null, null, null, null, null,
-                    eVPresentActivePower = PRESENT_ACTIVE_POWER,
-                    null, null, null, null, null)
+            when {
+                // The Dynamic discharge pair is *mandatory* in the BPT subtype: a station steering a
+                // bidirectional session needs to know how far either way.
+                preferDynamicControlMode && bidirectionalService ->
+                    BPT_Dynamic_AC_CLReqControlModeType(
+                        departureTime              = departureTime,
+                        eVTargetEnergyRequest      = rat(30, 3),     // 30 kWh
+                        eVMaximumEnergyRequest     = rat(60, 3),     // 60 kWh
+                        eVMinimumEnergyRequest     = rat(10, 3),     // 10 kWh
+                        eVMaximumChargePower       = rat(11, 3),     // 11 kW
+                        eVMaximumChargePower_L2    = null, eVMaximumChargePower_L3 = null,
+                        eVMinimumChargePower       = rat(1, 3),
+                        eVMinimumChargePower_L2    = null, eVMinimumChargePower_L3 = null,
+                        eVPresentActivePower       = PRESENT_ACTIVE_POWER,
+                        eVPresentActivePower_L2    = null, eVPresentActivePower_L3 = null,
+                        eVPresentReactivePower     = rat(0),
+                        eVPresentReactivePower_L2  = null, eVPresentReactivePower_L3 = null,
+                        eVMaximumDischargePower    = rat(11, 3),     // the charge request mirrored
+                        eVMaximumDischargePower_L2 = null, eVMaximumDischargePower_L3 = null,
+                        eVMinimumDischargePower    = rat(1, 3),
+                        eVMinimumDischargePower_L2 = null, eVMinimumDischargePower_L3 = null,
+                        eVMaximumV2XEnergyRequest  = null, eVMinimumV2XEnergyRequest = null)
+                preferDynamicControlMode ->
+                    Dynamic_AC_CLReqControlModeType(
+                        departureTime             = departureTime,
+                        eVTargetEnergyRequest     = rat(30, 3),     // 30 kWh
+                        eVMaximumEnergyRequest    = rat(60, 3),     // 60 kWh
+                        eVMinimumEnergyRequest    = rat(10, 3),     // 10 kWh
+                        eVMaximumChargePower      = rat(11, 3),     // 11 kW
+                        eVMaximumChargePower_L2   = null, eVMaximumChargePower_L3 = null,
+                        eVMinimumChargePower      = rat(1, 3),
+                        eVMinimumChargePower_L2   = null, eVMinimumChargePower_L3 = null,
+                        eVPresentActivePower      = PRESENT_ACTIVE_POWER,
+                        eVPresentActivePower_L2   = null, eVPresentActivePower_L3 = null,
+                        eVPresentReactivePower    = rat(0),
+                        eVPresentReactivePower_L2 = null, eVPresentReactivePower_L3 = null)
+                // Scheduled's limits are all optional, so these two arms differ only in the discharge
+                // envelope, which is the whole of what makes the request bidirectional, hence stated.
+                bidirectionalService ->
+                    BPT_Scheduled_AC_CLReqControlModeType(
+                        null, null, null, null, null, null, null, null, null,
+                        eVPresentActivePower       = PRESENT_ACTIVE_POWER,
+                        null, null, null, null, null,
+                        eVMaximumDischargePower    = rat(2_200, 1),  // 22 kW: what the car can give back
+                        eVMaximumDischargePower_L2 = null, eVMaximumDischargePower_L3 = null,
+                        eVMinimumDischargePower    = rat(0),
+                        eVMinimumDischargePower_L2 = null, eVMinimumDischargePower_L3 = null)
+                else ->
+                    Scheduled_AC_CLReqControlModeType(
+                        null, null, null, null, null, null, null, null, null,
+                        eVPresentActivePower = PRESENT_ACTIVE_POWER,
+                        null, null, null, null, null)
+            }
 
         val request = AC_ChargeLoopReq(sessionCtx.toAcHeader(),
             displayParameters = null, meterInfoRequested = false,

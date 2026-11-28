@@ -49,6 +49,13 @@ open class Evcc20Base {
     private static let dcDrivableIds: [UInt16] = [2, 6, 8, 9]
     private static let acDrivableIds: [UInt16] = [1, 5]
 
+    /// Whether `serviceId` is a bidirectional (BPT) service: AC_BPT, DC_BPT or MCS_BPT. A port of the
+    /// C# `EnergyTransferService.IsBidirectional`; the EVCC asks it to decide which charge-parameter
+    /// and control-mode types to send.
+    public static func isBidirectional(_ serviceId: UInt16) -> Bool {
+        serviceId == 5 || serviceId == 6 || serviceId == 9
+    }
+
     private let stream: V2GTPStream
     internal let pollDelay: (UInt64) -> Void
     internal let sessionCtx: SessionContext
@@ -60,6 +67,35 @@ open class Evcc20Base {
     /// because which service a session settled on is otherwise invisible from outside — it is what
     /// distinguishes an MCS session from a DC one, the two being identical on the wire otherwise.
     public private(set) var selectedEnergyServiceId: UInt16 = 0
+
+    /// Whether the negotiated service is bidirectional, and so whether ``Evcc20Ac`` / ``Evcc20Dc``
+    /// must build the `BPT_*` charge-parameter and control-mode types instead of the charge-only ones.
+    ///
+    /// Derived from ``selectedEnergyServiceId``, not a knob of its own: -20 carries the direction in
+    /// the type, and a station enforces that the selected service and every later request agree.
+    /// EVerest refused a charge-only `DC_ChargeParameterDiscoveryReq` under service 9 with
+    /// `FAILED_WrongChargeParameter` (ISO15118ConformanceTests,
+    /// `docs/interop-runs/2026-08-05-everest-mcs-bpt/`). Until 2026-11-28 this port could select 5 or
+    /// 6 from a station offering only those, and then sent exactly that.
+    internal var bidirectionalService: Bool { Evcc20Base.isBidirectional(selectedEnergyServiceId) }
+
+    /// Ask for the **bidirectional** entry of whatever catalogue this vehicle wants: AC_BPT (5) ahead
+    /// of AC (1), DC_BPT (6) ahead of DC (2), MCS_BPT (9) ahead of MCS (8). Off by default, which is
+    /// what every recorded session before `iso20-*-eim-bpt*` contains.
+    ///
+    /// Selecting a BPT service is itself what makes the session bidirectional; see
+    /// ``bidirectionalService``. A station advertising no bidirectional service is unaffected. Held to
+    /// `iso20-dc-eim-bpt`, `iso20-ac-eim-bpt` and their `-dynamic` twins, recorded with the C# EVCC's
+    /// `PreferBidirectionalService` on 2026-11-28.
+    public var preferBidirectionalService = false
+
+    /// The `SupportedServiceIDs` filter this car puts in `ServiceDiscoveryReq` (Table 38 of
+    /// [V2G20-1248]). `nil` (the default) omits the element, which asks the station for everything and
+    /// is what every other recorded session contains. Held to `iso20-dc-eim-filter`.
+    ///
+    /// The C# car gained it for eVDriveFlow's station, which dereferences the optional element
+    /// unconditionally and so ended every session without it at the fifth message.
+    public var supportedServiceIds: [UInt16]?
 
     /// How the session ends: `.Terminate` (default) or `.Pause`.
     public var stopMode: ChargingSession = .Terminate
@@ -550,7 +586,10 @@ open class Evcc20Base {
     private func runServiceSelection() throws {
 
         let discovery: ServiceDiscoveryRes = try exchange(.iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceDiscoveryReq(header: sessionCtx.toCommonHeader())))
+            CommonMessagesCodec.encode(ServiceDiscoveryReq(
+                header: sessionCtx.toCommonHeader(),
+                supportedServiceIDs: supportedServiceIds.flatMap {
+                    $0.isEmpty ? nil : ServiceIDListType(serviceID: $0) })))
         let serviceId = try selectEnergyTransferService(discovery)
         selectedEnergyServiceId = serviceId
 
@@ -747,10 +786,22 @@ open class Evcc20Base {
             throw SessionAborted("ServiceDiscovery: the station advertised no energy-transfer service.")
         }
 
-        let preferred = preferredEnergyServiceIds
-        let drivable  = drivableEnergyServiceIds
-        let match = offered.first { preferred.contains($0.serviceID) }
-                 ?? offered.first { drivable.contains($0.serviceID) }
+        // preferBidirectionalService, applied here rather than in each list, so it holds for the
+        // overridden ones too. Both halves keep their order, so this promotes the BPT services
+        // without inventing an order among them, and is a no-op on a list that has none.
+        func ranked(_ ids: [UInt16]) -> [UInt16] {
+            guard preferBidirectionalService else { return ids }
+            return ids.filter(Evcc20Base.isBidirectional) + ids.filter { !Evcc20Base.isBidirectional($0) }
+        }
+
+        // Both lookups walk *our* ranking and ask whether the station offers that id, as the C#
+        // EVCC does since the 2026-08-05 EVerest MCS_BPT run. Walking the station's catalogue instead
+        // takes the first entry we happen to accept, so our order is never read and the station
+        // decides; until 2026-11-28 this port did that.
+        let preferred  = preferredEnergyServiceIds
+        let offeredIds = Set(offered.map(\.serviceID))
+        let match = ranked(preferred).first { offeredIds.contains($0) }
+                 ?? ranked(drivableEnergyServiceIds).first { offeredIds.contains($0) }
 
         guard let match else {
             throw SessionAborted(
@@ -758,7 +809,7 @@ open class Evcc20Base {
               + "energy-transfer service (wanted \(preferred.map(String.init).joined(separator: "/")), "
               + "offered \(offered.map { String($0.serviceID) }.joined(separator: ", "))).")
         }
-        return match.serviceID
+        return match
     }
 
     /// Picks the parameter set whose `ControlMode` matches the mode this EVCC is about to drive

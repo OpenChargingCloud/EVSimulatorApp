@@ -84,7 +84,12 @@ class Evcc20TraceTest {
         assertEquals(1, counts["DC_WeldingDetectionReq"])
     }
 
-    private fun replay(name: String, mode: PowerMode, preferDynamic: Boolean = false): TraceReplay {
+    private fun replay(name: String, mode: PowerMode, preferDynamic: Boolean = false,
+                       configure: (Evcc20Base) -> Unit = { }): TraceReplay =
+        replayWith(name, mode, preferDynamic, configure).first
+
+    private fun replayWith(name: String, mode: PowerMode, preferDynamic: Boolean = false,
+                           configure: (Evcc20Base) -> Unit = { }): Pair<TraceReplay, Evcc20Base> {
 
         val trace  = SessionTrace.load(name)
         val replay = TraceReplay(trace)
@@ -95,9 +100,10 @@ class Evcc20TraceTest {
         val evcc = if (mode == PowerMode.Dc) Evcc20Dc(stream, recordedAt, pollDelay = { })
                    else                      Evcc20Ac(stream, recordedAt, pollDelay = { })
         evcc.preferDynamicControlMode = preferDynamic
+        configure(evcc)
         evcc.run()
 
-        return replay
+        return replay to evcc
     }
 
     @Test
@@ -223,6 +229,63 @@ class Evcc20TraceTest {
             replay("iso20-dc-eim-dynamic", PowerMode.Dc, preferDynamic = false)
         }
         assertContains(thrown.message!!, "ServiceSelectionReq")
+    }
+
+    // ── Bidirectional services, and the service filter ───────────────────
+    //
+    // Recorded 2026-11-28 with the C# EVCC's PreferBidirectionalService and SupportedServiceIds,
+    // for this port: until then it could select 5 or 6 and still send the charge-only types, which a
+    // station refuses, and it could not send the filter at all. Each of the four BPT traces pairs one
+    // message set with one control mode, so each reaches its own arm in Evcc20Ac / Evcc20Dc.
+
+    private fun assertBidirectionalReplay(name: String, mode: PowerMode, preferDynamic: Boolean,
+                                          service: UShort) {
+        val (replay, evcc) = replayWith(name, mode, preferDynamic) { it.preferBidirectionalService = true }
+        assertTrue(replay.complete,
+            "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+        assertEquals(service, evcc.selectedEnergyServiceId, "the bidirectional service was not selected")
+    }
+
+    @Test
+    fun theDcBidirectionalSessionMatchesTheRecordingByteForByte() =
+        assertBidirectionalReplay("iso20-dc-eim-bpt", PowerMode.Dc, preferDynamic = false, service = 6u)
+
+    @Test
+    fun theDcBidirectionalDynamicSessionMatchesTheRecordingByteForByte() =
+        assertBidirectionalReplay("iso20-dc-eim-bpt-dynamic", PowerMode.Dc, preferDynamic = true, service = 6u)
+
+    @Test
+    fun theAcBidirectionalSessionMatchesTheRecordingByteForByte() =
+        assertBidirectionalReplay("iso20-ac-eim-bpt", PowerMode.Ac, preferDynamic = false, service = 5u)
+
+    @Test
+    fun theAcBidirectionalDynamicSessionMatchesTheRecordingByteForByte() =
+        assertBidirectionalReplay("iso20-ac-eim-bpt-dynamic", PowerMode.Ac, preferDynamic = true, service = 5u)
+
+    /**
+     * The negative: without the flag this car keeps the charge-only service, and the trace diverges
+     * at ServiceDetailReq, the first request that names the service it chose.
+     */
+    @Test
+    fun withoutTheFlagTheBidirectionalTraceDiverges() {
+        val thrown = assertFailsWith<TraceMismatch> { replay("iso20-dc-eim-bpt", PowerMode.Dc) }
+        assertContains(thrown.message!!, "ServiceDetailReq")
+    }
+
+    @Test
+    fun theFilteredDcSessionMatchesTheRecordingByteForByte() {
+        val replay = replay("iso20-dc-eim-filter", PowerMode.Dc) { it.supportedServiceIds = listOf(2u, 6u) }
+        assertTrue(replay.complete,
+            "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
+            "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /** Without the filter the first ServiceDiscoveryReq already differs: the element is absent. */
+    @Test
+    fun withoutTheFilterTheFilteredTraceDiverges() {
+        val thrown = assertFailsWith<TraceMismatch> { replay("iso20-dc-eim-filter", PowerMode.Dc) }
+        assertContains(thrown.message!!, "ServiceDiscoveryReq")
     }
 
     /**

@@ -66,6 +66,13 @@ abstract class Evcc20Base(
         val AC_SERVICE_IDS: List<UShort> = listOf(1u, 5u)
         val DC_DRIVABLE_IDS: List<UShort> = listOf(2u, 6u, 8u, 9u)
         val AC_DRIVABLE_IDS: List<UShort> = listOf(1u, 5u)
+
+        /** Whether [serviceId] is a bidirectional (BPT) service: AC_BPT, DC_BPT or MCS_BPT. A port of
+         *  the C# `EnergyTransferService.IsBidirectional`; the EVCC asks it to decide which
+         *  charge-parameter and control-mode types to send. */
+        fun isBidirectional(serviceId: UShort): Boolean = serviceId == 5u.toUShort() ||
+                                                          serviceId == 6u.toUShort() ||
+                                                          serviceId == 9u.toUShort()
     }
 
     protected val sessionCtx = SessionContext(clock)
@@ -81,6 +88,42 @@ abstract class Evcc20Base(
      */
     var selectedEnergyServiceId: UShort = 0u
         private set
+
+    /**
+     * Whether the negotiated service is bidirectional, and so whether [Evcc20Ac] / [Evcc20Dc] must
+     * build the `BPT_*` charge-parameter and control-mode types instead of the charge-only ones.
+     *
+     * Derived from [selectedEnergyServiceId], not a knob of its own: -20 carries the direction in
+     * the type, and a station enforces that the selected service and every later request agree.
+     * EVerest refused a charge-only `DC_ChargeParameterDiscoveryReq` under service 9 with
+     * `FAILED_WrongChargeParameter` (ISO15118ConformanceTests,
+     * `docs/interop-runs/2026-08-05-everest-mcs-bpt/`). Until 2026-11-28 this port could select 5 or
+     * 6 from a station offering only those, and then sent exactly that.
+     */
+    protected val bidirectionalService: Boolean
+        get() = isBidirectional(selectedEnergyServiceId)
+
+    /**
+     * Ask for the **bidirectional** entry of whatever catalogue this vehicle wants: AC_BPT (5) ahead
+     * of AC (1), DC_BPT (6) ahead of DC (2), MCS_BPT (9) ahead of MCS (8). Off by default, which is
+     * what every recorded session before `iso20-*-eim-bpt*` contains.
+     *
+     * Selecting a BPT service is itself what makes the session bidirectional; see
+     * [bidirectionalService]. A station advertising no bidirectional service is unaffected. Held to the
+     * `iso20-dc-eim-bpt`, `iso20-ac-eim-bpt` and their `-dynamic` twins, recorded with the C# EVCC's
+     * `PreferBidirectionalService` on 2026-11-28.
+     */
+    var preferBidirectionalService: Boolean = false
+
+    /**
+     * The `SupportedServiceIDs` filter this car puts in `ServiceDiscoveryReq` (Table 38 of
+     * [V2G20-1248]). Null (the default) omits the element, which asks the station for everything and
+     * is what every other recorded session contains. Held to `iso20-dc-eim-filter`.
+     *
+     * The C# car gained it for eVDriveFlow's station, which dereferences the optional element
+     * unconditionally and so ended every session without it at the fifth message.
+     */
+    var supportedServiceIds: List<UShort>? = null
 
     /** How the session ends: Terminate (default) or Pause. */
     var stopMode: ChargingSession = ChargingSession.Terminate
@@ -334,7 +377,8 @@ abstract class Evcc20Base(
     private fun runServiceSelection() {
 
         val discovery = exchange<ServiceDiscoveryRes>(MessageSet.Iso20CommonMessages,
-            CommonMessagesCodec.encode(ServiceDiscoveryReq(sessionCtx.toCommonHeader(), null)))
+            CommonMessagesCodec.encode(ServiceDiscoveryReq(sessionCtx.toCommonHeader(),
+                supportedServiceIds?.takeIf { it.isNotEmpty() }?.let(::ServiceIDListType))))
         val serviceId = selectEnergyTransferService(discovery)
         selectedEnergyServiceId = serviceId
 
@@ -755,10 +799,22 @@ abstract class Evcc20Base(
         if (offered.isEmpty())
             throw SessionAborted("ServiceDiscovery: the station advertised no energy-transfer service.")
 
-        val match = offered.firstOrNull { it.serviceID in preferredEnergyServiceIds }
-                 ?: offered.firstOrNull { it.serviceID in drivableEnergyServiceIds }
+        // preferBidirectionalService, applied here rather than in each list, so it holds for the
+        // overridden ones too. sortedByDescending is stable, which is the whole trick: entries keep
+        // their order within each half, so this promotes the BPT services without inventing an
+        // order among them, and is a no-op on a list that has none.
+        fun ranked(ids: List<UShort>): List<UShort> =
+            if (preferBidirectionalService) ids.sortedByDescending(::isBidirectional) else ids
 
-        return match?.serviceID ?: throw SessionAborted(
+        // Both lookups walk *our* ranking and ask whether the station offers that id, as the C#
+        // EVCC does since the 2026-08-05 EVerest MCS_BPT run. Walking the station's catalogue instead
+        // takes the first entry we happen to accept, so our order is never read and the station
+        // decides; until 2026-11-28 this port did that.
+        val offeredIds = offered.map { it.serviceID }.toSet()
+        val match = ranked(preferredEnergyServiceIds).firstOrNull { it in offeredIds }
+                 ?: ranked(drivableEnergyServiceIds).firstOrNull { it in offeredIds }
+
+        return match ?: throw SessionAborted(
             "ServiceDiscovery: the station offers no ${if (energyMode == PowerMode.Dc) "DC" else "AC"} " +
             "energy-transfer service (wanted ${preferredEnergyServiceIds.joinToString("/")}, " +
             "offered ${offered.joinToString(", ") { it.serviceID.toString() }}).")

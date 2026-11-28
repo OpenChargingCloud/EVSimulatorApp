@@ -1,5 +1,8 @@
 package cloud.charging.v2g.evcc
 
+import cloud.charging.v2g.iso20.dc.BPT_DC_CPDReqEnergyTransferModeType
+import cloud.charging.v2g.iso20.dc.BPT_Dynamic_DC_CLReqControlModeType
+import cloud.charging.v2g.iso20.dc.BPT_Scheduled_DC_CLReqControlModeType
 import cloud.charging.v2g.iso20.dc.DCCodec
 import cloud.charging.v2g.iso20.dc.DC_CPDReqEnergyTransferModeType
 import cloud.charging.v2g.iso20.dc.DC_CableCheckReq
@@ -36,15 +39,34 @@ open class Evcc20Dc(
 
     override fun runChargeParameterDiscovery() {
 
-        val request = DC_ChargeParameterDiscoveryReq(sessionCtx.toDcHeader(),
-            DC_CPDReqEnergyTransferModeType(
-                eVMaximumChargePower   = rat(5_000, 1),
-                eVMinimumChargePower   = rat(0),
-                eVMaximumChargeCurrent = rat(200),
-                eVMinimumChargeCurrent = rat(0),
-                eVMaximumVoltage       = rat(500),
-                eVMinimumVoltage       = rat(50),
-                targetSOC              = 80))
+        // Asking in kind on the direction axis (see [bidirectionalService]): under a BPT service the
+        // EV declares what it can take *and* what it can give back, in the BPT_ subtype. The discharge
+        // envelope mirrors the charge one, as in the C# EVCC: this vehicle is symmetric.
+        val transferMode =
+            if (bidirectionalService)
+                BPT_DC_CPDReqEnergyTransferModeType(
+                    eVMaximumChargePower      = rat(5_000, 1),
+                    eVMinimumChargePower      = rat(0),
+                    eVMaximumChargeCurrent    = rat(200),
+                    eVMinimumChargeCurrent    = rat(0),
+                    eVMaximumVoltage          = rat(500),
+                    eVMinimumVoltage          = rat(50),
+                    targetSOC                 = 80,
+                    eVMaximumDischargePower   = rat(5_000, 1),
+                    eVMinimumDischargePower   = rat(0),
+                    eVMaximumDischargeCurrent = rat(200),
+                    eVMinimumDischargeCurrent = rat(0))
+            else
+                DC_CPDReqEnergyTransferModeType(
+                    eVMaximumChargePower   = rat(5_000, 1),
+                    eVMinimumChargePower   = rat(0),
+                    eVMaximumChargeCurrent = rat(200),
+                    eVMinimumChargeCurrent = rat(0),
+                    eVMaximumVoltage       = rat(500),
+                    eVMinimumVoltage       = rat(50),
+                    targetSOC              = 80)
+
+        val request = DC_ChargeParameterDiscoveryReq(sessionCtx.toDcHeader(), transferMode)
 
         val (set, message) = exchangeRaw(MessageSet.Iso20DC, DCCodec.encode(request))
         expect<DC_ChargeParameterDiscoveryRes>(set, message, MessageSet.Iso20DC)
@@ -70,26 +92,57 @@ open class Evcc20Dc(
 
     override fun runChargeLoopIteration() {
 
-        // Asking in kind, the mirror of [V2G20-1600]: the request's control mode must be the one the
-        // session negotiated. Dynamic states what the battery needs and what the car can take, and
-        // lets the station choose the setpoint; Scheduled names the setpoint itself.
+        // Asking in kind, the mirror of [V2G20-1600], on both axes at once: the request's control mode
+        // must be the one the session negotiated (Dynamic states what the battery needs and what the
+        // car can take, and lets the station choose the setpoint; Scheduled names the setpoint
+        // itself), and its direction must be the one the selected service carries.
         val controlMode =
-            if (preferDynamicControlMode)
-                Dynamic_DC_CLReqControlModeType(
-                    departureTime          = departureTime,
-                    eVTargetEnergyRequest  = rat(30, 3),    // 30 kWh
-                    eVMaximumEnergyRequest = rat(60, 3),    // 60 kWh
-                    eVMinimumEnergyRequest = rat(10, 3),    // 10 kWh
-                    eVMaximumChargePower   = rat(50, 3),    // 50 kW
-                    eVMinimumChargePower   = rat(1,  3),    //  1 kW
-                    eVMaximumChargeCurrent = rat(125),
-                    eVMaximumVoltage       = rat(500),
-                    eVMinimumVoltage       = rat(200))
-            else
-                Scheduled_DC_CLReqControlModeType(
-                    null, null, null,
-                    eVTargetCurrent = rat(120), eVTargetVoltage = rat(400),
-                    null, null, null, null, null)
+            when {
+                // The Dynamic discharge triple is *mandatory* in the BPT subtype: a station asked to
+                // steer a bidirectional session cannot do it without knowing how far either way.
+                preferDynamicControlMode && bidirectionalService ->
+                    BPT_Dynamic_DC_CLReqControlModeType(
+                        departureTime             = departureTime,
+                        eVTargetEnergyRequest     = rat(30, 3),    // 30 kWh
+                        eVMaximumEnergyRequest    = rat(60, 3),    // 60 kWh
+                        eVMinimumEnergyRequest    = rat(10, 3),    // 10 kWh
+                        eVMaximumChargePower      = rat(50, 3),    // 50 kW
+                        eVMinimumChargePower      = rat(1,  3),    //  1 kW
+                        eVMaximumChargeCurrent    = rat(125),
+                        eVMaximumVoltage          = rat(500),
+                        eVMinimumVoltage          = rat(200),
+                        eVMaximumDischargePower   = rat(50, 3),    // the charge request mirrored
+                        eVMinimumDischargePower   = rat(1,  3),
+                        eVMaximumDischargeCurrent = rat(125),
+                        eVMaximumV2XEnergyRequest = null,
+                        eVMinimumV2XEnergyRequest = null)
+                preferDynamicControlMode ->
+                    Dynamic_DC_CLReqControlModeType(
+                        departureTime          = departureTime,
+                        eVTargetEnergyRequest  = rat(30, 3),    // 30 kWh
+                        eVMaximumEnergyRequest = rat(60, 3),    // 60 kWh
+                        eVMinimumEnergyRequest = rat(10, 3),    // 10 kWh
+                        eVMaximumChargePower   = rat(50, 3),    // 50 kW
+                        eVMinimumChargePower   = rat(1,  3),    //  1 kW
+                        eVMaximumChargeCurrent = rat(125),
+                        eVMaximumVoltage       = rat(500),
+                        eVMinimumVoltage       = rat(200))
+                // Scheduled's limits are all optional, so these two arms differ only in the discharge
+                // envelope, which is the whole of what makes the request bidirectional, hence stated.
+                bidirectionalService ->
+                    BPT_Scheduled_DC_CLReqControlModeType(
+                        null, null, null,
+                        eVTargetCurrent = rat(120), eVTargetVoltage = rat(400),
+                        null, null, null, null, null,
+                        eVMaximumDischargePower   = rat(5_000, 1),   // 50 kW, the declared envelope
+                        eVMinimumDischargePower   = rat(0),
+                        eVMaximumDischargeCurrent = rat(200))
+                else ->
+                    Scheduled_DC_CLReqControlModeType(
+                        null, null, null,
+                        eVTargetCurrent = rat(120), eVTargetVoltage = rat(400),
+                        null, null, null, null, null)
+            }
 
         val request = DC_ChargeLoopReq(sessionCtx.toDcHeader(),
             displayParameters = null, meterInfoRequested = false,
