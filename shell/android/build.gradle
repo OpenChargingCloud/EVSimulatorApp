@@ -4,7 +4,7 @@ buildscript {
 
     // Here rather than in variables.gradle: that file is applied after this block, so a version
     // defined there is not in scope where the classpath below needs it.
-    ext.kotlinVersion = '2.1.0'
+    ext.kotlinVersion = '2.4.21'
 
     repositories {
         google()
