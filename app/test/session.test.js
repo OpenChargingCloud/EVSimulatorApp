@@ -800,7 +800,12 @@ test("a bidirectional station's readings are signed over both registers, and str
         // The backend's billed figure is the import register, not the export one beside it.
         const check = backendCheckFor(events, transactions[name]);
         assert.equal(check.verdict, "consistent", `${name}: ${check.explanation}`);
-        assert.equal(check.backendWh, energyFor(events).stationWh, name);
+        assert.equal(check.backendWh, energyFor(events).stationChargedWh, name);
+
+        // …and the car's own count is held to the net figure, which agrees in both sessions.
+        const energy = energyFor(events);
+        assert.equal(energy.verdict, "agree", `${name}: ${energy.explanation}`);
+        assert.equal(energy.stationWh, energy.stationChargedWh - energy.stationDischargedWh, name);
     }
 });
 

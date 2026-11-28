@@ -229,7 +229,13 @@ export function sessionScreen(root, events, handlers, backendRecord = null) {
             put(root, field("This car counted", `${energy.vehicleWh} Wh`
                                               + ` (${energy.samples} charge-loop sample(s))`));
         if (energy.stationWh !== null)
-            put(root, field("The station reported", `${energy.stationWh} Wh`));
+            put(root, field("The station reported",
+                            energy.stationDischargedWh === null
+                                ? `${energy.stationWh} Wh`
+                                // Bidirectional: the two registers and the net figure the car's count is
+                                // held to, since that count goes down when energy goes back.
+                                : `${energy.stationWh} Wh net — ${energy.stationChargedWh} Wh charged, `
+                                + `${energy.stationDischargedWh} Wh given back`));
 
         // A station that stopped reporting mid-session leaves the two figures at different instants.
         // Showing the total beside them keeps the comparison honest rather than hiding the gap.
