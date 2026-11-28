@@ -214,6 +214,30 @@ class Evcc2TraceTest {
     }
 
     /**
+     * **The same at a station with a signing meter**, the EVerest 2026.10.0 shape itself: every other
+     * `ChargingStatusRes` carries a signed reading, and the bare receipt request is the exception.
+     * Recorded 2026-11-28, after stack `1eedd64` stopped the meter filling that request. The second
+     * receipt echoes the last reading, the meter's `SigMeterReading` included, so the recorded digest
+     * holds only if this car signed exactly that reading.
+     */
+    @Test
+    fun aMeteredStationsBareReceiptRequestIsSignedOverTheLastReading() {
+
+        val trace  = SessionTrace.load("iso2-ac-pnc-meter-norecord")
+        val replay = TraceReplay(trace)
+        val stream = V2GTPStream(replay.input, replay.output)
+
+        SapHandshake.runEvccSide(stream, ProtocolVariant.Iso15118_2, PowerMode.Ac)
+        val evcc = Evcc2(stream, PowerMode.Ac, pollDelay = { }).apply { pnc = PncMaterial.options }
+        evcc.run()
+
+        assertTrue(replay.complete, "replayed ${replay.replayed} of ${trace.exchanges.size} exchanges")
+        assertEquals(2, evcc.meteringReceiptsSent, "one receipt over a fresh reading, one without")
+        assertEquals(1, evcc.receiptsOverPreviousMeterInfo,
+            "the second receipt was not signed over the previous reading")
+    }
+
+    /**
      * **The receipt C# recorded signs the reading the station showed it**, read out of the recording
      * under this port's own decoder, digest and meter layout — the -2 twin of the -20 confirmation
      * check in [Evcc20TraceTest].
@@ -287,7 +311,7 @@ class Evcc2TraceTest {
         // iso20-dc-pnc-meterconfirm adds the MeteringConfirmationReq, and iso2-ac-pnc-meter the metered
         // -2 receipt; both checks here include the digest: C# digested its own fragment encoding, so
         // this also holds the two fragment encoders to each other.
-        for (name in listOf("iso2-ac-pnc", "iso2-ac-pnc-meter", "iso2-ac-pnc-norecord",
+        for (name in listOf("iso2-ac-pnc", "iso2-ac-pnc-meter", "iso2-ac-pnc-norecord", "iso2-ac-pnc-meter-norecord",
                             "iso20-dc-pnc", "iso20-dc-pnc-meterconfirm",
                             "iso2-ac-eim-certinstall", "iso2-ac-eim-certupdate",
                             "iso20-dc-eim-certinstall")) {
