@@ -1,0 +1,89 @@
+# The Gradle builds' dependency graphs, for Dependabot alerts.
+#
+# GitHub reads npm, NuGet, SwiftPM and Actions dependencies from the manifests themselves, but not
+# Gradle's: a Gradle build's dependencies exist only once Gradle has resolved them. Without this
+# workflow the repository's dependency graph has no Maven package in it at all, so no advisory can
+# ever match one — Bouncy Castle 1.78.1 carried two critical advisories for as long as it was here,
+# and no alert was ever raised. Dependabot *version* updates are unaffected (they parse the build
+# files on their own); this is what makes *alerts* possible.
+#
+# Three builds, one matrix entry each, because each has its own settings file and resolves its own
+# graph: `kotlin/` (pure JVM), `capacitor/android` (the plugin on its own, AGP + SDK) and
+# `shell/android` (the app, which needs `node_modules/@capacitor/android` and the module `cap sync`
+# generates). The matrix also gives each graph its own correlator, so the three snapshots stand
+# side by side instead of replacing one another.
+#
+# What is submitted: the configurations whose contents end up in the app or in a library — the
+# compile and runtime classpaths, without tests. What is left out, deliberately:
+#   - Build tooling: the buildscript classpath, AGP and its Unified Test Platform. On 2026-11-28 that
+#     was 54 advisories (Netty, Guava, protobuf, jdom2, jose4j, commons-compress, Bouncy Castle 1.79
+#     inside AGP 8.13.2), none of it shipped, none of it fixable here: AGP 9 needs Gradle 9, and the
+#     Gradle wrapper moves with a Capacitor upgrade, not on its own (see dependabot.yml).
+#   - Test classpaths, ours and Capacitor's: `node_modules/@capacitor/android` declares
+#     `testImplementation 'org.json:json:20250517'`, for its own tests, in a file we do not own.
+# Widen it by editing the two regular expressions at the bottom. An alert names the settings file of
+# the build it came from.
+#
+# On pull requests the graphs are generated and uploaded as an artifact, not submitted: Dependabot's
+# pull requests get a read-only token, and alerts are raised against the default branch, not a
+# branch's snapshot. That run is also the only place in CI where the two Android builds resolve.
+
+name: Dependency submission
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'kotlin/**'
+      - 'capacitor/**'
+      - 'shell/**'
+      - '.github/workflows/dependency-submission.yml'
+  pull_request:
+    paths:
+      - 'kotlin/**'
+      - 'capacitor/**'
+      - 'shell/**'
+      - '.github/workflows/dependency-submission.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write                     # the dependency-submission API
+
+jobs:
+
+  gradle:
+    name: Gradle · ${{ matrix.build }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [kotlin, capacitor/android, shell/android]
+    steps:
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # shell/android only: `capacitor.settings.gradle` points into node_modules, and the app module
+      # applies `capacitor-cordova-android-plugins/`, which `cap sync` generates. The web app need
+      # not be built for this — only resolved.
+      - uses: actions/setup-node@v7
+        if: matrix.build == 'shell/android'
+        with:
+          node-version: '24'
+      - if: matrix.build == 'shell/android'
+        working-directory: shell
+        run: |
+          npm ci --no-audit --no-fund
+          npx cap sync android
+
+      - uses: gradle/actions/dependency-submission@v6
+        with:
+          build-root-directory: ${{ matrix.build }}
+          cache-provider: basic       # the open-source actions/cache provider, not the commercial one
+          dependency-graph: ${{ github.event_name == 'pull_request' && 'generate-and-upload' || 'generate-and-submit' }}
+          dependency-graph-include-configurations: '.*([cC]ompile|[rR]untime)Classpath'
+          dependency-graph-exclude-configurations: '.*[tT]est.*'

@@ -1,8 +1,9 @@
 # Dependabot version updates.
 #
 # Security updates and alerts are switched on in the repository settings and come from the
-# dependency graph; nothing here turns them on or off. This file adds the weekly version updates,
-# and the decisions that matter are what it leaves out.
+# dependency graph; nothing here turns them on or off. The graph holds no Gradle dependency of its
+# own — .github/workflows/dependency-submission.yml submits those. This file adds the weekly
+# version updates, and the decisions that matter are what it leaves out.
 #
 # Capacitor is left out, in all three ecosystems. One Capacitor version is written in five places —
 # @capacitor/* in shell/ and capacitor/ (npm), capacitor-swift-pm in capacitor/Package.swift and in
@@ -20,9 +21,10 @@
 # ignore the cooldown.
 #
 # What gates a pull request: the port gates (.github/workflows/port-gates.yml) run on every pull
-# request and cover npm (capacitor/, app/), Gradle (kotlin/) and SwiftPM (swift/). NuGet has no
-# automated gate here — `dotnet test` needs the ISO schemas — so a NuGet bump is checked with the
-# conformance repository's suite before it is merged.
+# request and cover npm (capacitor/, app/), Gradle (kotlin/) and SwiftPM (swift/). The dependency
+# submission resolves the two Android builds on a pull request, but does not build them. NuGet has
+# no automated gate here — `dotnet test` needs the ISO schemas — so a NuGet bump is checked with
+# the conformance repository's suite before it is merged.
 
 version: 2
 
