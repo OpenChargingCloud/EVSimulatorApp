@@ -198,9 +198,12 @@ public final class EvBattery {
             deliveredWh += accepted
         } else {
             // Negative is a bidirectional session exporting: the pack goes down, and down to empty.
+            // Counted as what the pack released, like the charging side above, and not as what the
+            // station asked for: the C# car "delivered" -38.86 kWh from 30 kWh against EVerest's
+            // exporting station before WWCP_ISO15118 made the same change.
             let released = min(-wattHours, energyWh)
             energyWh    -= released
-            deliveredWh += wattHours
+            deliveredWh -= released
         }
     }
 
