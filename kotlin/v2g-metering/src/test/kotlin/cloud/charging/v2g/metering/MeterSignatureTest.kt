@@ -37,6 +37,7 @@ class MeterSignatureTest {
         val sessionId: ByteArray,
         val reading: ULong,
         val timestamp: Long?,
+        val discharged: ULong?,
         val payload: ByteArray,
         val signature: ByteArray,
     )
@@ -63,6 +64,7 @@ class MeterSignatureTest {
                 sessionId = hex(it.get("sessionId").asString),
                 reading   = it.get("reading").asString.toULong(),
                 timestamp = if (it.get("timestamp").isJsonNull) null else it.get("timestamp").asString.toLong(),
+                discharged = it.get("discharged")?.asString?.toULong(),
                 payload   = hex(it.get("payload").asString),
                 signature = hex(it.get("signature").asString),
             )
@@ -98,7 +100,7 @@ class MeterSignatureTest {
         for (v in vectors) {
             assertContentEquals(
                 v.payload,
-                MeterSignature.payload(v.protocol, v.sessionId, v.meterId, v.reading, v.timestamp),
+                MeterSignature.payload(v.protocol, v.sessionId, v.meterId, v.reading, v.timestamp, v.discharged),
                 "meterId ${v.meterId}, protocol ${v.protocol}")
         }
     }
@@ -108,9 +110,26 @@ class MeterSignatureTest {
         for (v in vectors) {
             assertTrue(
                 MeterSignature.verify(v.signature, v.protocol, v.sessionId, v.meterId,
-                                      v.reading, v.timestamp, publicKey),
+                                      v.reading, v.timestamp, publicKey, v.discharged),
                 "meterId ${v.meterId}, protocol ${v.protocol}")
         }
+    }
+
+    /**
+     * Layout 2: a bidirectional meter's signature covers the discharge register too. Stripping the
+     * register, or changing it, must leave a reading that does not verify; otherwise the discharged
+     * figure beside the signature would be an unsigned number that looks signed.
+     */
+    @Test
+    fun `a discharge register is signed and cannot be stripped or changed`() {
+        val v = vectors.first { it.discharged != null && it.discharged > 0uL }
+
+        assertFalse(MeterSignature.verify(v.signature, v.protocol, v.sessionId, v.meterId,
+                                          v.reading, v.timestamp, publicKey),
+                    "a layout-2 signature verified with the discharge register stripped")
+        assertFalse(MeterSignature.verify(v.signature, v.protocol, v.sessionId, v.meterId,
+                                          v.reading, v.timestamp, publicKey, v.discharged!! - 1uL),
+                    "a layout-2 signature verified over another discharged figure")
     }
 
     /** A shaved reading must not verify — the whole reason the field is signed. */

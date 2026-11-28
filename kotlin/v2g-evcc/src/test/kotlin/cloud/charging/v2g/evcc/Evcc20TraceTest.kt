@@ -288,6 +288,65 @@ class Evcc20TraceTest {
         assertContains(thrown.message!!, "ServiceDiscoveryReq")
     }
 
+    // ── Energy that flows back ────────────────────────────────────────────
+    //
+    // Recorded 2026-11-28, the first sessions in which a station of ours discharges the vehicle, and
+    // the meter signs both registers (V2G-METER-2). DC: the station serves a negative current, which
+    // this car already counted correctly. AC: the station asks with a negative EVSETargetActivePower,
+    // and this car follows from the next loop on ([V2G20-1825]); before that it kept reporting 22 kW,
+    // and the replay diverged at the second AC_ChargeLoopReq.
+
+    /**
+     * The car's own count lands where the station's two registers do: charged minus discharged.
+     * DC goes negative from the first loop; AC charges one loop, then gives back two at half the power.
+     */
+    private fun assertDischargeReplay(name: String, mode: PowerMode, expectedWh: Double) {
+
+        val (replay, evcc) = replayWith(name, mode, preferDynamic = true) { it.preferBidirectionalService = true }
+        assertTrue(replay.complete, "replayed ${replay.replayed} exchanges, not the whole recording")
+        assertEquals(expectedWh, evcc.meter.energy, "the car's own count, signed")
+
+        val trace = SessionTrace.load(name)
+        val key   = SignedFrame.publicKey(trace.meterKey!!.x, trace.meterKey.y)
+        val last  = trace.exchanges.last { it.response.carriesMeterSignature }
+
+        val (charged, discharged) = when (val m = (V2GTPDispatcher.decode(last.response.bytes) as V2GTPDecodeResult.Decoded).message) {
+            is DC_ChargeLoopRes -> m.meterInfo!!.chargedEnergyReadingWh to m.meterInfo!!.bPT_DischargedEnergyReadingWh!!
+            is cloud.charging.v2g.iso20.ac.AC_ChargeLoopRes -> m.meterInfo!!.chargedEnergyReadingWh to m.meterInfo!!.bPT_DischargedEnergyReadingWh!!
+            else -> error("exchange ${last.index} is no charge-loop response")
+        }
+        assertEquals(charged.toDouble() - discharged.toDouble(), evcc.meter.energy,
+            "the car's count and the station's two registers disagree")
+
+        // Every reading verifies here over both registers, and not with the discharge register stripped.
+        for (exchange in trace.exchanges.filter { it.response.carriesMeterSignature }) {
+            val m = (V2GTPDispatcher.decode(exchange.response.bytes) as V2GTPDecodeResult.Decoded).message
+            val (sid, info) = when (m) {
+                is DC_ChargeLoopRes -> m.header.sessionID to
+                    listOf(m.meterInfo!!.meterID, m.meterInfo!!.chargedEnergyReadingWh, m.meterInfo!!.bPT_DischargedEnergyReadingWh,
+                           m.meterInfo!!.meterSignature, m.meterInfo!!.meterTimestamp)
+                is cloud.charging.v2g.iso20.ac.AC_ChargeLoopRes -> m.header.sessionID to
+                    listOf(m.meterInfo!!.meterID, m.meterInfo!!.chargedEnergyReadingWh, m.meterInfo!!.bPT_DischargedEnergyReadingWh,
+                           m.meterInfo!!.meterSignature, m.meterInfo!!.meterTimestamp)
+                else -> error("exchange ${exchange.index} is no charge-loop response")
+            }
+            val (meterId, reading, register, signature, timestamp) = info
+            assertTrue(MeterSignature.verify(signature as ByteArray, 20, sid, meterId as String, reading as ULong,
+                                             (timestamp as ULong?)?.toLong(), key, register as ULong),
+                "exchange ${exchange.index}: the reading C# recorded does not verify over both registers here")
+            assertFalse(MeterSignature.verify(signature, 20, sid, meterId, reading, timestamp?.toLong(), key),
+                "exchange ${exchange.index}: the reading verifies with the discharge register stripped")
+        }
+    }
+
+    @Test
+    fun theDcStationDischargesTheCarAndTheMeterSignsWhatWentBack() =
+        assertDischargeReplay("iso20-dc-eim-bpt-discharge", PowerMode.Dc, expectedWh = -2_001.0)
+
+    @Test
+    fun theAcStationAsksForEnergyBackAndTheCarFollows() =
+        assertDischargeReplay("iso20-ac-eim-bpt-discharge", PowerMode.Ac, expectedWh = 1.0)
+
     /**
      * The session really does leave CommonMessages. Byte-exactness already guarantees it, but only
      * as a consequence — this says it in the terms the bug would be described in, so a future

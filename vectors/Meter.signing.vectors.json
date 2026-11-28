@@ -77,6 +77,36 @@
       "timestamp": "1",
       "payload": "5632472d4d455445522d31000201020304050607080a5ac3a4686c65722dc39c00000000000003e70000000000000001",
       "signature": "b9fa89aca7533e7bd3f52b1f179b96f24b8467a7d42f32818d81f698894236e4e3a0d6cbf2254f5c51b37778e8087d0538f7d07c673c84d7df25175acbd97961"
+    },
+    {
+      "meterId": "VAN*M1",
+      "protocol": 20,
+      "sessionId": "0102030405060708",
+      "reading": "4200",
+      "timestamp": "1700000000",
+      "discharged": "1300",
+      "payload": "5632472d4d455445522d32001401020304050607080656414e2a4d3100000000000010680000000000000514000000006553f100",
+      "signature": "07ed708f67262459b7caecdd96582eb9390e51e761f42b9627de1c35b39cf7d7014ea36525d56b137cfad3696692f845deaebb1dc082acbf2e46e1d2d91c9831"
+    },
+    {
+      "meterId": "VAN*M1",
+      "protocol": 20,
+      "sessionId": "0102030405060708",
+      "reading": "4200",
+      "timestamp": "1700000000",
+      "discharged": "0",
+      "payload": "5632472d4d455445522d32001401020304050607080656414e2a4d3100000000000010680000000000000000000000006553f100",
+      "signature": "55d81bd82bb59c0f94102c36c728f86da3296e19440bee17e170192e83f9d24b401bd23af842ef6ddbb81f70f157af8ad9249c57db1cd9879d802203243f35bb"
+    },
+    {
+      "meterId": "VAN*M1",
+      "protocol": 20,
+      "sessionId": "ffffffffffffffff",
+      "reading": "18446744073709551615",
+      "timestamp": null,
+      "discharged": "18446744073709551615",
+      "payload": "5632472d4d455445522d320014ffffffffffffffff0656414e2a4d31ffffffffffffffffffffffffffffffff0000000000000000",
+      "signature": "80728e19e9f77dcfbdea2d9c9a752459d0de759bb44c7ff92f8067f693b9dfe4d9f00f836442117a69e107680f308657dbe6780a106004ab97314a456932dd86"
     }
   ]
 }

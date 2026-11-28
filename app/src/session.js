@@ -673,6 +673,8 @@ export async function signerCheckFor(event, events, verify) {
  * @property {number} protocol   2 or 20 — part of what the meter signed, and never on the wire
  * @property {string} meterId
  * @property {bigint} readingWh
+ * @property {bigint | null} dischargedWh   -20 BPT only: the meter's discharge register, signed with the
+ *                                          charged one when present (layout 2, `V2G-METER-2`)
  * @property {bigint | null} timestamp
  * @property {string | null} signature   raw r‖s, hex, when the meter signed
  * @property {{label: string, value: string}[]} facts
@@ -695,8 +697,8 @@ export async function signerCheckFor(event, events, verify) {
  */
 export function meterReadingFor(event) {
 
-    const absent = { present: false, protocol: 2, meterId: "", readingWh: 0n, timestamp: null,
-                     signature: null, facts: [] };
+    const absent = { present: false, protocol: 2, meterId: "", readingWh: 0n, dischargedWh: null,
+                     timestamp: null, signature: null, facts: [] };
 
     // -2 wraps every message in V2G_Message and puts MeterInfo on the body element; -20's charge-loop
     // responses carry it at the top level. Same field, two places, and reading only the first is how
@@ -719,6 +721,10 @@ export function meterReadingFor(event) {
         return absent;
 
     const timestamp = bigintOrNull(protocol === 2 ? info.tMeter : info.meterTimestamp);
+    // A bidirectional session's reading carries the discharge register too, and the meter then signs
+    // both: leaving it out of the verification would fail every such reading, and leaving it out of
+    // the view would hide the half in which the driver is the seller.
+    const dischargedWh = protocol === 20 ? bigintOrNull(info.bpt_DischargedEnergyReadingWh) : null;
     const raw       = protocol === 2 ? info.sigMeterReading : info.meterSignature;
     const signature = typeof raw === "string" ? raw.toLowerCase() : null;
 
@@ -728,6 +734,9 @@ export function meterReadingFor(event) {
         { label: "Reading", value: `${readingWh} Wh` },
     ];
 
+    if (dischargedWh !== null)
+        facts.push({ label: "Discharged", value: `${dischargedWh} Wh` });
+
     if (timestamp !== null)
         facts.push({ label: "Taken at", value: `${new Date(Number(timestamp) * 1000).toISOString()} `
                                              + `(TMeter ${timestamp})` });
@@ -736,7 +745,7 @@ export function meterReadingFor(event) {
 
     facts.push({ label: "Meter signature", value: signature ?? "— (this station's meter does not sign)" });
 
-    return { present: true, protocol, meterId: info.meterID, readingWh, timestamp, signature, facts };
+    return { present: true, protocol, meterId: info.meterID, readingWh, dischargedWh, timestamp, signature, facts };
 }
 
 
@@ -1003,7 +1012,11 @@ export function backendCheckFor(events, record) {
 
     for (const value of values) {
         for (const sampled of Array.isArray(value.sampledValue) ? value.sampledValue : []) {
-            backendWh = bigintOrNull(sampled.value) ?? backendWh;
+            // The billed figure is the import register. A bidirectional session's record carries the
+            // export register beside it, unsigned because the one signature covers both, and taking
+            // the last value of any measurand would report the energy given back as the energy taken.
+            if ((sampled.measurand ?? "Energy.Active.Import.Register") === "Energy.Active.Import.Register")
+                backendWh = bigintOrNull(sampled.value) ?? backendWh;
             const signature = sampled.signedMeterValue?.signedMeterData;
             if (typeof signature === "string") reported.push(signature.toLowerCase());
         }
@@ -1159,17 +1172,22 @@ async function verifyMeterSignature(key, protocol, sessionIdHex, reading) {
 
     if (meterId.length > 255 || signature.length !== 64) return null;
 
-    const payload = new Uint8Array(12 + 1 + sessionId.length + 1 + meterId.length + 8 + 8);
+    // Layout 2 when the reading carries the discharge register: the meter signed both registers, under
+    // its own separator, so a reading with the register stripped does not verify.
+    const discharged = reading.dischargedWh ?? null;
+    const payload = new Uint8Array(12 + 1 + sessionId.length + 1 + meterId.length + 8 + 8
+                                   + (discharged === null ? 0 : 8));
     const view    = new DataView(payload.buffer);
     let at = 0;
 
-    payload.set(new TextEncoder().encode("V2G-METER-1\0"), at); at += 12;
+    payload.set(new TextEncoder().encode(discharged === null ? "V2G-METER-1\0" : "V2G-METER-2\0"), at); at += 12;
     payload[at++] = protocol;
     payload.set(sessionId, at); at += sessionId.length;
     payload[at++] = meterId.length;
     payload.set(meterId, at); at += meterId.length;
 
     view.setBigUint64(at, reading.readingWh, false); at += 8;
+    if (discharged !== null) { view.setBigUint64(at, discharged, false); at += 8; }
     // Absent is a zero rather than an omission, so the payload's length never depends on which
     // optional fields happen to be present.
     view.setBigInt64(at, reading.timestamp ?? 0n, false);

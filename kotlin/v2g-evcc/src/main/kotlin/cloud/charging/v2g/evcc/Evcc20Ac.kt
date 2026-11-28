@@ -10,6 +10,7 @@ import cloud.charging.v2g.iso20.ac.AC_ChargeParameterDiscoveryReq
 import cloud.charging.v2g.iso20.ac.AC_ChargeParameterDiscoveryRes
 import cloud.charging.v2g.iso20.ac.ACCodec
 import cloud.charging.v2g.iso20.ac.Dynamic_AC_CLReqControlModeType
+import cloud.charging.v2g.iso20.ac.Dynamic_AC_CLResControlModeType
 import cloud.charging.v2g.iso20.ac.RationalNumberType
 import cloud.charging.v2g.iso20.ac.Scheduled_AC_CLReqControlModeType
 import cloud.charging.v2g.tp.MessageSet
@@ -84,7 +85,7 @@ class Evcc20Ac(
                         eVMaximumChargePower_L2    = null, eVMaximumChargePower_L3 = null,
                         eVMinimumChargePower       = rat(1, 3),
                         eVMinimumChargePower_L2    = null, eVMinimumChargePower_L3 = null,
-                        eVPresentActivePower       = PRESENT_ACTIVE_POWER,
+                        eVPresentActivePower       = presentActivePower,
                         eVPresentActivePower_L2    = null, eVPresentActivePower_L3 = null,
                         eVPresentReactivePower     = rat(0),
                         eVPresentReactivePower_L2  = null, eVPresentReactivePower_L3 = null,
@@ -103,7 +104,7 @@ class Evcc20Ac(
                         eVMaximumChargePower_L2   = null, eVMaximumChargePower_L3 = null,
                         eVMinimumChargePower      = rat(1, 3),
                         eVMinimumChargePower_L2   = null, eVMinimumChargePower_L3 = null,
-                        eVPresentActivePower      = PRESENT_ACTIVE_POWER,
+                        eVPresentActivePower      = presentActivePower,
                         eVPresentActivePower_L2   = null, eVPresentActivePower_L3 = null,
                         eVPresentReactivePower    = rat(0),
                         eVPresentReactivePower_L2 = null, eVPresentReactivePower_L3 = null)
@@ -112,7 +113,7 @@ class Evcc20Ac(
                 bidirectionalService ->
                     BPT_Scheduled_AC_CLReqControlModeType(
                         null, null, null, null, null, null, null, null, null,
-                        eVPresentActivePower       = PRESENT_ACTIVE_POWER,
+                        eVPresentActivePower       = presentActivePower,
                         null, null, null, null, null,
                         eVMaximumDischargePower    = rat(2_200, 1),  // 22 kW: what the car can give back
                         eVMaximumDischargePower_L2 = null, eVMaximumDischargePower_L3 = null,
@@ -121,7 +122,7 @@ class Evcc20Ac(
                 else ->
                     Scheduled_AC_CLReqControlModeType(
                         null, null, null, null, null, null, null, null, null,
-                        eVPresentActivePower = PRESENT_ACTIVE_POWER,
+                        eVPresentActivePower = presentActivePower,
                         null, null, null, null, null)
             }
 
@@ -138,10 +139,15 @@ class Evcc20Ac(
         noteRenegotiationRequest(
             response.eVSEStatus?.eVSENotification == cloud.charging.v2g.iso20.ac.EvseNotification.ServiceRenegotiation)
 
+        // The station's ask for the next iteration, read before this one is counted: it changes
+        // nothing about what this request already said.
+        val sent = presentActivePower
+        dischargeTarget = dischargeTargetOf(response)
+
         // The one place in this project where the EV's own inlet power is a field on the wire: -20 AC
         // has EVPresentActivePower in the request, so the vehicle's view needs no deriving and
-        // nothing borrowed from the station.
-        meter.sample(PRESENT_ACTIVE_POWER_W)
+        // nothing borrowed from the station. Read back off the rational it just sent.
+        meter.sample(amount(sent))
 
         // [V2G20-1083]: the station asks the car to sign what this response carried. After the
         // sample, so the station's reading is paired with the car's count of the same iteration.
@@ -151,6 +157,39 @@ class Evcc20Ac(
     }
 
     override fun runPostChargeSequence() = Unit   // AC: not applicable
+
+    /**
+     * What the station last asked this vehicle to give back, as the `EVSETargetActivePower` it sent,
+     * or null while it is not asking. A port of the C# `Evcc20Ac._dischargeTarget`.
+     *
+     * [V2G20-1825]: the vehicle adjusts to the setpoints the station sends. A negative target in a
+     * bidirectional session is the station asking for energy back, and this vehicle reports exactly
+     * that figure as its `EVPresentActivePower` from the next iteration on, the rational passed through
+     * as received. A positive target is left as it always was: our station's Dynamic target is its
+     * 22 kW offer, and the vehicle draws what it wants inside it.
+     */
+    private var dischargeTarget: RationalNumberType? = null
+
+    /** The power this request reports: the station's discharge ask when there is one, else 22 kW. */
+    private val presentActivePower: RationalNumberType get() = dischargeTarget ?: PRESENT_ACTIVE_POWER
+
+    /** The discharge the station asks for in [response], held inside this vehicle's own 22 kW; null in
+     *  a charge-only session, in Scheduled mode, or for a target ≥ 0. */
+    private fun dischargeTargetOf(response: AC_ChargeLoopRes): RationalNumberType? {
+        val dynamic = response.cLResControlMode as? Dynamic_AC_CLResControlModeType
+        if (!bidirectionalService || dynamic == null) return null
+
+        val target = amount(dynamic.eVSETargetActivePower)
+        return when {
+            target >= 0                     -> null
+            target >= -PRESENT_ACTIVE_POWER_W -> dynamic.eVSETargetActivePower
+            else                            -> RationalNumberType(0, (-22_000).toShort())   // as C#'s Watts(-22 000)
+        }
+    }
+
+    /** A RationalNumber as a plain number: value x 10^exponent. */
+    private fun amount(v: RationalNumberType): Double =
+        v.value.toDouble() * Math.pow(10.0, v.exponent.toDouble())
 
     /** Note the argument order: the C# helper takes (value, exponent) and the generated record takes
      *  (exponent, value). Keeping the helper's order identical to C#'s is what makes the two call

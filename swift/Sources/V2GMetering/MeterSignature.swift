@@ -36,6 +36,13 @@ import Foundation
 /// meter reading; the session id makes a reading provably *yours* rather than merely genuine; and
 /// the length prefix stops meter `"A1"` reading 23 and meter `"A"` reading 123 producing the same
 /// octets.
+///
+/// ## Layout 2, for a bidirectional meter (since 2026-11-28)
+///
+/// When the reading carries `BPT_DischargedEnergyReadingWh` (-20 only), the meter signs both
+/// registers: separator `"V2G-METER-2\0"`, then the same fields with the 8-byte discharge register
+/// right after the charged one. Layout 1 is unchanged for every other reading, and the separator
+/// keeps the two from ever being read as each other.
 public enum MeterSignature {
 
     /// The wire length of the signature field: r and s, 32 bytes each.
@@ -46,6 +53,8 @@ public enum MeterSignature {
         case unsupportedProtocol(Int)
         /// The layout gives the meter id a single length byte.
         case meterIdTooLong(Int)
+        /// Only -20 has a discharged-energy register.
+        case dischargeOutsideIso20
     }
 
     /// Builds the octets the signature covers.
@@ -57,22 +66,25 @@ public enum MeterSignature {
                                sessionId: [UInt8],
                                meterId: String,
                                reading: UInt64,
-                               timestamp: Int64?) throws -> [UInt8] {
+                               timestamp: Int64?,
+                               discharged: UInt64? = nil) throws -> [UInt8] {
         guard proto == 2 || proto == 20 else { throw Error.unsupportedProtocol(proto) }
+        guard discharged == nil || proto == 20 else { throw Error.dischargeOutsideIso20 }
 
         let id = Array(meterId.utf8)
         guard id.count <= 255 else { throw Error.meterIdTooLong(id.count) }
 
         var out: [UInt8] = []
-        out.reserveCapacity(12 + 1 + sessionId.count + 1 + id.count + 16)
+        out.reserveCapacity(12 + 1 + sessionId.count + 1 + id.count + 24)
 
-        out.append(contentsOf: Array("V2G-METER-1".utf8))
+        out.append(contentsOf: Array((discharged == nil ? "V2G-METER-1" : "V2G-METER-2").utf8))
         out.append(0)
         out.append(UInt8(proto))
         out.append(contentsOf: sessionId)
         out.append(UInt8(id.count))
         out.append(contentsOf: id)
         out.append(contentsOf: bigEndian(reading))
+        if let discharged { out.append(contentsOf: bigEndian(discharged)) }
         // Absent encodes as zero rather than being omitted, so the payload's length never depends on
         // which optional fields are present.
         out.append(contentsOf: bigEndian(UInt64(bitPattern: timestamp ?? 0)))
@@ -91,13 +103,14 @@ public enum MeterSignature {
                               meterId: String,
                               reading: UInt64,
                               timestamp: Int64?,
+                              discharged: UInt64? = nil,
                               publicKey: P256.Signing.PublicKey) throws -> Bool {
         guard signature.count == signatureLength,
               let parsed = try? P256.Signing.ECDSASignature(rawRepresentation: Data(signature))
         else { return false }
 
         let message = try payload(protocol: proto, sessionId: sessionId, meterId: meterId,
-                                  reading: reading, timestamp: timestamp)
+                                  reading: reading, timestamp: timestamp, discharged: discharged)
         return publicKey.isValidSignature(parsed, for: Data(message))
     }
 
