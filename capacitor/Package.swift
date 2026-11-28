@@ -25,7 +25,7 @@ let package = Package(
         .library(name: "OpenChargingCloudCapacitorEvSimulator", targets: ["EvSimulatorPlugin"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.6.0"),
+        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.6.3"),
         .package(path: "../swift"),
     ],
     targets: [

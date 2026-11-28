@@ -11,8 +11,8 @@ capacitor/
                 looks; the sources it points at stay under ios/
   src/          the TypeScript adapter — registerPlugin, and the difference between the
                 contract and what the bridge really carries
-  android/      an Android library module (com.capacitorjs:core 8.6.0)
-  ios/          the native half's sources (capacitor-swift-pm 8.6.0)
+  android/      an Android library module (com.capacitorjs:core 8.6.3)
+  ios/          the native half's sources (capacitor-swift-pm 8.6.3)
 ```
 
 ## Run
