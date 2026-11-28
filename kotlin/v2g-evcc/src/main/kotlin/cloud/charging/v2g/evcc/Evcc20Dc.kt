@@ -52,10 +52,10 @@ open class Evcc20Dc(
                     eVMaximumVoltage          = rat(500),
                     eVMinimumVoltage          = rat(50),
                     targetSOC                 = 80,
-                    eVMaximumDischargePower   = rat(5_000, 1),
-                    eVMinimumDischargePower   = rat(0),
-                    eVMaximumDischargeCurrent = rat(200),
-                    eVMinimumDischargeCurrent = rat(0))
+                    eVMaximumDischargePower   = discharging(rat(5_000, 1)),
+                    eVMinimumDischargePower   = discharging(rat(0)),
+                    eVMaximumDischargeCurrent = discharging(rat(200)),
+                    eVMinimumDischargeCurrent = discharging(rat(0)))
             else
                 DC_CPDReqEnergyTransferModeType(
                     eVMaximumChargePower   = rat(5_000, 1),
@@ -111,9 +111,9 @@ open class Evcc20Dc(
                         eVMaximumChargeCurrent    = rat(125),
                         eVMaximumVoltage          = rat(500),
                         eVMinimumVoltage          = rat(200),
-                        eVMaximumDischargePower   = rat(50, 3),    // the charge request mirrored
-                        eVMinimumDischargePower   = rat(1,  3),
-                        eVMaximumDischargeCurrent = rat(125),
+                        eVMaximumDischargePower   = discharging(rat(50, 3)),    // the charge request mirrored
+                        eVMinimumDischargePower   = discharging(rat(1,  3)),
+                        eVMaximumDischargeCurrent = discharging(rat(125)),
                         eVMaximumV2XEnergyRequest = null,
                         eVMinimumV2XEnergyRequest = null)
                 preferDynamicControlMode ->
@@ -134,9 +134,9 @@ open class Evcc20Dc(
                         null, null, null,
                         eVTargetCurrent = rat(120), eVTargetVoltage = rat(400),
                         null, null, null, null, null,
-                        eVMaximumDischargePower   = rat(5_000, 1),   // 50 kW, the declared envelope
-                        eVMinimumDischargePower   = rat(0),
-                        eVMaximumDischargeCurrent = rat(200))
+                        eVMaximumDischargePower   = discharging(rat(5_000, 1)),   // 50 kW, the declared envelope
+                        eVMinimumDischargePower   = discharging(rat(0)),
+                        eVMaximumDischargeCurrent = discharging(rat(200)))
                 else ->
                     Scheduled_DC_CLReqControlModeType(
                         null, null, null,
@@ -183,4 +183,10 @@ open class Evcc20Dc(
 
     /** (value, exponent) as in the C# helper; the generated record takes (exponent, value). */
     private fun rat(value: Short, exponent: Byte = 0) = RationalNumberType(exponent, value)
+
+    /** A limit on energy flowing from the vehicle, as it goes on the wire: negative. [V2G20-1213] sets
+     *  parameters used for discharging negative, for AC and DC BPT alike, as C#'s Discharging does;
+     *  EVerest 2026.10.0's EV and station send theirs that way. */
+    private fun discharging(magnitude: RationalNumberType) =
+        magnitude.copy(value = (-kotlin.math.abs(magnitude.value.toInt())).toShort())
 }

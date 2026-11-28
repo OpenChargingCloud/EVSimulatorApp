@@ -14525,7 +14525,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeParameterDiscoveryReq",
-        "exi": "01fe8003000000218010040505860687078808880f2d6ca06288109811220000088109811220000080",
+        "exi": "01fe8003000000218010040505860687078808880f2d6ca06288109811220000088119711220000080",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeParameterDiscoveryReq",
@@ -14549,7 +14549,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 2200
+              "value": -2200
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -14566,7 +14566,7 @@
         "direction": "in",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeParameterDiscoveryRes",
-        "exi": "01fe8003000000258014040505860687078808880f2d6ca0620044084c08910000044001914810981122000008",
+        "exi": "01fe8003000000258014040505860687078808880f2d6ca0620044084c08910000044001914811971122000008",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeParameterDiscoveryRes",
@@ -14596,7 +14596,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 2200
+              "value": -2200
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -14738,7 +14738,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeLoopReq",
-        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a041805910600244084c089100000441805910600240",
+        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a041805910600244084c089100000441885110620040",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeLoopReq",
@@ -14789,12 +14789,12 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 11
+              "value": -11
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             }
           }
         }
@@ -14841,7 +14841,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeLoopReq",
-        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a04180591060024408e5841100000441805910600240",
+        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a04180591060024408e5841100000441885110620040",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeLoopReq",
@@ -14892,12 +14892,12 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 11
+              "value": -11
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             }
           }
         }
@@ -14944,7 +14944,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeLoopReq",
-        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a04180591060024408e5841100000441805910600240",
+        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a04180591060024408e5841100000441885110620040",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeLoopReq",
@@ -14995,12 +14995,12 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 11
+              "value": -11
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             }
           }
         }
@@ -15497,7 +15497,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeParameterDiscoveryReq",
-        "exi": "01fe8003000000218010040505860687078808880f2d6ca06288109811220000088109811220000080",
+        "exi": "01fe8003000000218010040505860687078808880f2d6ca06288109811220000088119711220000080",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeParameterDiscoveryReq",
@@ -15521,7 +15521,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 2200
+              "value": -2200
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -15538,7 +15538,7 @@
         "direction": "in",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeParameterDiscoveryRes",
-        "exi": "01fe8003000000258014040505860687078808880f2d6ca0620044084c08910000044001914810981122000008",
+        "exi": "01fe8003000000258014040505860687078808880f2d6ca0620044084c08910000044001914811971122000008",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeParameterDiscoveryRes",
@@ -15568,7 +15568,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 2200
+              "value": -2200
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -15710,7 +15710,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeLoopReq",
-        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a041805910600244084c089100000441805910600240",
+        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a041805910600244084c089100000441885110620040",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeLoopReq",
@@ -15761,12 +15761,12 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 11
+              "value": -11
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             }
           }
         }
@@ -15805,7 +15805,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeLoopReq",
-        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a041805910600244084c089100000441805910600240",
+        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a041805910600244084c089100000441885110620040",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeLoopReq",
@@ -15856,12 +15856,12 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 11
+              "value": -11
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             }
           }
         }
@@ -15900,7 +15900,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeLoopReq",
-        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a041805910600244084c089100000441805910600240",
+        "exi": "01fe8003000000338008040505860687078808880f2d6ca062802407020c07810607808300a041805910600244084c089100000441885110620040",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeLoopReq",
@@ -15951,12 +15951,12 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 11
+              "value": -11
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             }
           }
         }
@@ -16445,7 +16445,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeParameterDiscoveryReq",
-        "exi": "01fe8003000000218010040505860687078808880f2d6ca06288109811220000088109811220000080",
+        "exi": "01fe8003000000218010040505860687078808880f2d6ca06288109811220000088119711220000080",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeParameterDiscoveryReq",
@@ -16469,7 +16469,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 2200
+              "value": -2200
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -16486,7 +16486,7 @@
         "direction": "in",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeParameterDiscoveryRes",
-        "exi": "01fe8003000000258014040505860687078808880f2d6ca0620044084c08910000044001914810981122000008",
+        "exi": "01fe8003000000258014040505860687078808880f2d6ca0620044084c08910000044001914811971122000008",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeParameterDiscoveryRes",
@@ -16516,7 +16516,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 2200
+              "value": -2200
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -16684,7 +16684,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeLoopReq",
-        "exi": "01fe80030000001f8008040505860687078808880f2d6ca0628324084c088a4084c08888000020",
+        "exi": "01fe80030000001f8008040505860687078808880f2d6ca0628324084c088a408cb88888000020",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeLoopReq",
@@ -16704,7 +16704,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 2200
+              "value": -2200
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -16743,7 +16743,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeLoopReq",
-        "exi": "01fe80030000001f8008040505860687078808880f2d6ca0628324084c088a4084c08888000020",
+        "exi": "01fe80030000001f8008040505860687078808880f2d6ca0628324084c088a408cb88888000020",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeLoopReq",
@@ -16763,7 +16763,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 2200
+              "value": -2200
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -16802,7 +16802,7 @@
         "direction": "out",
         "payloadType": "0x8003",
         "messageName": "AC_ChargeLoopReq",
-        "exi": "01fe80030000001f8008040505860687078808880f2d6ca0628324084c088a4084c08888000020",
+        "exi": "01fe80030000001f8008040505860687078808880f2d6ca0628324084c088a408cb88888000020",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:AC",
           "@type": "AC_ChargeLoopReq",
@@ -16822,7 +16822,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 2200
+              "value": -2200
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -19029,7 +19029,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeParameterDiscoveryReq",
-        "exi": "01fe800400000037803c040505860687078808880f2d6ca062081088270400000200320041000000800f403040019028040844138200000100190020800000",
+        "exi": "01fe800400000037803c040505860687078808880f2d6ca062081088270400000200320041000000800f4030400190280408c393820000010038e020800000",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeParameterDiscoveryReq",
@@ -19074,7 +19074,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -19084,7 +19084,7 @@
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evMinimumDischargeCurrent": {
               "@type": "RationalNumberType",
@@ -19101,7 +19101,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeParameterDiscoveryRes",
-        "exi": "01fe8004000000378040040505860687078808880f2d6ca062000408441382000001001900208000004007a0182000c8481088270400000200320041000000",
+        "exi": "01fe8004000000378040040505860687078808880f2d6ca062000408441382000001001900208000004007a0182000c848118727040000020071c041000000",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeParameterDiscoveryRes",
@@ -19146,7 +19146,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -19156,7 +19156,7 @@
             "evseMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evseMinimumDischargeCurrent": {
               "@type": "RationalNumberType",
@@ -19389,7 +19389,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopReq",
-        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a0182003200410606408300104003e900",
+        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a018200320041062620831000400be100",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopReq",
@@ -19450,17 +19450,17 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 50
+              "value": -50
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             },
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 125
+              "value": -125
             }
           }
         }
@@ -19472,7 +19472,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopRes",
-        "exi": "01fe8004000000918038040505860687078808880f2d6ca062002062b20a71526951a1b989880004d82910312bec9b40550260cd1d05d876b4d40cfe3de910c44ad44d1af1d271449187ea16532331cd3432b171c0a12fafe8d33cf59add5564ef3af867f1fe90c5f5d1714a03cb5b281848016304004801800021021104e0800000400640082003d00c1021104e0800000400640082000c80",
+        "exi": "01fe8004000000918038040505860687078808880f2d6ca062002062b20a71526951a1b989880004d82910312bec9b40550260cd1d05d876b4d40cfe3de910c44ad44d1af1d271449187ea16532331cd3432b171c0a12fafe8d33cf59add5564ef3af867f1fe90c5f5d1714a03cb5b281848016304004801800021021104e0800000400640082003d00c10230e4e0800000400e38082000c80",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopRes",
@@ -19528,7 +19528,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -19538,7 +19538,7 @@
             "evseMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evseMinimumVoltage": {
               "@type": "RationalNumberType",
@@ -19555,7 +19555,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopReq",
-        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a0182003200410606408300104003e900",
+        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a018200320041062620831000400be100",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopReq",
@@ -19616,17 +19616,17 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 50
+              "value": -50
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             },
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 125
+              "value": -125
             }
           }
         }
@@ -19638,7 +19638,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopRes",
-        "exi": "01fe8004000000918038040505860687078808880f2d6ca062002062b20a71526951a1b989880005b051103b4bd4ffb1877688d32a91a13117a0eaebaa224d020cfab76ae8bec5e5a6e70a9b4e26b2fc500f0df77d211f6bd320c5690be0038c9f2b7bd7e7aff347a7f05f8a03cb5b281848016304004801800021021104e0800000400640082003d00c1021104e0800000400640082000c80",
+        "exi": "01fe8004000000918038040505860687078808880f2d6ca062002062b20a71526951a1b989880005b051103b4bd4ffb1877688d32a91a13117a0eaebaa224d020cfab76ae8bec5e5a6e70a9b4e26b2fc500f0df77d211f6bd320c5690be0038c9f2b7bd7e7aff347a7f05f8a03cb5b281848016304004801800021021104e0800000400640082003d00c10230e4e0800000400e38082000c80",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopRes",
@@ -19694,7 +19694,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -19704,7 +19704,7 @@
             "evseMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evseMinimumVoltage": {
               "@type": "RationalNumberType",
@@ -19721,7 +19721,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopReq",
-        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a0182003200410606408300104003e900",
+        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a018200320041062620831000400be100",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopReq",
@@ -19782,17 +19782,17 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 50
+              "value": -50
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             },
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 125
+              "value": -125
             }
           }
         }
@@ -19804,7 +19804,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopRes",
-        "exi": "01fe8004000000918038040505860687078808880f2d6ca062002062b20a71526951a1b9898800068879102e8b037481f4a7efb7f616cd84d8dcc8078c4a454b2ac333ebdc9ec30459910b4972d42d38e20a4281aac2d1c1c14a22a755c48838165667bcd5ea623172a07c4a03cb5b281848016304004801800021021104e0800000400640082003d00c1021104e0800000400640082000c80",
+        "exi": "01fe8004000000918038040505860687078808880f2d6ca062002062b20a71526951a1b9898800068879102e8b037481f4a7efb7f616cd84d8dcc8078c4a454b2ac333ebdc9ec30459910b4972d42d38e20a4281aac2d1c1c14a22a755c48838165667bcd5ea623172a07c4a03cb5b281848016304004801800021021104e0800000400640082003d00c10230e4e0800000400e38082000c80",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopRes",
@@ -19860,7 +19860,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -19870,7 +19870,7 @@
             "evseMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evseMinimumVoltage": {
               "@type": "RationalNumberType",
@@ -20380,7 +20380,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeParameterDiscoveryReq",
-        "exi": "01fe800400000037803c040505860687078808880f2d6ca062081088270400000200320041000000800f403040019028040844138200000100190020800000",
+        "exi": "01fe800400000037803c040505860687078808880f2d6ca062081088270400000200320041000000800f4030400190280408c393820000010038e020800000",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeParameterDiscoveryReq",
@@ -20425,7 +20425,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -20435,7 +20435,7 @@
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evMinimumDischargeCurrent": {
               "@type": "RationalNumberType",
@@ -20452,7 +20452,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeParameterDiscoveryRes",
-        "exi": "01fe8004000000378040040505860687078808880f2d6ca062000408441382000001001900208000004007a0182000c8481088270400000200320041000000",
+        "exi": "01fe8004000000378040040505860687078808880f2d6ca062000408441382000001001900208000004007a0182000c848118727040000020071c041000000",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeParameterDiscoveryRes",
@@ -20497,7 +20497,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -20507,7 +20507,7 @@
             "evseMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evseMinimumDischargeCurrent": {
               "@type": "RationalNumberType",
@@ -20740,7 +20740,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopReq",
-        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a0182003200410606408300104003e900",
+        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a018200320041062620831000400be100",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopReq",
@@ -20801,17 +20801,17 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 50
+              "value": -50
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             },
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 125
+              "value": -125
             }
           }
         }
@@ -20823,7 +20823,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopRes",
-        "exi": "01fe80040000003a8038040505860687078808880f2d6ca0620064003c02002400c0001081088270400000200320041001e806081088270400000200320041000640",
+        "exi": "01fe80040000003a8038040505860687078808880f2d6ca0620064003c02002400c0001081088270400000200320041001e80608118727040000020071c041000640",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopRes",
@@ -20871,7 +20871,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -20881,7 +20881,7 @@
             "evseMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evseMinimumVoltage": {
               "@type": "RationalNumberType",
@@ -20898,7 +20898,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopReq",
-        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a0182003200410606408300104003e900",
+        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a018200320041062620831000400be100",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopReq",
@@ -20959,17 +20959,17 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 50
+              "value": -50
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             },
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 125
+              "value": -125
             }
           }
         }
@@ -20981,7 +20981,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopRes",
-        "exi": "01fe80040000003a8038040505860687078808880f2d6ca0620064003c02002400c0001081088270400000200320041001e806081088270400000200320041000640",
+        "exi": "01fe80040000003a8038040505860687078808880f2d6ca0620064003c02002400c0001081088270400000200320041001e80608118727040000020071c041000640",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopRes",
@@ -21029,7 +21029,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -21039,7 +21039,7 @@
             "evseMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evseMinimumVoltage": {
               "@type": "RationalNumberType",
@@ -21056,7 +21056,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopReq",
-        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a0182003200410606408300104003e900",
+        "exi": "01fe80040000003e8034040505860687078808880f2d6ca06281001200601203810603c08303c041805020c0c810600208007d04007a018200320041062620831000400be100",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopReq",
@@ -21117,17 +21117,17 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 50
+              "value": -50
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 3,
-              "value": 1
+              "value": -1
             },
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 125
+              "value": -125
             }
           }
         }
@@ -21139,7 +21139,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopRes",
-        "exi": "01fe80040000003a8038040505860687078808880f2d6ca0620064003c02002400c0001081088270400000200320041001e806081088270400000200320041000640",
+        "exi": "01fe80040000003a8038040505860687078808880f2d6ca0620064003c02002400c0001081088270400000200320041001e80608118727040000020071c041000640",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopRes",
@@ -21187,7 +21187,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -21197,7 +21197,7 @@
             "evseMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evseMinimumVoltage": {
               "@type": "RationalNumberType",
@@ -21707,7 +21707,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeParameterDiscoveryReq",
-        "exi": "01fe800400000037803c040505860687078808880f2d6ca062081088270400000200320041000000800f403040019028040844138200000100190020800000",
+        "exi": "01fe800400000037803c040505860687078808880f2d6ca062081088270400000200320041000000800f4030400190280408c393820000010038e020800000",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeParameterDiscoveryReq",
@@ -21752,7 +21752,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -21762,7 +21762,7 @@
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evMinimumDischargeCurrent": {
               "@type": "RationalNumberType",
@@ -21779,7 +21779,7 @@
         "direction": "in",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeParameterDiscoveryRes",
-        "exi": "01fe8004000000378040040505860687078808880f2d6ca062000408441382000001001900208000004007a0182000c8481088270400000200320041000000",
+        "exi": "01fe8004000000378040040505860687078808880f2d6ca062000408441382000001001900208000004007a0182000c848118727040000020071c041000000",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeParameterDiscoveryRes",
@@ -21824,7 +21824,7 @@
             "evseMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evseMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -21834,7 +21834,7 @@
             "evseMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             },
             "evseMinimumDischargeCurrent": {
               "@type": "RationalNumberType",
@@ -22093,7 +22093,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopReq",
-        "exi": "01fe80040000002a8034040505860687078808880f2d6ca062810012006164003c02002400c52042209c0800000200320040",
+        "exi": "01fe80040000002a8034040505860687078808880f2d6ca062810012006164003c02002400c520461c9c080000020071c040",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopReq",
@@ -22123,7 +22123,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -22133,7 +22133,7 @@
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             }
           }
         }
@@ -22180,7 +22180,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopReq",
-        "exi": "01fe80040000002a8034040505860687078808880f2d6ca062810012006164003c02002400c52042209c0800000200320040",
+        "exi": "01fe80040000002a8034040505860687078808880f2d6ca062810012006164003c02002400c520461c9c080000020071c040",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopReq",
@@ -22210,7 +22210,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -22220,7 +22220,7 @@
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             }
           }
         }
@@ -22267,7 +22267,7 @@
         "direction": "out",
         "payloadType": "0x8004",
         "messageName": "DC_ChargeLoopReq",
-        "exi": "01fe80040000002a8034040505860687078808880f2d6ca062810012006164003c02002400c52042209c0800000200320040",
+        "exi": "01fe80040000002a8034040505860687078808880f2d6ca062810012006164003c02002400c520461c9c080000020071c040",
         "json": {
           "@context": "urn:iso:std:iso:15118:-20:DC",
           "@type": "DC_ChargeLoopReq",
@@ -22297,7 +22297,7 @@
             "evMaximumDischargePower": {
               "@type": "RationalNumberType",
               "exponent": 1,
-              "value": 5000
+              "value": -5000
             },
             "evMinimumDischargePower": {
               "@type": "RationalNumberType",
@@ -22307,7 +22307,7 @@
             "evMaximumDischargeCurrent": {
               "@type": "RationalNumberType",
               "exponent": 0,
-              "value": 200
+              "value": -200
             }
           }
         }
