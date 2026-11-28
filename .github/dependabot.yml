@@ -89,7 +89,14 @@ updates:
         update-types: ["minor", "patch"]
         patterns: ["*"]
 
-  # swift/ is the V2G package, tools/tls-nio-probe a probe with its own dependencies.
+  # swift/ is the V2G package.
+  #
+  # tools/tls-nio-probe is left out on purpose. It is a measuring instrument: it records what the
+  # BoringSSL vendored in swift-nio-ssl puts on the wire, and docs/decisions/ios-tls-stack.md
+  # and docs/experiments/tls-platform-suites.md cite the version measured (swift-nio-ssl 2.37.2).
+  # Its Package.resolved is that measurement's configuration, so moving it is a re-measurement —
+  # re-run the probe on a Mac and rewrite those findings in the same change — not an update.
+  # (#64 would have moved it to 2.37.6, which updates the vendored BoringSSL.)
   #
   # capacitor/ is not listed, and it still needs a hand: Dependabot bumps a manifest's *direct*
   # dependencies, and capacitor/Package.swift has only two — capacitor-swift-pm (ignored above)
@@ -105,7 +112,6 @@ updates:
   - package-ecosystem: "swift"
     directories:
       - "/swift"
-      - "/tools/tls-nio-probe"
     schedule:
       interval: "weekly"
       day: "monday"
