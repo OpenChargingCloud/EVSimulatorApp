@@ -761,7 +761,10 @@ function bigintOrNull(value) {
  * @property {"agree" | "differ" | "one-sided" | "none"} verdict
  * @property {bigint | null} vehicleWh   what the EV had counted when the station last reported
  * @property {bigint | null} vehicleTotalWh  what the EV counted over the whole session
- * @property {bigint | null} stationWh   the station's last reported reading
+ * @property {bigint | null} stationWh   the station's last reported reading, net: charged minus discharged
+ *                                       in a bidirectional session, so it can be negative
+ * @property {bigint | null} stationChargedWh     that reading's charged register
+ * @property {bigint | null} stationDischargedWh  its discharge register, in a bidirectional session only
  * @property {bigint} deviationWh        station minus vehicle, absolute
  * @property {number} samples            charge-loop iterations the vehicle counted
  * @property {string} explanation
@@ -824,13 +827,24 @@ export function energyFor(events) {
     let station = null;
     let pairedVehicle = null;
 
+    // In a bidirectional session the vehicle keeps one signed total and the station two rising
+    // registers, so the vehicle's count is held to charged minus discharged. Held to the charged
+    // register alone, a discharge session would show a difference of everything it gave back.
+    /** @type {bigint | null} */ let stationCharged    = null;
+    /** @type {bigint | null} */ let stationDischarged = null;
+
     for (let at = 0; at < messages.length; at++) {
 
         const event = messages[at];
 
         if (event.direction !== "out") {
             const reading = meterReadingFor(event);
-            if (reading.present) { station = reading.readingWh; pairedVehicle = vehicle; }
+            if (reading.present) {
+                stationCharged    = reading.readingWh;
+                stationDischarged = reading.dischargedWh;
+                station           = stationDischarged === null ? stationCharged : stationCharged - stationDischarged;
+                pairedVehicle     = vehicle;
+            }
             continue;
         }
 
@@ -873,13 +887,14 @@ export function energyFor(events) {
 
     if (samples === 0 && station === null)
         return { verdict: "none", vehicleWh: null, vehicleTotalWh: null, stationWh: null,
-                 deviationWh: 0n, samples: 0,
+                 stationChargedWh: null, stationDischargedWh: null, deviationWh: 0n, samples: 0,
                  explanation: "This session had no charge loop, so neither side counted anything." };
 
     if (samples === 0 || station === null)
         return { verdict: "one-sided",
                  vehicleWh: samples === 0 ? null : vehicle,
                  vehicleTotalWh: samples === 0 ? null : vehicle, stationWh: station,
+                 stationChargedWh: stationCharged, stationDischargedWh: stationDischarged,
                  deviationWh: 0n, samples,
                  explanation: station === null
                      ? "Only the vehicle counted. This station reported no meter reading at all, "
@@ -890,14 +905,16 @@ export function energyFor(events) {
 
     return deviation === 0n
         ? { verdict: "agree", vehicleWh: pairedVehicle, vehicleTotalWh: vehicle,
-            stationWh: station, deviationWh: 0n, samples,
+            stationWh: station, stationChargedWh: stationCharged, stationDischargedWh: stationDischarged,
+            deviationWh: 0n, samples,
             explanation: "Both counts agree. The vehicle worked its figure out from what it asked "
                        + "for, the station from what it delivered, and neither looked at the "
                        + "other's — so this is two measurements of one session, not one number "
                        + "shown twice. It is not evidence about a real meter: both come from the "
                        + "same simulated charge loop." }
         : { verdict: "differ", vehicleWh: pairedVehicle, vehicleTotalWh: vehicle,
-            stationWh: station, deviationWh: deviation, samples,
+            stationWh: station, stationChargedWh: stationCharged, stationDischargedWh: stationDischarged,
+            deviationWh: deviation, samples,
             explanation: `The two counts differ by ${deviation} Wh. One side measured something the `
                        + "other did not — which is exactly the disagreement a signature cannot "
                        + "catch, because each number may be perfectly signed and still not describe "
@@ -1009,6 +1026,7 @@ export function backendCheckFor(events, record) {
     /** @type {string[]} */
     const reported = [];
     let backendWh = null;
+    /** @type {bigint | null} */ let backendDischargedWh = null;
 
     for (const value of values) {
         for (const sampled of Array.isArray(value.sampledValue) ? value.sampledValue : []) {
@@ -1017,6 +1035,8 @@ export function backendCheckFor(events, record) {
             // the last value of any measurand would report the energy given back as the energy taken.
             if ((sampled.measurand ?? "Energy.Active.Import.Register") === "Energy.Active.Import.Register")
                 backendWh = bigintOrNull(sampled.value) ?? backendWh;
+            else if (sampled.measurand === "Energy.Active.Export.Register")
+                backendDischargedWh = bigintOrNull(sampled.value) ?? backendDischargedWh;
             const signature = sampled.signedMeterValue?.signedMeterData;
             if (typeof signature === "string") reported.push(signature.toLowerCase());
         }
@@ -1045,12 +1065,22 @@ export function backendCheckFor(events, record) {
                  explanation: `The backend was told ${backendWh} Wh, and none of it is signed — so `
                             + "there is nothing to hold against what the car saw. " + provenance };
 
-    const paired = energyFor(events).stationWh;
+    // Register against register: the backend's import figure against the charged register the car
+    // saw, and in a bidirectional session its export figure against the discharge register. Not the
+    // net figure, which is what the car's own count is held to and not what a backend books.
+    const energy = energyFor(events);
+    const paired = energy.stationChargedWh;
 
     if (paired !== null && backendWh !== null && paired !== backendWh)
         return { verdict: "energy-differs", backendWh, signedValues: reported.length, matched,
                  explanation: `The backend's final figure is ${backendWh} Wh and the last reading `
                             + `this car saw was ${paired} Wh. ` + provenance };
+
+    if (energy.stationDischargedWh !== null && backendDischargedWh !== null
+        && energy.stationDischargedWh !== backendDischargedWh)
+        return { verdict: "energy-differs", backendWh, signedValues: reported.length, matched,
+                 explanation: `The backend was told ${backendDischargedWh} Wh given back, and the last `
+                            + `reading this car saw said ${energy.stationDischargedWh} Wh. ` + provenance };
 
     return { verdict: "consistent", backendWh, signedValues: reported.length, matched,
              explanation: `All ${matched} signed reading(s) the backend was given are readings this `
