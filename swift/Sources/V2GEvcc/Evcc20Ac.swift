@@ -21,8 +21,8 @@ public final class Evcc20Ac: Evcc20Base {
             ? BPT_AC_CPDReqEnergyTransferModeType(
                   eVMaximumChargePower:    Self.rat(2_200, 1),
                   eVMinimumChargePower:    Self.rat(0),
-                  eVMaximumDischargePower: Self.rat(2_200, 1),
-                  eVMinimumDischargePower: Self.rat(0))
+                  eVMaximumDischargePower: Self.discharging(Self.rat(2_200, 1)),
+                  eVMinimumDischargePower: Self.discharging(Self.rat(0)))
             : AC_CPDReqEnergyTransferModeType(
                   eVMaximumChargePower: Self.rat(2_200, 1),
                   eVMinimumChargePower: Self.rat(0))
@@ -53,8 +53,8 @@ public final class Evcc20Ac: Evcc20Base {
                 eVMinimumChargePower:    Self.rat(1, 3),
                 eVPresentActivePower:    presentActivePower,
                 eVPresentReactivePower:  Self.rat(0),
-                eVMaximumDischargePower: Self.rat(11, 3),    // the charge request mirrored
-                eVMinimumDischargePower: Self.rat(1, 3))
+                eVMaximumDischargePower: Self.discharging(Self.rat(11, 3)),    // the charge request mirrored
+                eVMinimumDischargePower: Self.discharging(Self.rat(1, 3)))
         case (true, false):
             controlMode = Dynamic_AC_CLReqControlModeType(
                 departureTime:          departureTime,
@@ -70,8 +70,8 @@ public final class Evcc20Ac: Evcc20Base {
             // envelope, which is the whole of what makes the request bidirectional, hence stated.
             controlMode = BPT_Scheduled_AC_CLReqControlModeType(
                 eVPresentActivePower:    presentActivePower,
-                eVMaximumDischargePower: Self.rat(2_200, 1),  // 22 kW: what the car can give back
-                eVMinimumDischargePower: Self.rat(0))
+                eVMaximumDischargePower: Self.discharging(Self.rat(2_200, 1)),  // 22 kW: what the car can give back
+                eVMinimumDischargePower: Self.discharging(Self.rat(0)))
         case (false, false):
             controlMode = Scheduled_AC_CLReqControlModeType(
                 eVPresentActivePower: presentActivePower)
@@ -146,5 +146,12 @@ public final class Evcc20Ac: Evcc20Base {
     /// (value, exponent) as in the C# helper; the generated type takes (exponent, value).
     private static func rat(_ value: Int16, _ exponent: Int8 = 0) -> ExiIso20AC.RationalNumberType {
         ExiIso20AC.RationalNumberType(exponent: exponent, value: value)
+    }
+
+    /// A limit on energy flowing from the vehicle, as it goes on the wire: negative. [V2G20-1213] sets
+    /// parameters used for discharging negative, for AC and DC BPT alike, as C#'s Discharging does;
+    /// EVerest 2026.10.0's EV and station send theirs that way.
+    private static func discharging(_ magnitude: ExiIso20AC.RationalNumberType) -> ExiIso20AC.RationalNumberType {
+        ExiIso20AC.RationalNumberType(exponent: magnitude.exponent, value: -abs(magnitude.value))
     }
 }

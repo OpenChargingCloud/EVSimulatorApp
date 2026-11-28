@@ -44,10 +44,10 @@ class Evcc20Ac(
                     eVMinimumChargePower       = rat(0),
                     eVMinimumChargePower_L2    = null,
                     eVMinimumChargePower_L3    = null,
-                    eVMaximumDischargePower    = rat(2_200, 1),
+                    eVMaximumDischargePower    = discharging(rat(2_200, 1)),
                     eVMaximumDischargePower_L2 = null,
                     eVMaximumDischargePower_L3 = null,
-                    eVMinimumDischargePower    = rat(0),
+                    eVMinimumDischargePower    = discharging(rat(0)),
                     eVMinimumDischargePower_L2 = null,
                     eVMinimumDischargePower_L3 = null)
             else
@@ -89,9 +89,9 @@ class Evcc20Ac(
                         eVPresentActivePower_L2    = null, eVPresentActivePower_L3 = null,
                         eVPresentReactivePower     = rat(0),
                         eVPresentReactivePower_L2  = null, eVPresentReactivePower_L3 = null,
-                        eVMaximumDischargePower    = rat(11, 3),     // the charge request mirrored
+                        eVMaximumDischargePower    = discharging(rat(11, 3)),     // the charge request mirrored
                         eVMaximumDischargePower_L2 = null, eVMaximumDischargePower_L3 = null,
-                        eVMinimumDischargePower    = rat(1, 3),
+                        eVMinimumDischargePower    = discharging(rat(1, 3)),
                         eVMinimumDischargePower_L2 = null, eVMinimumDischargePower_L3 = null,
                         eVMaximumV2XEnergyRequest  = null, eVMinimumV2XEnergyRequest = null)
                 preferDynamicControlMode ->
@@ -115,9 +115,9 @@ class Evcc20Ac(
                         null, null, null, null, null, null, null, null, null,
                         eVPresentActivePower       = presentActivePower,
                         null, null, null, null, null,
-                        eVMaximumDischargePower    = rat(2_200, 1),  // 22 kW: what the car can give back
+                        eVMaximumDischargePower    = discharging(rat(2_200, 1)),  // 22 kW: what the car can give back
                         eVMaximumDischargePower_L2 = null, eVMaximumDischargePower_L3 = null,
-                        eVMinimumDischargePower    = rat(0),
+                        eVMinimumDischargePower    = discharging(rat(0)),
                         eVMinimumDischargePower_L2 = null, eVMinimumDischargePower_L3 = null)
                 else ->
                     Scheduled_AC_CLReqControlModeType(
@@ -195,6 +195,12 @@ class Evcc20Ac(
      *  (exponent, value). Keeping the helper's order identical to C#'s is what makes the two call
      *  sites read the same. */
     private fun rat(value: Short, exponent: Byte = 0) = RationalNumberType(exponent, value)
+
+    /** A limit on energy flowing from the vehicle, as it goes on the wire: negative. [V2G20-1213] sets
+     *  parameters used for discharging negative, for AC and DC BPT alike, as C#'s Discharging does;
+     *  EVerest 2026.10.0's EV and station send theirs that way. */
+    private fun discharging(magnitude: RationalNumberType) =
+        magnitude.copy(value = (-kotlin.math.abs(magnitude.value.toInt())).toShort())
 
     companion object {
 

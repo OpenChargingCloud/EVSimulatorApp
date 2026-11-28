@@ -26,10 +26,10 @@ public class Evcc20Dc: Evcc20Base {
                   eVMaximumVoltage:          Self.rat(500),
                   eVMinimumVoltage:          Self.rat(50),
                   targetSOC: 80,
-                  eVMaximumDischargePower:   Self.rat(5_000, 1),
-                  eVMinimumDischargePower:   Self.rat(0),
-                  eVMaximumDischargeCurrent: Self.rat(200),
-                  eVMinimumDischargeCurrent: Self.rat(0))
+                  eVMaximumDischargePower:   Self.discharging(Self.rat(5_000, 1)),
+                  eVMinimumDischargePower:   Self.discharging(Self.rat(0)),
+                  eVMaximumDischargeCurrent: Self.discharging(Self.rat(200)),
+                  eVMinimumDischargeCurrent: Self.discharging(Self.rat(0)))
             : DC_CPDReqEnergyTransferModeType(
                   eVMaximumChargePower:   Self.rat(5_000, 1),
                   eVMinimumChargePower:   Self.rat(0),
@@ -88,9 +88,9 @@ public class Evcc20Dc: Evcc20Base {
                 eVMaximumChargeCurrent:    Self.rat(125),
                 eVMaximumVoltage:          Self.rat(500),
                 eVMinimumVoltage:          Self.rat(200),
-                eVMaximumDischargePower:   Self.rat(50, 3),    // the charge request mirrored
-                eVMinimumDischargePower:   Self.rat(1,  3),
-                eVMaximumDischargeCurrent: Self.rat(125))
+                eVMaximumDischargePower:   Self.discharging(Self.rat(50, 3)),    // the charge request mirrored
+                eVMinimumDischargePower:   Self.discharging(Self.rat(1,  3)),
+                eVMaximumDischargeCurrent: Self.discharging(Self.rat(125)))
         case (true, false):
             controlMode = Dynamic_DC_CLReqControlModeType(
                 departureTime:          departureTime,
@@ -108,9 +108,9 @@ public class Evcc20Dc: Evcc20Base {
             controlMode = BPT_Scheduled_DC_CLReqControlModeType(
                 eVTargetCurrent:           Self.rat(120),
                 eVTargetVoltage:           Self.rat(400),
-                eVMaximumDischargePower:   Self.rat(5_000, 1),   // 50 kW, the declared envelope
-                eVMinimumDischargePower:   Self.rat(0),
-                eVMaximumDischargeCurrent: Self.rat(200))
+                eVMaximumDischargePower:   Self.discharging(Self.rat(5_000, 1)),   // 50 kW, the declared envelope
+                eVMinimumDischargePower:   Self.discharging(Self.rat(0)),
+                eVMaximumDischargeCurrent: Self.discharging(Self.rat(200)))
         case (false, false):
             controlMode = Scheduled_DC_CLReqControlModeType(
                 eVTargetCurrent: Self.rat(120),
@@ -158,5 +158,12 @@ public class Evcc20Dc: Evcc20Base {
     /// (value, exponent) as in the C# helper; the generated type takes (exponent, value).
     private static func rat(_ value: Int16, _ exponent: Int8 = 0) -> ExiIso20DC.RationalNumberType {
         ExiIso20DC.RationalNumberType(exponent: exponent, value: value)
+    }
+
+    /// A limit on energy flowing from the vehicle, as it goes on the wire: negative. [V2G20-1213] sets
+    /// parameters used for discharging negative, for AC and DC BPT alike, as C#'s Discharging does;
+    /// EVerest 2026.10.0's EV and station send theirs that way.
+    private static func discharging(_ magnitude: ExiIso20DC.RationalNumberType) -> ExiIso20DC.RationalNumberType {
+        ExiIso20DC.RationalNumberType(exponent: magnitude.exponent, value: -abs(magnitude.value))
     }
 }
