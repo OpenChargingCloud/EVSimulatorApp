@@ -17,8 +17,8 @@
 # compile and runtime classpaths, without tests. What is left out, deliberately:
 #   - Build tooling: the buildscript classpath, AGP and its Unified Test Platform. On 2026-11-28 that
 #     was 54 advisories (Netty, Guava, protobuf, jdom2, jose4j, commons-compress, Bouncy Castle 1.79
-#     inside AGP 8.13.2), none of it shipped, none of it fixable here: AGP 9 needs Gradle 9, which
-#     Capacitor 8 does not support.
+#     inside AGP 8.13.2), none of it shipped, none of it fixable here: AGP 9 needs Gradle 9, and the
+#     Gradle wrapper moves with a Capacitor upgrade, not on its own (see dependabot.yml).
 #   - Test classpaths, ours and Capacitor's: `node_modules/@capacitor/android` declares
 #     `testImplementation 'org.json:json:20250517'`, for its own tests, in a file we do not own.
 # Widen it by editing the two regular expressions at the bottom. An alert names the settings file of
