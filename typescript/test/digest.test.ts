@@ -145,6 +145,9 @@ test("the digest of every signed -2 message re-derives from its own frame", asyn
                       // iso2-ac-pnc-norecord: two receipts, the second asked for without a MeterInfo
                       // and signed over the last one the station sent.
                       "AuthorizationReqType", "MeteringReceiptReqType", "MeteringReceiptReqType",
+                      // iso2-ac-pnc-meter-norecord: the same at a station with a signing meter, so
+                      // both receipts carry a SigMeterReading inside their signed fragment.
+                      "AuthorizationReqType", "MeteringReceiptReqType", "MeteringReceiptReqType",
                       "ChargeParameterDiscoveryResType",
                       "CertificateInstallationReqType", "CertificateUpdateReqType",
                       "CertificateInstallationResType", "CertificateUpdateResType"];

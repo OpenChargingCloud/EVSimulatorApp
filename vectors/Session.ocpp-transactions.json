@@ -533,6 +533,78 @@
         }
       ]
     },
+    "iso2-ac-pnc-meter-norecord": {
+      "schemaVersion": 1,
+      "source": "station-recording",
+      "transactionId": "TX-iso2-ac-pnc-meter-norecord",
+      "evseId": "DE*ABC*E1",
+      "v2gSessionId": "0a0b0c0d0e0f1011",
+      "meterValues": [
+        {
+          "timestamp": "2026-01-01T00:00:00Z",
+          "sampledValue": [
+            {
+              "value": "184",
+              "context": "Sample.Periodic",
+              "measurand": "Energy.Active.Import.Register",
+              "unitOfMeasure": {
+                "unit": "Wh",
+                "multiplier": 0
+              },
+              "location": "Outlet",
+              "signedMeterValue": {
+                "signedMeterData": "7f1625018c8b0fcf364facdf03dc8bc27f4e11826e1a3e8757e55948870f440b466ce71922577fab2c3dd6725c203d692301bc2a05bf835e645da85bba7098b2",
+                "signingMethod": "ECDSA-secp256r1-SHA256",
+                "encodingMethod": "V2G-METER-1",
+                "publicKey": "8df1dbff9ad6faf3951ee551fc3983c9b00c52e5ee37c1864698f1fbc8f4888441a9a14496be6e552fe391b91ae69bc0745f1a30a141be2fe1e830b38aa5cbea"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-01-01T00:00:00Z",
+          "sampledValue": [
+            {
+              "value": "368",
+              "context": "Sample.Periodic",
+              "measurand": "Energy.Active.Import.Register",
+              "unitOfMeasure": {
+                "unit": "Wh",
+                "multiplier": 0
+              },
+              "location": "Outlet",
+              "signedMeterValue": {
+                "signedMeterData": "61540fca10baf77e3db4b1f1f07726f44e4eadc726b53af49ef6ffd7e66843e74b6d67e64e8dde1215743a7619ad7f344e1383efd9e7aafe2eecc478eae41507",
+                "signingMethod": "ECDSA-secp256r1-SHA256",
+                "encodingMethod": "V2G-METER-1",
+                "publicKey": "8df1dbff9ad6faf3951ee551fc3983c9b00c52e5ee37c1864698f1fbc8f4888441a9a14496be6e552fe391b91ae69bc0745f1a30a141be2fe1e830b38aa5cbea"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-01-01T00:00:00Z",
+          "sampledValue": [
+            {
+              "value": "552",
+              "context": "Transaction.End",
+              "measurand": "Energy.Active.Import.Register",
+              "unitOfMeasure": {
+                "unit": "Wh",
+                "multiplier": 0
+              },
+              "location": "Outlet",
+              "signedMeterValue": {
+                "signedMeterData": "c9b8d151e8126d64a1e83f279d54888232e48aa1c474e09acaf79bf0614d646fba72b9057f2ff53b596b52d8a55eb588bcb5b51d430229cccfcad06315836e71",
+                "signingMethod": "ECDSA-secp256r1-SHA256",
+                "encodingMethod": "V2G-METER-1",
+                "publicKey": "8df1dbff9ad6faf3951ee551fc3983c9b00c52e5ee37c1864698f1fbc8f4888441a9a14496be6e552fe391b91ae69bc0745f1a30a141be2fe1e830b38aa5cbea"
+              }
+            }
+          ]
+        }
+      ]
+    },
     "iso2-ac-pnc-norecord": {
       "schemaVersion": 1,
       "source": "station-recording",
