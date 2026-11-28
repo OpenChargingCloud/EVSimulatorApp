@@ -163,6 +163,7 @@ open class Evcc20Dc(
         // -20 DC gives the vehicle no field for a current it measured itself, and EVTargetCurrent
         // would be a *request* rather than a measurement, and does not exist in Dynamic mode at all.
         meter.sample(amount(request.eVPresentVoltage) * amount(response.eVSEPresentCurrent))
+        response.meterInfo?.let { noteStationReading(it.chargedEnergyReadingWh, it.bPT_DischargedEnergyReadingWh) }
 
         // [V2G20-1083]: the station asks the car to sign what this response carried. After the
         // sample, so the station's reading is paired with the car's count of the same iteration.

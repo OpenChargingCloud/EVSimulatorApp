@@ -3,6 +3,8 @@ package cloud.charging.v2g.evcc
 import java.security.PrivateKey
 
 import cloud.charging.v2g.metering.EvMeter
+import cloud.charging.v2g.metering.MeteringDeviation
+import cloud.charging.v2g.metering.MeteringDeviationLimit
 import cloud.charging.v2g.iso20.common.*
 import cloud.charging.v2g.tp.MessageSet
 
@@ -432,6 +434,42 @@ abstract class Evcc20Base(
     /** Called for each confirmation once the station has answered it. */
     var onMeteringConfirmation: ((MeteringConfirmationSent) -> Unit)? = null
 
+    /**
+     * When set, this car **ends the charging** once a station reading strays further from its own count
+     * than the limit allows, and says why in the `SessionStopReq`: `EVTerminationCode`
+     * [MeteringDeviation.TERMINATION_CODE] and the four figures in `EVTerminationExplanation`. Null, the
+     * default, never stops over the meter. The C# counterpart is `Evcc20Base.StopOnMeteringDeviation`.
+     *
+     * It keeps confirming what the station asks it to confirm: [V2G20-1084] makes that a shall, and the
+     * confirmation only says the reading was received.
+     */
+    var stopOnMeteringDeviation: MeteringDeviationLimit? = null
+
+    /** The reading this car ended the charging over, or null if it did not. */
+    var meteringDeviation: MeteringDeviation? = null
+        private set
+
+    /** Called once, when a reading crosses [stopOnMeteringDeviation]. */
+    var onMeteringDeviation: ((MeteringDeviation) -> Unit)? = null
+
+    /**
+     * Compares a station reading with this car's own count. Called by the AC and DC loops **after** they
+     * sampled [meter], so the pair describes one iteration; a bidirectional reading is compared net,
+     * charged minus discharged.
+     */
+    protected fun noteStationReading(chargedWh: ULong, dischargedWh: ULong?) {
+
+        val limit = stopOnMeteringDeviation ?: return
+        if (meteringDeviation != null) return
+
+        val stationNetWh = chargedWh.toDouble() - (dischargedWh?.toDouble() ?: 0.0)
+        if (limit.exceededBy(stationNetWh, meter.energy)) {
+            val deviation = MeteringDeviation(stationNetWh, meter.energy, limit.limitWh(stationNetWh))
+            meteringDeviation = deviation
+            onMeteringDeviation?.invoke(deviation)
+        }
+    }
+
     /** The schedule tuple PowerDelivery(Start) selected, or null in Dynamic control mode. */
     private var selectedScheduleTupleId: UInt? = null
 
@@ -656,8 +694,10 @@ abstract class Evcc20Base(
             CommonMessagesCodec.encode(PowerDeliveryReq(sessionCtx.toCommonHeader(),
                 Processing.Finished, ChargeProgress.Start, evPowerProfile, null)))
 
-        repeat(CHARGE_CYCLES) {
+        // Left after the iteration whose reading crossed the limit, as the C# car leaves it.
+        for (cycle in 0 until CHARGE_CYCLES) {
             runChargeLoopIteration()
+            if (meteringDeviation != null) break
             pollDelay(POLL_INTERVAL_MS)
         }
 
@@ -667,7 +707,7 @@ abstract class Evcc20Base(
             CommonMessagesCodec.encode(PowerDeliveryReq(sessionCtx.toCommonHeader(),
                 Processing.Finished, ChargeProgress.Stop, null, null)))
 
-        if (!renegotiationRequested) break
+        if (!renegotiationRequested || meteringDeviation != null) break
 
         renegotiationRequested = false
         renegotiations++
@@ -684,8 +724,13 @@ abstract class Evcc20Base(
 
         runPostChargeSequence()
 
+        // Stopped over the meter: ended for good, whatever stopMode says, and with the reason.
+        val reason = meteringDeviation
         exchange<SessionStopRes>(MessageSet.Iso20CommonMessages,
-            CommonMessagesCodec.encode(SessionStopReq(sessionCtx.toCommonHeader(), stopMode, null, null)))
+            CommonMessagesCodec.encode(SessionStopReq(sessionCtx.toCommonHeader(),
+                if (reason != null) ChargingSession.Terminate else stopMode,
+                reason?.let { MeteringDeviation.TERMINATION_CODE },
+                reason?.explanation)))
     }
 
 

@@ -146,6 +146,39 @@ open class Evcc20Base {
     /// Called for each confirmation once the station has answered it.
     public var onMeteringConfirmation: ((MeteringConfirmationSent) -> Void)?
 
+    // ── stopping over the meter ───────────────────────────────────────────
+
+    /// When set, this car **ends the charging** once a station reading strays further from its own
+    /// count than the limit allows, and says why in the `SessionStopReq`: `EVTerminationCode`
+    /// `MeteringDeviation.terminationCode` and the four figures in `EVTerminationExplanation`. Nil, the
+    /// default, never stops over the meter. The C# counterpart is `Evcc20Base.StopOnMeteringDeviation`.
+    ///
+    /// It keeps confirming what the station asks it to confirm: [V2G20-1084] makes that a shall, and
+    /// the confirmation only says the reading was received.
+    public var stopOnMeteringDeviation: MeteringDeviationLimit?
+
+    /// The reading this car ended the charging over, or nil if it did not.
+    public private(set) var meteringDeviation: MeteringDeviation?
+
+    /// Called once, when a reading crosses `stopOnMeteringDeviation`.
+    public var onMeteringDeviation: ((MeteringDeviation) -> Void)?
+
+    /// Compares a station reading with this car's own count. Called by the AC and DC loops **after**
+    /// they sampled `meter`, so the pair describes one iteration; a bidirectional reading is compared
+    /// net, charged minus discharged.
+    func noteStationReading(chargedWh: UInt64, dischargedWh: UInt64?) {
+
+        guard let limit = stopOnMeteringDeviation, meteringDeviation == nil else { return }
+
+        let stationNetWh = Double(chargedWh) - Double(dischargedWh ?? 0)
+        if limit.exceededBy(stationNetWh: stationNetWh, vehicleWh: meter.energy) {
+            let deviation = MeteringDeviation(stationNetWh: stationNetWh, vehicleWh: meter.energy,
+                                              limitWh: limit.limitWh(stationNetWh))
+            meteringDeviation = deviation
+            onMeteringDeviation?(deviation)
+        }
+    }
+
     /// The schedule tuple PowerDelivery(Start) selected, or nil in Dynamic control mode.
     fileprivate var selectedScheduleTupleId: UInt32?
 
@@ -538,8 +571,10 @@ open class Evcc20Base {
                 header: sessionCtx.toCommonHeader(), eVProcessing: .Finished,
                 chargeProgress: .Start, eVPowerProfile: evPowerProfile)))
 
+        // Left after the iteration whose reading crossed the limit, as the C# car leaves it.
         for _ in 0 ..< Self.chargeCycles {
             try runChargeLoopIteration()
+            if meteringDeviation != nil { break }
             pollDelay(Self.pollIntervalMs)
         }
 
@@ -550,7 +585,7 @@ open class Evcc20Base {
                 header: sessionCtx.toCommonHeader(), eVProcessing: .Finished,
                 chargeProgress: .Stop)))
 
-        if !renegotiationRequested { break }
+        if !renegotiationRequested || meteringDeviation != nil { break }
 
         renegotiationRequested = false
         renegotiations += 1
@@ -567,9 +602,13 @@ open class Evcc20Base {
 
         try runPostChargeSequence()
 
+        // Stopped over the meter: ended for good, whatever stopMode says, and with the reason.
+        let reason = meteringDeviation
         let _: SessionStopRes = try exchange(.iso20CommonMessages,
             CommonMessagesCodec.encode(SessionStopReq(header: sessionCtx.toCommonHeader(),
-                                                      chargingSession: stopMode)))
+                                                      chargingSession: reason != nil ? .Terminate : stopMode,
+                                                      eVTerminationCode: reason.map { _ in MeteringDeviation.terminationCode },
+                                                      eVTerminationExplanation: reason?.explanation)))
     }
 
     /// ServiceDiscovery → ServiceDetail → ServiceSelection.

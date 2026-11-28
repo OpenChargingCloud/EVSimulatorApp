@@ -13,6 +13,8 @@ import cloud.charging.v2g.iso20.dc.DC_ChargeLoopRes
 import cloud.charging.v2g.iso20.common.ChargingSession
 import cloud.charging.v2g.iso20.common.ResponseCode
 import cloud.charging.v2g.metering.MeterSignature
+import cloud.charging.v2g.metering.MeteringDeviation
+import cloud.charging.v2g.metering.MeteringDeviationLimit
 import cloud.charging.v2g.tp.V2GTPDecodeResult
 import cloud.charging.v2g.tp.V2GTPDispatcher
 
@@ -128,6 +130,45 @@ class Evcc20TraceTest {
         assertTrue(replay.complete,
             "the session stopped after ${replay.replayed} recorded exchanges — it ended early, " +
             "which sends no wrong bytes and would otherwise pass")
+    }
+
+    /**
+     * A car that finds the meter wrong ends the charging and says why, byte for byte as the C# car did.
+     *
+     * The station's meter reads 10 % high and the car is set to 5 % (never under 10 Wh, the C# command
+     * line's default floor), so the first reading, 880 Wh against its own 800, ends the session. Its
+     * `SessionStopReq` carries `EVTerminationCode` and an explanation whose every character the replay
+     * compares: that text is the contract between the three languages, rounding included.
+     */
+    @Test
+    fun aCarThatFindsTheMeterWrongStopsAndSaysWhyByteForByte() {
+
+        val (replay, evcc) = replayWith("iso20-dc-eim-meter-deviation", PowerMode.Dc) {
+            it.stopOnMeteringDeviation = MeteringDeviationLimit(0.05, 10uL)
+        }
+
+        assertTrue(replay.complete, "the session stopped after ${replay.replayed} recorded exchanges")
+
+        val deviation = assertNotNull(evcc.meteringDeviation, "the car did not stop over the meter")
+        assertEquals("meter 880 Wh, vehicle 800 Wh, difference 80 Wh, beyond 44 Wh", deviation.explanation)
+        assertEquals("urn:openchargingcloud:EVTerminationCode:MeteringDeviation", MeteringDeviation.TERMINATION_CODE)
+    }
+
+    /** The same station without the limit: the car charges on, and the recording no longer fits. */
+    @Test
+    fun withoutALimitTheCarChargesOnAndTheRecordingNoLongerFits() {
+        assertFailsWith<TraceMismatch> { replay("iso20-dc-eim-meter-deviation", PowerMode.Dc) }
+    }
+
+    /** The rounding every port has to share: whole watt-hours, half away from zero. */
+    @Test
+    fun theExplanationRoundsAsTheCSharpCarDoes() {
+        assertEquals(3L,  MeteringDeviation.wh(2.5))
+        assertEquals(-3L, MeteringDeviation.wh(-2.5))
+        assertEquals(2L,  MeteringDeviation.wh(2.4999))
+        assertEquals(0L,  MeteringDeviation.wh(-0.4))
+        assertEquals("meter -2001 Wh, vehicle -1901 Wh, difference -101 Wh, beyond 10 Wh",
+                     MeteringDeviation.explain(-2001.0, -1900.5, 10.0))
     }
 
     /**

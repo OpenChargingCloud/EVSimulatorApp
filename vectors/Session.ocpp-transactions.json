@@ -1742,6 +1742,36 @@
         }
       ]
     },
+    "iso20-dc-eim-meter-deviation": {
+      "schemaVersion": 1,
+      "source": "station-recording",
+      "transactionId": "TX-iso20-dc-eim-meter-deviation",
+      "evseId": "DE*ABC*E1",
+      "v2gSessionId": "0a0b0c0d0e0f1011",
+      "meterValues": [
+        {
+          "timestamp": "2026-01-01T00:00:00Z",
+          "sampledValue": [
+            {
+              "value": "880",
+              "context": "Transaction.End",
+              "measurand": "Energy.Active.Import.Register",
+              "unitOfMeasure": {
+                "unit": "Wh",
+                "multiplier": 0
+              },
+              "location": "Outlet",
+              "signedMeterValue": {
+                "signedMeterData": "a00507aa17f28fc1eefe20d74560cc4c7b17c055c0b5bb103888841a0c7dcf8e1949c76220dc1328048226b8a0335afed4f6033085375048608b68e704279435",
+                "signingMethod": "ECDSA-secp256r1-SHA256",
+                "encodingMethod": "V2G-METER-1",
+                "publicKey": "8df1dbff9ad6faf3951ee551fc3983c9b00c52e5ee37c1864698f1fbc8f4888441a9a14496be6e552fe391b91ae69bc0745f1a30a141be2fe1e830b38aa5cbea"
+              }
+            }
+          ]
+        }
+      ]
+    },
     "iso20-dc-eim-pause": {
       "schemaVersion": 1,
       "source": "station-recording",
