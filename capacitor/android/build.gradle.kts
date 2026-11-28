@@ -60,7 +60,7 @@ dependencies {
     // plugin's own coordinates, which the consumed build resolves differently from the standalone
     // one, and a coordinate with no version resolves to nothing at all.
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.1.0")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.21")
 
     testImplementation("com.capacitorjs:core:8.6.3")
 
