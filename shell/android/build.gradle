@@ -4,15 +4,15 @@ buildscript {
 
     // Here rather than in variables.gradle: that file is applied after this block, so a version
     // defined there is not in scope where the classpath below needs it.
-    ext.kotlinVersion = '2.1.0'
+    ext.kotlinVersion = '2.4.21'
 
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.13.0'
-        classpath 'com.google.gms:google-services:4.4.4'
+        classpath 'com.android.tools.build:gradle:8.13.2'
+        classpath 'com.google.gms:google-services:4.6.0'
 
         // The EvSimulator plugin's Android half is Kotlin, and AGP 8 has no Kotlin of its own — so
         // the compiler has to be on the buildscript classpath of whichever build compiles it. The

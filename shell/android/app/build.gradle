@@ -22,6 +22,15 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    // Bouncy Castle 1.87 ships META-INF/LICENSE.md in each of bcprov, bcpkix and bcutil (1.78.1
+    // shipped none), and the APK merge refuses three files at one path. The three are byte-identical
+    // — Bouncy Castle's MIT licence — so one copy is packaged: picked, not excluded, because the
+    // licence asks for its notice to travel with the code.
+    packaging {
+        resources {
+            pickFirsts += ['META-INF/LICENSE.md']
+        }
+    }
 }
 
 repositories {
